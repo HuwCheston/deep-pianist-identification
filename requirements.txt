@@ -1,0 +1,15 @@
+pandas
+numpy<2.0.0
+scikit-learn
+scipy
+matplotlib
+seaborn
+jupyter
+joblib
+tqdm
+pretty-midi
+torch
+torchaudio
+torchvision
+torchmetrics
+mlflow
