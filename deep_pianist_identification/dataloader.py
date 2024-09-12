@@ -58,7 +58,11 @@ class ClipLoader:
 
     @staticmethod
     def normalize_velocity(track_array: np.ndarray) -> np.ndarray:
-        return (track_array - np.min(track_array)) / (np.max(track_array) - np.min(track_array))
+        # TODO: this means no notes are played at all!
+        if np.max(track_array) == 0:
+            return track_array
+        else:
+            return (track_array - np.min(track_array)) / (np.max(track_array) - np.min(track_array))
 
     def __getitem__(self, idx: int) -> np.ndarray:
         clip = self.load_clip_from_cache(idx)
@@ -86,12 +90,10 @@ class TrackLoader(Dataset):
     def __getitem__(self, idx):
         track_path, target_class, clip_idx = self.clips[idx]
         with warnings.catch_warnings():
-            warnings.filterwarnings('error')
+            warnings.filterwarnings('raise')
             try:
                 cl = ClipLoader(track_path)
                 loaded_clip = cl.__getitem__(clip_idx)
             except Warning as e:
-                print('error found:', e)
-                print(track_path, target_class, clip_idx)
-                raise
+                print(f'Track {track_path}, Clip {clip_idx}, hit warning: ', e)
         return loaded_clip, target_class
