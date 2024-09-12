@@ -3,8 +3,9 @@
 
 """Training module"""
 
-import time
+from time import time
 
+import mlflow
 import numpy as np
 import torch
 import torch.nn as nn
@@ -14,7 +15,7 @@ from tqdm import tqdm
 
 from deep_pianist_identification.dataloader import TrackLoader
 from deep_pianist_identification.encoders import CRNNet
-from deep_pianist_identification.utils import timer, SEED
+from deep_pianist_identification.utils import SEED
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 BATCH_SIZE = 64
@@ -59,23 +60,15 @@ class TrainModule:
     def training(self):
         train_loss, train_fs, train_acc = [], [], []
         self.model.train()
-        start = time.time()
         for features, targets in tqdm(self.train_loader, total=len(self.train_loader), desc='Training...'):
-            end = time.time()
-            print(f'Took {end - start} seconds to load batch')
-            # Forwards pass
-            with timer('forwards pass'):
-                loss, f1, acc = self.step(features, targets)
-            # Backwards pass
-            with timer('backwards pass'):
-                self.opt.zero_grad()
-                loss.backward()
-                self.opt.step()
+            loss, f1, acc = self.step(features, targets)
+            self.opt.zero_grad()
+            loss.backward()
+            self.opt.step()
             # Append all metrics from this batch
             train_loss.append(loss.item())
             train_fs.append(f1.item())
             train_acc.append(acc.item())
-            start = time.time()
         return np.mean(train_loss), np.mean(train_fs), np.mean(train_acc)
 
     def testing(self):
@@ -93,13 +86,27 @@ class TrainModule:
 
     def run_training(self):
         for epoch in range(EPOCHS):
+            epoch_start = time()
             train_loss, train_f, train_acc = self.training()
-            print(f'Training epoch {epoch} / {EPOCHS}: loss {train_loss}, F1 {train_f}, acc {train_acc}')
             test_loss, test_f, test_acc = self.testing()
-            print(f'Testing epoch {epoch} / {EPOCHS}: loss {test_loss}, F1 {test_f}, acc {test_acc}')
+            # Log parameters from this epoch in MLFlow
+            mlflow.log_params(dict(
+                epoch=epoch,
+                epoch_time=time() - epoch_start,
+                train_loss=train_loss,
+                train_f=train_f,
+                train_acc=train_acc,
+                test_loss=test_loss,
+                test_f=test_f,
+                test_acc=test_acc
+            ))
 
 
 if __name__ == "__main__":
     torch.manual_seed(SEED)
-    tm = TrainModule()
-    tm.run_training()
+    mlflow.set_tracking_uri(uri="http://127.0.0.1:8080")
+    mlflow.set_experiment("crnn-jtd+pijama")
+
+    with mlflow.start_run():
+        tm = TrainModule()
+        tm.run_training()
