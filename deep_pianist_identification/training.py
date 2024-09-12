@@ -8,7 +8,7 @@ import time
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+import torchmetrics.classification as classification
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -20,11 +20,12 @@ DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 BATCH_SIZE = 64
 LEARNING_RATE = 1e-3
 EPOCHS = 100
+N_CLASSES = 25
 
 
 class TrainModule:
     def __init__(self):
-        self.model = CRNNet(has_gru=True).to(DEVICE)
+        self.model = CRNNet(has_gru=True, n_classes=N_CLASSES).to(DEVICE)
         self.train_loader = DataLoader(
             TrackLoader('train'),
             batch_size=BATCH_SIZE,
@@ -40,17 +41,23 @@ class TrainModule:
             # num_workers=os.cpu_count()
         )
         self.loss_fn = nn.CrossEntropyLoss(reduction='mean').to(DEVICE)
+        self.f1_fn = classification.F1Score(task="multiclass", num_classes=N_CLASSES, average="macro").to(DEVICE)
+        self.acc_fn = classification.Accuracy(task="multiclass", num_classes=N_CLASSES).to(DEVICE)
         self.opt = torch.optim.Adam(self.model.parameters(), lr=1e-3)
 
     def step(self, features, targets):
         features = features.to(DEVICE)
-        embeds = self.model(features)
-        logits = F.softmax(embeds, dim=1)
-        loss = self.loss_fn(logits, targets.to(DEVICE))
-        return loss
+        targets = targets.to(DEVICE)
+        logits = self.model(features)
+        # No need to softmax beforehand, `nn.CrossEntropyLoss` does this automatically
+        loss = self.loss_fn(logits, targets)
+        predictions = torch.argmax(logits, dim=1)
+        f1 = self.f1_fn(predictions, targets)
+        acc = self.acc_fn(predictions, targets)
+        return loss, f1, acc
 
     def training(self):
-        train_loss = []
+        train_loss, train_fs, train_acc = [], [], []
         self.model.train()
         start = time.time()
         for features, targets in tqdm(self.train_loader, total=len(self.train_loader), desc='Training...'):
@@ -58,32 +65,38 @@ class TrainModule:
             print(f'Took {end - start} seconds to load batch')
             # Forwards pass
             with timer('forwards pass'):
-                loss = self.step(features, targets)
+                loss, f1, acc = self.step(features, targets)
             # Backwards pass
             with timer('backwards pass'):
                 self.opt.zero_grad()
                 loss.backward()
                 self.opt.step()
-                train_loss.append(loss.item())
+            # Append all metrics from this batch
+            train_loss.append(loss.item())
+            train_fs.append(f1.item())
+            train_acc.append(acc.item())
             start = time.time()
-        return np.mean(train_loss)
+        return np.mean(train_loss), np.mean(train_fs), np.mean(train_acc)
 
     def testing(self):
-        test_loss = []
+        test_loss, test_fs, test_acc = [], [], []
         self.model.eval()
         with torch.no_grad():
             for features, targets in tqdm(self.test_loader, total=len(self.test_loader), desc='Testing...'):
                 # Forwards pass
-                loss = self.step(features, targets)
+                loss, f1, acc = self.step(features, targets)
                 # No backwards pass
                 test_loss.append(loss.item())
-        return np.mean(test_loss)
+                test_fs.append(f1.item())
+                test_acc.append(acc.item())
+        return np.mean(test_loss), np.mean(test_fs), np.mean(test_acc)
 
     def run_training(self):
         for epoch in range(EPOCHS):
-            train_loss = self.training()
-            test_loss = self.testing()
-            print(f'Epoch {epoch}, train loss: {train_loss}, test loss: {test_loss}')
+            train_loss, train_f, train_acc = self.training()
+            print(f'Training epoch {epoch} / {EPOCHS}: loss {train_loss}, F1 {train_f}, acc {train_acc}')
+            test_loss, test_f, test_acc = self.testing()
+            print(f'Testing epoch {epoch} / {EPOCHS}: loss {test_loss}, F1 {test_f}, acc {test_acc}')
 
 
 if __name__ == "__main__":
