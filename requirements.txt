@@ -1,5 +1,5 @@
 pandas
-numpy<2.0.0
+# numpy<2.0.0
 scikit-learn
 scipy
 matplotlib
@@ -8,8 +8,8 @@ jupyter
 joblib
 tqdm
 pretty-midi
-torch
-torchaudio
-torchvision
+# torch
+# torchaudio
+# torchvision
 torchmetrics
 mlflow

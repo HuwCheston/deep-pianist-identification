@@ -104,6 +104,9 @@ target/
 *.gif
 *.mid
 *.zip
+*.json
+*.png
+*.npy
 
 # Ignore model files used by MVSEP
 *.th
