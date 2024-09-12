@@ -18,7 +18,7 @@ from deep_pianist_identification.encoders import CRNNet
 from deep_pianist_identification.utils import SEED
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-BATCH_SIZE = 64
+BATCH_SIZE = 128
 LEARNING_RATE = 1e-3
 EPOCHS = 100
 N_CLASSES = 25
@@ -57,10 +57,10 @@ class TrainModule:
         acc = self.acc_fn(predictions, targets)
         return loss, f1, acc
 
-    def training(self):
+    def training(self, epoch_num: int):
         train_loss, train_fs, train_acc = [], [], []
         self.model.train()
-        for features, targets in tqdm(self.train_loader, total=len(self.train_loader), desc='Training...'):
+        for features, targets in tqdm(self.train_loader, total=len(self.train_loader), desc=f'Training, epoch {epoch_num} / {EPOCHS}...'):
             loss, f1, acc = self.step(features, targets)
             self.opt.zero_grad()
             loss.backward()
@@ -71,11 +71,11 @@ class TrainModule:
             train_acc.append(acc.item())
         return np.mean(train_loss), np.mean(train_fs), np.mean(train_acc)
 
-    def testing(self):
+    def testing(self, epoch_num: int):
         test_loss, test_fs, test_acc = [], [], []
         self.model.eval()
         with torch.no_grad():
-            for features, targets in tqdm(self.test_loader, total=len(self.test_loader), desc='Testing...'):
+            for features, targets in tqdm(self.test_loader, total=len(self.test_loader), desc=f'Testing, epoch {epoch_num} / {EPOCHS}...'):
                 # Forwards pass
                 loss, f1, acc = self.step(features, targets)
                 # No backwards pass
@@ -87,10 +87,10 @@ class TrainModule:
     def run_training(self):
         for epoch in range(EPOCHS):
             epoch_start = time()
-            train_loss, train_f, train_acc = self.training()
-            test_loss, test_f, test_acc = self.testing()
+            train_loss, train_f, train_acc = self.training(epoch)
+            test_loss, test_f, test_acc = self.testing(epoch)
             # Log parameters from this epoch in MLFlow
-            mlflow.log_params(dict(
+            metrics = dict(
                 epoch=epoch,
                 epoch_time=time() - epoch_start,
                 train_loss=train_loss,
@@ -99,7 +99,8 @@ class TrainModule:
                 test_loss=test_loss,
                 test_f=test_f,
                 test_acc=test_acc
-            ))
+            )
+            mlflow.log_metrics(metrics, step=epoch)
 
 
 if __name__ == "__main__":
