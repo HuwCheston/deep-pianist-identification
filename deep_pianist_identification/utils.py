@@ -34,6 +34,9 @@ def seed_everything(seed: int = 42) -> None:
     np.random.seed(seed)
 
 
+def total_parameters(layer) -> int:
+    return sum(p.numel() for p in layer.parameters())
+
 @contextmanager
 def timer(name: str) -> ContextManager[None]:
     """Print out how long it takes to execute the provided block."""

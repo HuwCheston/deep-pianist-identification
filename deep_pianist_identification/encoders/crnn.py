@@ -6,8 +6,7 @@
 import torch
 import torch.nn as nn
 
-from deep_pianist_identification.encoders.cnn import ConvLayer, LinearLayer
-from deep_pianist_identification.utils import N_CLASSES
+from deep_pianist_identification.encoders import CNNet
 
 __all__ = ["CRNNet", "GRU"]
 
@@ -35,25 +34,12 @@ class GRU(nn.Module):
         return a
 
 
-class CRNNet(nn.Module):
-    def __init__(self):
-        super().__init__()
-        # Convolutional layers output size: [64, 64, 128, 128, 256, 256, 512, 512]
-        # Each layer goes: conv -> dropout -> relu -> batchnorm (-> avgpool, every 2 layers)
-        self.layer1 = ConvLayer(1, 64)
-        self.layer2 = ConvLayer(64, 64, has_pool=True)
-        self.layer3 = ConvLayer(64, 128)
-        self.layer4 = ConvLayer(128, 128, has_pool=True)
-        self.layer5 = ConvLayer(128, 256)
-        self.layer6 = ConvLayer(256, 256, has_pool=True)
-        self.layer7 = ConvLayer(256, 512)
-        self.layer8 = ConvLayer(512, 512, has_pool=False)  # No pooling for final layer
+class CRNNet(CNNet):
+    def __init__(self, use_ibn: bool = False):
+        super().__init__(use_ibn=use_ibn)
         # Bidirectional GRU, operates on features * height dimension
         self.gru = GRU(512 * 11)  # final_output * (input_height / num_layers)
         self.maxpool = nn.AdaptiveMaxPool2d((512, 1))
-        # Linear layers output size: [128, n_classes]
-        self.fc1 = LinearLayer(512, 128)
-        self.fc2 = LinearLayer(128, N_CLASSES)
 
     def forward(self, x) -> torch.tensor:
         # (batch_size, channels, height, width)
@@ -75,3 +61,23 @@ class CRNNet(nn.Module):
         x = self.fc1(x)
         x = self.fc2(x)
         return x
+
+
+if __name__ == "__main__":
+    import deep_pianist_identification.utils as utils
+    from deep_pianist_identification.dataloader import MIDILoader
+    from torch.utils.data import DataLoader
+
+    size = 1
+    n_batches = 10
+    times = []
+    loader = DataLoader(
+        MIDILoader('train', n_clips=2),
+        batch_size=size,
+        shuffle=True,
+    )
+    model = CRNNet(use_ibn=True).to(utils.DEVICE)
+    print(utils.total_parameters(model))
+    for feat, _ in loader:
+        embeds = model(feat.to(utils.DEVICE))
+        print(embeds.size())
