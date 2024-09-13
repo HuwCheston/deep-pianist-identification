@@ -135,11 +135,17 @@ class TrainModule:
         checkpoint_folder = os.path.join(get_project_root(), 'checkpoints', self.experiment, self.run)
         # If we haven't created a checkpoint for this run, skip loading and train from scratch
         if not os.path.exists(checkpoint_folder):
-            logger.warning('Checkpoint folder does not exist, skipping load!')
+            logger.warning('Checkpoint folder does not exist for this experiment/run, skipping load!')
+            return
+
+        # Get all the checkpoints for the current experiment/run combination
+        checkpoints = os.listdir(checkpoint_folder)
+        if len(checkpoints) == 0:
+            logger.warning('No checkpoints have been created yet for this experiment/run, skipping load!')
             return
 
         # Sort the checkpoints and load the latest one
-        latest_checkpoint = sorted(os.listdir(checkpoint_folder))[-1]
+        latest_checkpoint = sorted(checkpoints)[-1]
         checkpoint_path = f'{checkpoint_folder}/{latest_checkpoint}'
         # This will raise a warning about possible ACE exploits, but we don't care
         loaded = torch.load(checkpoint_path, map_location=DEVICE, weights_only=False)
