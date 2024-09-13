@@ -1,0 +1,17 @@
+experiment: baselines
+run: crnn-jtd+pijama
+learning_rate: 1.0e-3
+batch_size: 12
+epochs: 100
+dataset_cfg:
+  train_size: None
+  test_size: None
+model_cfg:
+  encoder: crnn
+  has_gru: True
+checkpoint_cfg:
+  save_checkpoints: True
+  checkpoint_after_n_epochs: 10
+mlflow_cfg:
+  use: False
+  tracking_uri: http://127.0.0.1:8080
