@@ -1,12 +1,12 @@
 experiment: baselines
-run: crnn-jtd+pijama
+run: cnn-jtd+pijama
 learning_rate: 1.0e-4
 batch_size: 12
 epochs: 100
 dataset_cfg:
   train_size: null
   test_size: null
-encoder_module: crnn
+encoder_module: cnn
 model_cfg:
   use_ibn: False
 checkpoint_cfg:
