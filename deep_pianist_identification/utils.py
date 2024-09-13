@@ -5,6 +5,7 @@
 
 import json
 import os
+import random
 import string
 from contextlib import contextmanager
 from functools import cache
@@ -12,6 +13,10 @@ from pathlib import Path
 from time import time
 from typing import ContextManager
 
+import numpy as np
+import torch
+
+DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 SEED = 42
 
 PIANO_KEYS = 88
@@ -20,6 +25,13 @@ MIDI_OFFSET = 21
 
 CLIP_LENGTH = 30
 N_CLASSES = 25
+
+
+def seed_everything(seed: int = 42) -> None:
+    """Sets all random seeds for reproducible results."""
+    torch.manual_seed(seed)
+    random.seed(seed)
+    np.random.seed(seed)
 
 
 @contextmanager
