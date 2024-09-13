@@ -16,16 +16,12 @@ from deep_pianist_identification.utils import get_project_root, PIANO_KEYS, FPS,
 
 __all__ = ["MIDILoader"]
 
-MINIMUM_FRAMES = 1  # a note must last this number of frames to be used
+MINIMUM_FRAMES = 5  # a note must last this number of frames to be used
 
 
 @jit(nopython=True)
 def normalize_array(track_array: np.ndarray) -> np.ndarray:
-    # TODO: this means no notes are played at all!
-    if np.max(track_array) == 0:
-        return track_array
-    else:
-        return (track_array - np.min(track_array)) / (np.max(track_array) - np.min(track_array))
+    return (track_array - np.min(track_array)) / (np.max(track_array) - np.min(track_array))
 
 
 @jit(nopython=True, fastmath=True)
@@ -58,14 +54,15 @@ class MIDILoader(Dataset):
         split_df = pd.read_csv(csv_path, delimiter=',', index_col=0)
         self.clips = []
         self.normalize_velocity = normalize_velocity
-        for idx, track in tqdm(split_df.iterrows(), desc=f"Getting {split} data: "):
+        for idx, track in tqdm(split_df.iterrows(), desc=f"Getting {split} data: ", total=len(split_df)):
             track_path = os.path.join(get_project_root(), 'data/clips', track['track'])
             track_clips = len(os.listdir(track_path))
             for clip_idx in range(track_clips):
                 self.clips.append((track_path, track['pianist'], clip_idx))
-        self.clips = self.clips[:n_clips]
+        if n_clips is not None:
+            self.clips = self.clips[:n_clips]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.clips)
 
     def __getitem__(self, idx: int) -> tuple:
@@ -78,18 +75,20 @@ class MIDILoader(Dataset):
 
 if __name__ == "__main__":
     from time import time
-    from deep_pianist_identification.training import BATCH_SIZE
+    from loguru import logger
 
-    loader = DataLoader(
-        MIDILoader('train'),
-        batch_size=BATCH_SIZE,
-        shuffle=True,
-    )
+    batch_size = 12
     n_batches = 10
     times = []
+    loader = DataLoader(
+        MIDILoader('train'),
+        batch_size=batch_size,
+        shuffle=True,
+    )
 
     for i in tqdm(range(n_batches), desc='Loading batches: '):
         start = time()
         _, __ = next(iter(loader))
         times.append(time() - start)
-    print(f'Took {np.mean(times)} (SD = {np.std(times)}) to create {n_batches} batches')
+    logger.info(f'Took {np.mean(times):.2}s (SD = {np.std(times):.2f}) '
+                f'to create {n_batches} batches of {batch_size} items.')
