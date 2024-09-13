@@ -9,41 +9,43 @@ import mlflow
 import numpy as np
 import torch
 import torch.nn as nn
-import torchmetrics.classification as classification
 from torch.utils.data import DataLoader
+from torchmetrics.classification import Accuracy, F1Score, ConfusionMatrix
 from tqdm import tqdm
 
-from deep_pianist_identification.dataloader import TrackLoader
+from deep_pianist_identification.dataloader import MIDILoader
 from deep_pianist_identification.encoders import CRNNet
-from deep_pianist_identification.utils import SEED
+from deep_pianist_identification.utils import SEED, N_CLASSES
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-BATCH_SIZE = 128
-LEARNING_RATE = 1e-3
-EPOCHS = 100
-N_CLASSES = 25
+BATCH_SIZE = 16  # 16 in ByteDance paper
+LEARNING_RATE = 1e-3  # 1e-3 in ByteDance paper
+EPOCHS = 100  # 100 in ByteDance paper
 
 
 class TrainModule:
     def __init__(self):
         self.model = CRNNet(has_gru=True, n_classes=N_CLASSES).to(DEVICE)
         self.train_loader = DataLoader(
-            TrackLoader('train'),
-            batch_size=BATCH_SIZE,
-            shuffle=False,
-            drop_last=False,
-            # num_workers=os.cpu_count()
-        )
-        self.test_loader = DataLoader(
-            TrackLoader('test'),
+            MIDILoader('train', n_clips=BATCH_SIZE * 2),
             batch_size=BATCH_SIZE,
             shuffle=True,
             drop_last=False,
-            # num_workers=os.cpu_count()
+        )
+        self.test_loader = DataLoader(
+            MIDILoader('test', n_clips=BATCH_SIZE * 2),
+            batch_size=BATCH_SIZE,
+            shuffle=True,
+            drop_last=False,
         )
         self.loss_fn = nn.CrossEntropyLoss(reduction='mean').to(DEVICE)
-        self.f1_fn = classification.F1Score(task="multiclass", num_classes=N_CLASSES, average="macro").to(DEVICE)
-        self.acc_fn = classification.Accuracy(task="multiclass", num_classes=N_CLASSES).to(DEVICE)
+        self.f1_fn = F1Score(task="multiclass", num_classes=N_CLASSES, average="macro").to(DEVICE)
+        self.acc_fn = Accuracy(task="multiclass", num_classes=N_CLASSES).to(DEVICE)
+        self.confusion_matrix_fn = ConfusionMatrix(
+            task="multiclass",
+            num_classes=N_CLASSES,
+            normalize='true'
+        ).to(DEVICE)
         self.opt = torch.optim.Adam(self.model.parameters(), lr=1e-3)
 
     def step(self, features, targets):
@@ -55,13 +57,17 @@ class TrainModule:
         predictions = torch.argmax(logits, dim=1)
         f1 = self.f1_fn(predictions, targets)
         acc = self.acc_fn(predictions, targets)
-        return loss, f1, acc
+        return loss, f1, acc, predictions
 
     def training(self, epoch_num: int):
         train_loss, train_fs, train_acc = [], [], []
         self.model.train()
-        for features, targets in tqdm(self.train_loader, total=len(self.train_loader), desc=f'Training, epoch {epoch_num} / {EPOCHS}...'):
-            loss, f1, acc = self.step(features, targets)
+        for features, targets in tqdm(
+                self.train_loader,
+                total=len(self.train_loader),
+                desc=f'Training, epoch {epoch_num} / {EPOCHS}...'
+        ):
+            loss, f1, acc, _ = self.step(features, targets)
             self.opt.zero_grad()
             loss.backward()
             self.opt.step()
@@ -73,11 +79,18 @@ class TrainModule:
 
     def testing(self, epoch_num: int):
         test_loss, test_fs, test_acc = [], [], []
+        all_predictions, all_targets = [], []
         self.model.eval()
         with torch.no_grad():
-            for features, targets in tqdm(self.test_loader, total=len(self.test_loader), desc=f'Testing, epoch {epoch_num} / {EPOCHS}...'):
+            for features, targets in tqdm(
+                    self.test_loader,
+                    total=len(self.test_loader),
+                    desc=f'Testing, epoch {epoch_num} / {EPOCHS}...'
+            ):
                 # Forwards pass
-                loss, f1, acc = self.step(features, targets)
+                loss, f1, acc, predictions = self.step(features, targets)
+                all_predictions.append(predictions)
+                all_targets.append(targets)
                 # No backwards pass
                 test_loss.append(loss.item())
                 test_fs.append(f1.item())

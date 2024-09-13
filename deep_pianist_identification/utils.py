@@ -14,6 +14,13 @@ from typing import ContextManager
 
 SEED = 42
 
+PIANO_KEYS = 88
+FPS = 100
+MIDI_OFFSET = 21
+
+CLIP_LENGTH = 30
+N_CLASSES = 25
+
 
 @contextmanager
 def timer(name: str) -> ContextManager[None]:
