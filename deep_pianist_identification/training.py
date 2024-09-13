@@ -132,16 +132,15 @@ class TrainModule:
 
         # Sort the checkpoints and load the latest one
         latest_checkpoint = sorted(os.listdir(checkpoint_folder))[-1]
-        loaded = torch.load(
-            f'{checkpoint_folder}/{latest_checkpoint}',
-            map_location=DEVICE,
-            weights_only=False  # This will raise a warning about possible ACE exploits, but we don't care
-        )
+        checkpoint_path = f'{checkpoint_folder}/{latest_checkpoint}'
+        # This will raise a warning about possible ACE exploits, but we don't care
+        loaded = torch.load(checkpoint_path, map_location=DEVICE, weights_only=False)
         # Set state dictionary for all torch objects
         self.model.load_state_dict(loaded["model_state_dict"], strict=True)
         self.optimizer.load_state_dict(loaded["optimizer_state_dict"])
         # Increment epoch by 1
         self.current_epoch = loaded["epoch"] + 1
+        logger.debug(f'Loaded the checkpoint at {checkpoint_path}!')
 
     def save_checkpoint(self, metrics) -> None:
         """Save the model checkpoint at the current epoch"""

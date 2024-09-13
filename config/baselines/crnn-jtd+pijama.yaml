@@ -4,8 +4,8 @@ learning_rate: 1.0e-4
 batch_size: 12
 epochs: 100
 dataset_cfg:
-  train_size: None
-  test_size: None
+  train_size: null
+  test_size: null
 model_cfg:
   encoder: crnn
   has_gru: True
