@@ -233,8 +233,8 @@ if __name__ == "__main__":
     tm = TrainModule(**args)
     if args["mlflow_cfg"]["use"]:
         mlflow.set_tracking_uri(uri=args["mlflow_cfg"]["tracking_uri"])
-        mlflow.set_experiment(args["mlflow_cfg"]["experiment"])
-        with mlflow.start_run(run_name=args["mlflow_cfg"]["run"]):
+        mlflow.set_experiment(args["experiment"])
+        with mlflow.start_run(run_name=args["run"]):
             tm.run_training()
     else:
         tm.run_training()
