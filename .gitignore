@@ -108,6 +108,8 @@ target/
 *.json
 *.png
 *.npy
+*.pth
+*.pt
 
 # Ignore model files used by MVSEP
 *.th

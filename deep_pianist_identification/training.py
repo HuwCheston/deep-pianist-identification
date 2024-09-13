@@ -20,6 +20,7 @@ from deep_pianist_identification.dataloader import MIDILoader
 from deep_pianist_identification.encoders import CRNNet
 from deep_pianist_identification.utils import DEVICE, N_CLASSES, seed_everything, get_project_root
 
+# Any key-value pairs we don't define in our custom config will be overwritten using these
 DEFAULT_CONFIG = yaml.safe_load(open(os.path.join(get_project_root(), 'config', 'default.yaml')))
 
 
@@ -128,9 +129,14 @@ class TrainModule:
         if not os.path.exists(checkpoint_folder):
             logger.warning('Checkpoint folder does not exist, skipping load!')
             return
+
         # Sort the checkpoints and load the latest one
         latest_checkpoint = sorted(os.listdir(checkpoint_folder))[-1]
-        loaded = torch.load(f'{checkpoint_folder}/{latest_checkpoint}', map_location=DEVICE)
+        loaded = torch.load(
+            f'{checkpoint_folder}/{latest_checkpoint}',
+            map_location=DEVICE,
+            weights_only=False  # This will raise a warning about possible ACE exploits, but we don't care
+        )
         # Set state dictionary for all torch objects
         self.model.load_state_dict(loaded["model_state_dict"], strict=True)
         self.optimizer.load_state_dict(loaded["optimizer_state_dict"])
@@ -144,7 +150,7 @@ class TrainModule:
             # Get the folder of checkpoints for the current experiment/run, and create if it doesn't exist
             checkpoint_folder = os.path.join(get_project_root(), 'checkpoints', self.experiment, self.run)
             if not os.path.exists(checkpoint_folder):
-                os.mkdir(checkpoint_folder)
+                os.makedirs(checkpoint_folder, exist_ok=True)
             # Save everything, including the metrics, state dictionaries, and current epoch
             torch.save(
                 dict(
