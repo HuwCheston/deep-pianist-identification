@@ -52,8 +52,6 @@ def get_midi_clip(midi_fpath, clip_idx) -> np.ndarray:
 
 
 class MIDILoader(Dataset):
-    FORCE_REGEN_CLIP = True
-
     def __init__(self, split: str, n_clips: int = None, normalize_velocity: bool = True):
         super().__init__()
         csv_path = os.path.join(get_project_root(), 'references/data_splits', f'{split}_split.csv')
@@ -61,8 +59,8 @@ class MIDILoader(Dataset):
         self.clips = []
         self.normalize_velocity = normalize_velocity
         for idx, track in tqdm(split_df.iterrows(), desc=f"Getting {split} data: "):
-            track_clips = int(track['duration'] // CLIP_LENGTH)
             track_path = os.path.join(get_project_root(), 'data/clips', track['track'])
+            track_clips = len(os.listdir(track_path))
             for clip_idx in range(track_clips):
                 self.clips.append((track_path, track['pianist'], clip_idx))
         self.clips = self.clips[:n_clips]
