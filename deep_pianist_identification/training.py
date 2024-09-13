@@ -17,11 +17,11 @@ from torchmetrics.classification import Accuracy, F1Score, ConfusionMatrix
 from tqdm import tqdm
 
 from deep_pianist_identification.dataloader import MIDILoader
-from deep_pianist_identification.encoders import CRNNet
+from deep_pianist_identification.encoders import CRNNet, CNNet
 from deep_pianist_identification.utils import DEVICE, N_CLASSES, seed_everything, get_project_root
 
 # Any key-value pairs we don't define in our custom config will be overwritten using these
-DEFAULT_CONFIG = yaml.safe_load(open(os.path.join(get_project_root(), 'config', 'default.yaml')))
+DEFAULT_CONFIG = yaml.safe_load(open(os.path.join(get_project_root(), 'config', 'debug_local.yaml')))
 
 
 class TrainModule:
@@ -32,26 +32,27 @@ class TrainModule:
         self.current_epoch = 0
         # MODEL
         logger.debug('Initialising model...')
-        self.model = CRNNet().to(DEVICE)
+        self.model = self.get_model().to(DEVICE)
         n_params = sum(p.numel() for p in self.model.parameters())
         logger.debug(f'Model parameters: {n_params}')
         # DATALOADERS
-        logger.debug(f'Initialising dataloaders with batch size {self.batch_size}, '
-                     f'train size {self.dataset_cfg["train_size"]}, '
-                     f'test size {self.dataset_cfg["test_size"]}...')
+        logger.debug(f'Initialising training dataloader with batch size {self.batch_size} '
+                     f'and parameters {self.train_dataset_cfg}')
         self.train_loader = DataLoader(
             MIDILoader(
                 'train',
-                n_clips=self.dataset_cfg["train_size"]
+                **self.train_dataset_cfg
             ),
             batch_size=self.batch_size,
             shuffle=True,
             drop_last=False,
         )
+        logger.debug(f'Initialising test dataloader with batch size {self.batch_size} '
+                     f'and parameters {self.test_dataset_cfg}')
         self.test_loader = DataLoader(
             MIDILoader(
                 'test',
-                n_clips=self.dataset_cfg["test_size"]
+                **self.test_dataset_cfg
             ),
             batch_size=self.batch_size,
             shuffle=True,
@@ -73,6 +74,13 @@ class TrainModule:
         # CHECKPOINTS
         if self.checkpoint_cfg["load_checkpoints"]:
             self.load_checkpoint()
+
+    def get_model(self):
+        logger.debug(f"Using encoder {self.encoder_module} with parameters {self.model_cfg}")
+        if self.encoder_module == "cnn":
+            return CNNet(**self.model_cfg)
+        elif self.encoder_module == "crnn":
+            return CRNNet(**self.model_cfg)
 
     def step(self, features: torch.tensor, targets: torch.tensor) -> tuple:
         # Set device correctly for both features and targets

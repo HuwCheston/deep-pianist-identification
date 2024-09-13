@@ -4,15 +4,18 @@ learning_rate: 1.0e-3
 batch_size: 1
 epochs: 100
 # We just use a small toy dataset for debug purposes
-dataset_cfg:
-  train_size: 1
-  test_size: 1
-encoder_module: crnn
+train_dataset_cfg:
+  n_clips: 1
+  normalize_velocity: False
+test_dataset_cfg:
+  n_clips: 1
+  normalize_velocity: False
+encoder_module: cnn
 model_cfg:
   use_ibn: False
 checkpoint_cfg:
-  save_checkpoints: True
-  load_checkpoints: True
+  save_checkpoints: False
+  load_checkpoints: False
   checkpoint_after_n_epochs: 10
 mlflow_cfg:
   use: False
