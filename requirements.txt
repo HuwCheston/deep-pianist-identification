@@ -8,6 +8,7 @@ jupyter
 joblib
 tqdm
 pretty-midi
+numba
 # torch
 # torchaudio
 # torchvision
