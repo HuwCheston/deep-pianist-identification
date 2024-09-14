@@ -18,18 +18,17 @@ def data_augmentation_transpose(pretty: PrettyMIDI, shift_limit: int = 6) -> Pre
     for instrument in pretty.instruments:
         newnotes = []
         for note in instrument.notes:
-            if (note.pitch + shift_val) > PIANO_KEYS or (note.pitch + shift_val) < MIDI_OFFSET:
-                newpitch = note.pitch
+            newpitch = note.pitch + shift_val
+            if newpitch >= 109 or newpitch <= 21:
+                continue
             else:
-                newpitch = note.pitch + shift_val
-
-            newnote = Note(
-                pitch=newpitch,
-                start=note.start,
-                end=note.end,
-                velocity=note.velocity
-            )
-            newnotes.append(newnote)
+                newnote = Note(
+                    pitch=newpitch,
+                    start=note.start,
+                    end=note.end,
+                    velocity=note.velocity
+                )
+                newnotes.append(newnote)
         newinstrument = Instrument(program=instrument.program)
         newinstrument.notes = newnotes
         newinstruments.append(newinstrument)

@@ -35,7 +35,11 @@ def get_piano_roll(clip_notes: list[tuple]) -> np.ndarray:
         for note in clip_notes:
             note_start, note_end, note_pitch, note_velocity = note
             if note_start < frame_end and note_end >= frame_start:
-                clip_array[0, note_pitch - MIDI_OFFSET, frame_idx] = note_velocity
+                try:
+                    clip_array[0, note_pitch - MIDI_OFFSET, frame_idx] = note_velocity
+                except:
+                    print(note_pitch, note_pitch - MIDI_OFFSET)
+                    raise
     return clip_array
 
 
@@ -44,14 +48,18 @@ def get_midi_clip(midi_fpath, clip_idx, data_augmentation: bool = False) -> np.n
     # Apply data augmentation, if required
     if data_augmentation:
         for func in augment_funcs:
-            if np.random.uniform(0., 1.) <= AUGMENTATION_PROB:
-                pm = func(pm)
+            try:
+                if np.random.uniform(0., 1.) <= AUGMENTATION_PROB:
+                    pm = func(pm)
+            except:
+                print(midi_fpath, clip_idx, 'finish')
+                raise
 
     piano_instrument = pm.instruments[0]
     clip_notes = []
     for note in piano_instrument.notes:
         note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
-        if (note_end - note_start) > (MINIMUM_FRAMES / FPS):
+        if (note_end - note_start) > (MINIMUM_FRAMES / FPS) and note_pitch < PIANO_KEYS + MIDI_OFFSET and note_pitch >= MIDI_OFFSET:
             # TODO: here is where we can randomize e.g. pitch, velocity, duration for masking particular attributes
             clip_notes.append((note_start, note_end, note_pitch, note_velocity))
     return get_piano_roll(clip_notes)
