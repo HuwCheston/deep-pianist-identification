@@ -6,9 +6,11 @@ epochs: 100
 train_dataset_cfg:
   n_clips: null
   normalize_velocity: False
+  data_augmentation: True
 test_dataset_cfg:
   n_clips: null
   normalize_velocity: False
+  data_augmentation: False
 encoder_module: cnn
 model_cfg:
   use_ibn: False
