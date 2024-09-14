@@ -19,13 +19,39 @@ def data_augmentation_transpose(pretty: PrettyMIDI, shift_limit: int = 6) -> Pre
         newnotes = []
         for note in instrument.notes:
             newpitch = note.pitch + shift_val
-            if newpitch >= 109 or newpitch <= 21:
+            if newpitch > PIANO_KEYS + MIDI_OFFSET or newpitch < MIDI_OFFSET:
                 continue
             else:
                 newnote = Note(
                     pitch=newpitch,
                     start=note.start,
                     end=note.end,
+                    velocity=note.velocity
+                )
+                newnotes.append(newnote)
+        newinstrument = Instrument(program=instrument.program)
+        newinstrument.notes = newnotes
+        newinstruments.append(newinstrument)
+    temp.instruments = newinstruments
+    return temp
+
+
+def data_augmentation_dilate(pretty: PrettyMIDI, dilate_val: int = 0.1) -> PrettyMIDI:
+    """Randomly multiplies start and stop time for all notes in a MIDI file by +/- (1 + dilate_val)"""
+    # Pick a random value to shift by
+    shift_val = np.random.uniform(-dilate_val, dilate_val)
+    temp = PrettyMIDI(resolution=pretty.resolution)
+    newinstruments = []
+    for instrument in pretty.instruments:
+        newnotes = []
+        for note in instrument.notes:
+            newstart = note.start * (1 + shift_val)
+            newend = note.end * (1 + shift_val)
+            if newstart >= 0. and newend < CLIP_LENGTH:
+                newnote = Note(
+                    pitch=note.pitch,
+                    start=newstart,
+                    end=newend,
                     velocity=note.velocity
                 )
                 newnotes.append(newnote)
@@ -115,4 +141,5 @@ augment_funcs = [
     data_augmentation_velocity_change,
     data_augmentation_time_occlude,
     data_augmentation_pitch_occlude,
+    data_augmentation_dilate
 ]
