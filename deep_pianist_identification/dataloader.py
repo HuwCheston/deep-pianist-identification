@@ -12,7 +12,7 @@ from pretty_midi import PrettyMIDI
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
-from deep_pianist_identification.data_augmentation import augment_funcs
+from deep_pianist_identification.data_augmentation import data_augmentation_transpose
 from deep_pianist_identification.utils import get_project_root, PIANO_KEYS, FPS, MIDI_OFFSET, CLIP_LENGTH
 
 __all__ = ["MIDILoader"]
@@ -39,23 +39,40 @@ def get_piano_roll(clip_notes: list[tuple]) -> np.ndarray:
     return clip_array
 
 
-def get_midi_clip(midi_fpath, clip_idx, data_augmentation: bool = False) -> np.ndarray:
+def apply_data_augmentation(pm_obj: PrettyMIDI) -> PrettyMIDI:
+    """Applies a random augmentation to the MIDI object"""
+    if np.random.uniform(0., 1.) <= AUGMENTATION_PROB:
+        # Choose a random augmentation and apply it to the MIDI object
+        # random_aug = np.random.choice(data_augmenta)
+        new = data_augmentation_transpose(pm_obj)
+        # If we haven't removed all the notes from the MIDI file
+        if len(new.instruments[0].notes) > 0:
+            return new
+    # If we're not applying augmentation OR we've removed all the notes, return the initial MIDI object
+    return pm_obj
+
+
+def get_midi_clip(
+        midi_fpath: str,
+        clip_idx: int,
+        data_augmentation: bool = False,
+        rhythm_only: bool = False
+) -> np.ndarray:
     pm = PrettyMIDI(os.path.join(midi_fpath, f'clip_{str(clip_idx).zfill(3)}.mid'))
     # Apply data augmentation, if required
     if data_augmentation:
-        for func in augment_funcs:
-            if np.random.uniform(0., 1.) <= AUGMENTATION_PROB:
-                pm = func(pm)
+        pm = apply_data_augmentation(pm)
 
-    piano_instrument = pm.instruments[0]
     clip_notes = []
-    for note in piano_instrument.notes:
+    for note in pm.instruments[0].notes:
         note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
         if all((
                 (note_end - note_start) > (MINIMUM_FRAMES / FPS),
                 note_pitch < PIANO_KEYS + MIDI_OFFSET,
                 note_pitch >= MIDI_OFFSET
         )):
+            if rhythm_only:
+                note_pitch = np.random.randint(MIDI_OFFSET, (PIANO_KEYS + MIDI_OFFSET) - 1)
             # TODO: here is where we can randomize e.g. pitch, velocity, duration for masking particular attributes
             clip_notes.append((note_start, note_end, note_pitch, note_velocity))
     return get_piano_roll(clip_notes)
@@ -67,7 +84,8 @@ class MIDILoader(Dataset):
             split: str,
             n_clips: int = None,
             normalize_velocity: bool = True,
-            data_augmentation: bool = False
+            data_augmentation: bool = False,
+            rhythm_only: bool = False
     ):
         super().__init__()
         csv_path = os.path.join(get_project_root(), 'references/data_splits', f'{split}_split.csv')
@@ -75,6 +93,7 @@ class MIDILoader(Dataset):
         self.clips = []
         self.normalize_velocity = normalize_velocity
         self.data_augmentation = data_augmentation
+        self.rhythm_only = rhythm_only
         for idx, track in tqdm(split_df.iterrows(), desc=f"Getting {split} data: ", total=len(split_df)):
             track_path = os.path.join(get_project_root(), 'data/clips', track['track'])
             track_clips = len(os.listdir(track_path))
@@ -89,7 +108,12 @@ class MIDILoader(Dataset):
     def __getitem__(self, idx: int) -> tuple:
         track_path, target_class, clip_idx = self.clips[idx]
         # Load the MIDI clip in with data augmentation, if required
-        loaded_clip = get_midi_clip(track_path, clip_idx, data_augmentation=self.data_augmentation)
+        loaded_clip = get_midi_clip(
+            track_path,
+            clip_idx,
+            data_augmentation=self.data_augmentation,
+            rhythm_only=self.rhythm_only
+        )
         if self.normalize_velocity:
             loaded_clip = normalize_array(loaded_clip)
         return loaded_clip, target_class

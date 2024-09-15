@@ -1,0 +1,25 @@
+experiment: baselines
+run: crnn-transpose-jtd+pijama
+learning_rate: 1.0e-4
+batch_size: 12
+epochs: 100
+train_dataset_cfg:
+  n_clips: null
+  normalize_velocity: False
+  data_augmentation: True
+  rhythm_only: False
+test_dataset_cfg:
+  n_clips: null
+  normalize_velocity: False
+  data_augmentation: False
+  rhythm_only: False
+encoder_module: crnn
+model_cfg:
+  use_ibn: False
+checkpoint_cfg:
+  save_checkpoints: True
+  load_checkpoints: True
+  checkpoint_after_n_epochs: 10
+mlflow_cfg:
+  use: True
+  tracking_uri: http://127.0.0.1:8080
