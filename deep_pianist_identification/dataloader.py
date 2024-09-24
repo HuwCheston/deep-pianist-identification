@@ -73,6 +73,9 @@ def get_midi_clip(
         )):
             if rhythm_only:
                 note_pitch = np.random.randint(MIDI_OFFSET, (PIANO_KEYS + MIDI_OFFSET) - 1)
+                note_velocity = np.random.randint(0, 127)
+                # note_pitch = 60
+                # note_velocity = 60
             # TODO: here is where we can randomize e.g. pitch, velocity, duration for masking particular attributes
             clip_notes.append((note_start, note_end, note_pitch, note_velocity))
     return get_piano_roll(clip_notes)
