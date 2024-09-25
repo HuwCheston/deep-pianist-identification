@@ -66,16 +66,14 @@ class BaseExtractor:
 
 
 class MelodyExtractor(BaseExtractor):
-    LOWER_BOUND = 69  # i.e., an A3: the A lying a minor third below middle C
-    QUANTIZE_RESOLUTION = 0.1
-
     def __init__(self, midi_obj: PrettyMIDI, **kwargs):
         super().__init__(midi_obj)
-        # Load the MIDI events, randomising velocity, and quantize start/stop times
+        # Get parameter settings from kwargs
+        self.lower_bound = kwargs.get('lower_bound', MIDI_OFFSET)  # Use all notes by default
+        self.quantize_resolution = kwargs.get('quantize_resolution', 1 / FPS)  # Snap to nearest 10 ms
+        # Load the MIDI events, quantize, skyline, and snap the duration to fill the complete excerpt
         quantized = list(self.get_midi_events())
-        # Skyline the quantized events to keep only the highest pitch
         skylined = list(self.apply_skyline(quantized))
-        # Snap the duration of each note so that the duration is always CLIP_LENGTH
         adjusted = list(self.adjust_durations(skylined))
         # Get the piano roll
         self.roll = get_piano_roll(adjusted)
@@ -89,11 +87,11 @@ class MelodyExtractor(BaseExtractor):
             if all((
                     (note_end - note_start) > (MINIMUM_FRAMES / FPS),
                     note_pitch < PIANO_KEYS + MIDI_OFFSET,
-                    note_pitch >= self.LOWER_BOUND
+                    note_pitch >= self.lower_bound
             )):
                 # Snap note start and end with the given time resolution
-                note_start = quantize(note_start, self.QUANTIZE_RESOLUTION)
-                note_end = quantize(note_end, self.QUANTIZE_RESOLUTION)
+                note_start = quantize(note_start, self.quantize_resolution)
+                note_end = quantize(note_end, self.quantize_resolution)
                 # Randomize velocity between 0 and 127
                 note_velocity = np.random.randint(0, 127)
                 yield note_start, note_end, note_pitch, note_velocity
@@ -112,6 +110,7 @@ class MelodyExtractor(BaseExtractor):
     @staticmethod
     def adjust_durations(skylined_notes: list):
         """For a list of notes N and piece with duration T, adjust duration of notes n = T / len(N)"""
+        # TODO: we'll get a divide by 0 here if we have no notes in the clip!
         note_duration = CLIP_LENGTH / len(skylined_notes)
         for note_idx, note in enumerate(skylined_notes):
             # Keep the pitch and (randomized) velocity of each note
@@ -125,16 +124,17 @@ class MelodyExtractor(BaseExtractor):
 
 
 class HarmonyExtractor(BaseExtractor):
-    UPPER_BOUND = 81  # i.e., an A4: the A lying a major sixth above middle C, as with Reuben's dissertation
-    MAX_SPAN = 15  # Chords with a span greater than this are discarded
-    MINIMUM_NOTES = 3  # We're only interested in chords with at least this number of notes
-    QUANTIZE_RESOLUTION = 0.1
-
     def __init__(self, midi_obj: PrettyMIDI, **kwargs):
         super().__init__(midi_obj)
+        # Get the parameter settings from the kwargs, with defaults
+        self.upper_bound = kwargs.get('upper_bound', PIANO_KEYS + MIDI_OFFSET)  # Use all notes by default
+        self.minimum_notes = kwargs.get('minimum_notes', 3)  # Only consider triads or greater
+        self.quantize_resolution = kwargs.get('quantize_resolution', 0.3)  # Snap to 300ms, i.e. 1/4 note at mean JTD
+        # Quantize the MIDI events, group into chords, then adjust the durations
         quantized = list(self.get_midi_events())
         chorded = list(self.group_chords(quantized))
         adjusted = list(self.adjust_durations(chorded))
+        # Create the piano roll
         self.roll = get_piano_roll(adjusted)
         if kwargs.get('create_output_midi', False):
             self.output_midi = self.create_output_midi(adjusted)
@@ -145,11 +145,11 @@ class HarmonyExtractor(BaseExtractor):
             note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
             if all((
                     (note_end - note_start) > (MINIMUM_FRAMES / FPS),
-                    note_pitch <= self.UPPER_BOUND
+                    note_pitch <= self.upper_bound
             )):
                 # Snap note start and end with the given time resolution
-                note_start = quantize(note_start, self.QUANTIZE_RESOLUTION)
-                note_end = quantize(note_end, self.QUANTIZE_RESOLUTION)
+                note_start = quantize(note_start, self.quantize_resolution)
+                note_end = quantize(note_end, self.quantize_resolution)
                 yield note_start, note_end, note_pitch, note_velocity
 
     def group_chords(self, notes: list):
@@ -160,9 +160,11 @@ class HarmonyExtractor(BaseExtractor):
         # Iterate through each group and keep only the note with the highest pitch
         for quantized_note_start, subiter in grouper:
             chord = list(subiter)
-            # pitches = [c[2] for c in chord]
+            # Get the unique pitches in the chord
+            pitches = set(c[2] for c in chord)
+            # Keep the chord if it has at least MINIMUM_NOTES unique pitches (i.e., not counting duplicates)
             if all((
-                    len(chord) >= self.MINIMUM_NOTES,
+                    len(pitches) >= self.minimum_notes,
                     # max(pitches) - min(pitches) <= self.MAX_SPAN
             )):
                 yield chord
@@ -212,6 +214,9 @@ class RhythmExtractor(BaseExtractor):
 class DynamicsExtractor(BaseExtractor):
     def __init__(self, midi_obj: PrettyMIDI, **kwargs):
         super().__init__(midi_obj)
+        # Get parameter settings from kwargs
+        self.quantize_resolution = kwargs.get('quantize_resolution', 1 / FPS)
+        # Quantize the MIDI notes, randomize the pitch, and adjust the duration to fill the excerpt
         quantized = list(self.get_midi_events())
         adjusted = list(self.adjust_durations(quantized))
         self.roll = get_piano_roll(adjusted)
@@ -230,8 +235,8 @@ class DynamicsExtractor(BaseExtractor):
                 # Randomise the pitch and velocity of the note
                 note_pitch = np.random.randint(MIDI_OFFSET, (PIANO_KEYS + MIDI_OFFSET) - 1)
                 # Snap note start and end with the given time resolution
-                note_start = quantize(note_start)
-                note_end = quantize(note_end)
+                note_start = quantize(note_start, self.quantize_resolution)
+                note_end = quantize(note_end, self.quantize_resolution)
                 yield note_start, note_end, note_pitch, note_velocity
 
     @staticmethod
@@ -282,7 +287,7 @@ def create_outputs_from_extractors(track_name: str, extractors: list, raw_midi: 
     yt = range(0, PIANO_KEYS, 12)
     for a, roller, tit in zip(
             ax.flatten(),
-            [init_roll, melody.roll[0], harmony.roll[0], rhythm.roll[0], dynamics.roll[0]],
+            [init_roll, melody.roll, harmony.roll, rhythm.roll, dynamics.roll],
             ['Raw', 'Melody', 'Harmony', 'Rhythm', 'Dynamics']
     ):
         sns.heatmap(roller, ax=a, mask=roller == 0, cmap='mako_r', cbar=None)
@@ -341,4 +346,5 @@ if __name__ == "__main__":
         if track_idx % 10 == 0:
             create_outputs_from_extractors(test_track, track_extractors, test_midi_obj)
     # Don't use the timer from the first result as the Numba functions will be compiling then
-    logger.info('Results: ', {i: np.mean(v[1:]) for i, v in res.items()})
+    time_results = ', '.join(f'{i}: mean {np.mean(v[1:]):.2f}s' for i, v in res.items())
+    logger.info(f'Results -  {time_results}')
