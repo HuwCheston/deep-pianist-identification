@@ -64,13 +64,15 @@ class MIDILoader(Dataset):
             n_clips: int = None,
             normalize_velocity: bool = True,
             data_augmentation: bool = False,
-            multichannel: bool = False
+            multichannel: bool = False,
+            use_concepts: str = None
     ):
         super().__init__()
         # Unpack provided arguments as attributes
         self.normalize_velocity = normalize_velocity
         self.data_augmentation = data_augmentation
         self.multichannel = multichannel
+        self.use_concepts = use_concepts
         # Load in the CSV and get all the clips into a list
         csv_path = os.path.join(get_project_root(), 'references/data_splits', f'{split}_split.csv')
         self.clips = list(self.get_clips_for_split(csv_path))
@@ -101,7 +103,9 @@ class MIDILoader(Dataset):
         # Load the piano roll as either single channel (all valid MIDI notes) or multichannel (split into concepts)
         # We normalize the piano roll directly in each function, as required
         if self.multichannel:
-            piano_roll = get_multichannel_piano_roll(pm, normalize=self.normalize_velocity)
+            piano_roll = get_multichannel_piano_roll(
+                pm, use_concepts=self.use_concepts, normalize=self.normalize_velocity
+            )
         else:
             piano_roll = get_singlechannel_piano_roll(pm, normalize=self.normalize_velocity)
         return piano_roll, target_class
@@ -119,6 +123,7 @@ if __name__ == "__main__":
             'train',
             data_augmentation=False,
             multichannel=True,
+            use_concepts=[0],
             normalize_velocity=True
         ),
         batch_size=batch_size,

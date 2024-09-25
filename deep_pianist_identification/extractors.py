@@ -257,17 +257,18 @@ class DynamicsExtractor(BaseExtractor):
                 yield note_start, note_end, note_pitch, note_velocity
 
 
-def get_multichannel_piano_roll(midi_obj: PrettyMIDI, normalize: bool = False) -> np.ndarray:
+def get_multichannel_piano_roll(midi_obj: PrettyMIDI, use_concepts: list = None, normalize: bool = False) -> np.ndarray:
     """For a single MIDI clip, make a four channel piano roll corresponding to Melody, Harmony, Rhythm, and Dynamics"""
     # Create all the extractors for our piano roll
-    melody = MelodyExtractor(midi_obj, create_output_midi=False)
-    harmony = HarmonyExtractor(midi_obj, create_output_midi=False)
-    rhythm = RhythmExtractor(midi_obj, create_output_midi=False)
-    dynamics = DynamicsExtractor(midi_obj, create_output_midi=False)
+    concept_mapping = {0: MelodyExtractor, 1: HarmonyExtractor, 2: RhythmExtractor, 3: DynamicsExtractor}
+    if use_concepts is None:
+        use_concepts = [0, 1, 2, 3]
+    extractors = []
+    for concept in use_concepts:
+        extractor = concept_mapping[concept]
+        extractors.append(extractor(midi_obj, create_output_midi=False))
     # Normalize velocity dimension if required and stack arrays
-    return np.array([
-        normalize_array(concept.roll) if normalize else concept.roll for concept in [melody, harmony, rhythm, dynamics]
-    ])
+    return np.array([normalize_array(concept.roll) if normalize else concept.roll for concept in extractors])
 
 
 def create_outputs_from_extractors(track_name: str, extractors: list, raw_midi: PrettyMIDI) -> None:
