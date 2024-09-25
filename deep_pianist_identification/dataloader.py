@@ -7,36 +7,18 @@ import os
 
 import numpy as np
 import pandas as pd
-from numba import jit
 from pretty_midi import PrettyMIDI
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
 from deep_pianist_identification.data_augmentation import data_augmentation_transpose
-from deep_pianist_identification.utils import get_project_root, PIANO_KEYS, FPS, MIDI_OFFSET, CLIP_LENGTH
+from deep_pianist_identification.extractors import get_multichannel_piano_roll, get_piano_roll, normalize_array
+from deep_pianist_identification.utils import get_project_root, PIANO_KEYS, FPS, MIDI_OFFSET
 
 __all__ = ["MIDILoader"]
 
 MINIMUM_FRAMES = 5  # a note must last this number of frames to be used
 AUGMENTATION_PROB = 0.1
-
-
-@jit(nopython=True)
-def normalize_array(track_array: np.ndarray) -> np.ndarray:
-    return (track_array - np.min(track_array)) / (np.max(track_array) - np.min(track_array))
-
-
-@jit(nopython=True, fastmath=True)
-def get_piano_roll(clip_notes: list[tuple]) -> np.ndarray:
-    """Largely the same as PrettyMIDI.get_piano_roll, but with optimizations using Numba"""
-    clip_array = np.zeros((1, PIANO_KEYS, CLIP_LENGTH * FPS), dtype=np.float32)
-    frame_iter = np.linspace(0, CLIP_LENGTH, (CLIP_LENGTH * FPS) + 1)
-    for frame_idx, (frame_start, frame_end) in enumerate(zip(frame_iter, frame_iter[1:])):
-        for note in clip_notes:
-            note_start, note_end, note_pitch, note_velocity = note
-            if note_start < frame_end and note_end >= frame_start:
-                clip_array[0, note_pitch - MIDI_OFFSET, frame_idx] = note_velocity
-    return clip_array
 
 
 def apply_data_augmentation(pm_obj: PrettyMIDI) -> PrettyMIDI:
@@ -52,33 +34,27 @@ def apply_data_augmentation(pm_obj: PrettyMIDI) -> PrettyMIDI:
     return pm_obj
 
 
-def get_midi_clip(
-        midi_fpath: str,
-        clip_idx: int,
-        data_augmentation: bool = False,
-        rhythm_only: bool = False
-) -> np.ndarray:
-    pm = PrettyMIDI(os.path.join(midi_fpath, f'clip_{str(clip_idx).zfill(3)}.mid'))
-    # Apply data augmentation, if required
-    if data_augmentation:
-        pm = apply_data_augmentation(pm)
+def get_singlechannel_piano_roll(pm_obj: PrettyMIDI, normalize: bool = False) -> np.ndarray:
+    """Gets a single channel piano roll, including all data (i.e., without splitting into concepts)"""
 
-    clip_notes = []
-    for note in pm.instruments[0].notes:
-        note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
-        if all((
-                (note_end - note_start) > (MINIMUM_FRAMES / FPS),
-                note_pitch < PIANO_KEYS + MIDI_OFFSET,
-                note_pitch >= MIDI_OFFSET
-        )):
-            if rhythm_only:
-                note_pitch = np.random.randint(MIDI_OFFSET, (PIANO_KEYS + MIDI_OFFSET) - 1)
-                note_velocity = np.random.randint(0, 127)
-                # note_pitch = 60
-                # note_velocity = 60
-            # TODO: here is where we can randomize e.g. pitch, velocity, duration for masking particular attributes
-            clip_notes.append((note_start, note_end, note_pitch, note_velocity))
-    return get_piano_roll(clip_notes)
+    def get_valid_notes() -> tuple:
+        for note in pm_obj.instruments[0].notes:
+            note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
+            # Remove notes that have pitches above and below the permissible range (of a piano keyboard)
+            if all((
+                    (note_end - note_start) > (MINIMUM_FRAMES / FPS),
+                    note_pitch < PIANO_KEYS + MIDI_OFFSET,
+                    note_pitch >= MIDI_OFFSET
+            )):
+                yield note_start, note_end, note_pitch, note_velocity
+
+    # Get valid notes, and then create the piano roll (single channel) from these
+    roll = get_piano_roll(list(get_valid_notes()))
+    # Squeeze to create a new channel, for parity with our multichannel approach (i.e., batch, channel, pitch, time)
+    roll = np.expand_dims(roll, axis=0)
+    if normalize:
+        roll = normalize_array(roll)
+    return roll
 
 
 class MIDILoader(Dataset):
@@ -88,38 +64,47 @@ class MIDILoader(Dataset):
             n_clips: int = None,
             normalize_velocity: bool = True,
             data_augmentation: bool = False,
-            rhythm_only: bool = False
+            multichannel: bool = False
     ):
         super().__init__()
-        csv_path = os.path.join(get_project_root(), 'references/data_splits', f'{split}_split.csv')
-        split_df = pd.read_csv(csv_path, delimiter=',', index_col=0)
-        self.clips = []
+        # Unpack provided arguments as attributes
         self.normalize_velocity = normalize_velocity
         self.data_augmentation = data_augmentation
-        self.rhythm_only = rhythm_only
-        for idx, track in tqdm(split_df.iterrows(), desc=f"Getting {split} data: ", total=len(split_df)):
+        self.multichannel = multichannel
+        # Load in the CSV and get all the clips into a list
+        csv_path = os.path.join(get_project_root(), 'references/data_splits', f'{split}_split.csv')
+        self.clips = list(self.get_clips_for_split(csv_path))
+        # Truncate the number of clips if we've passed in this argument
+        if n_clips is not None:
+            self.clips = self.clips[:n_clips]
+
+    @staticmethod
+    def get_clips_for_split(csv_path: str) -> tuple:
+        """For a CSV file located at a given path, load all the clips (rows) it contains as tuples"""
+        split_df = pd.read_csv(csv_path, delimiter=',', index_col=0)
+        for idx, track in split_df.iterrows():
             track_path = os.path.join(get_project_root(), 'data/clips', track['track'])
             track_clips = len(os.listdir(track_path))
             for clip_idx in range(track_clips):
-                self.clips.append((track_path, track['pianist'], clip_idx))
-        if n_clips is not None:
-            self.clips = self.clips[:n_clips]
+                yield track_path, track['pianist'], clip_idx
 
     def __len__(self) -> int:
         return len(self.clips)
 
     def __getitem__(self, idx: int) -> tuple:
         track_path, target_class, clip_idx = self.clips[idx]
-        # Load the MIDI clip in with data augmentation, if required
-        loaded_clip = get_midi_clip(
-            track_path,
-            clip_idx,
-            data_augmentation=self.data_augmentation,
-            rhythm_only=self.rhythm_only
-        )
-        if self.normalize_velocity:
-            loaded_clip = normalize_array(loaded_clip)
-        return loaded_clip, target_class
+        # Load in the clip as a PrettyMIDI object
+        pm = PrettyMIDI(os.path.join(track_path, f'clip_{str(clip_idx).zfill(3)}.mid'))
+        # Apply data augmentation, if required
+        if self.data_augmentation:
+            pm = apply_data_augmentation(pm)
+        # Load the piano roll as either single channel (all valid MIDI notes) or multichannel (split into concepts)
+        # We normalize the piano roll directly in each function, as required
+        if self.multichannel:
+            piano_roll = get_multichannel_piano_roll(pm, normalize=self.normalize_velocity)
+        else:
+            piano_roll = get_singlechannel_piano_roll(pm, normalize=self.normalize_velocity)
+        return piano_roll, target_class
 
 
 if __name__ == "__main__":
@@ -130,14 +115,25 @@ if __name__ == "__main__":
     n_batches = 10
     times = []
     loader = DataLoader(
-        MIDILoader('train', data_augmentation=True),
+        MIDILoader(
+            'train',
+            data_augmentation=False,
+            multichannel=True,
+            normalize_velocity=True
+        ),
         batch_size=batch_size,
         shuffle=True,
     )
 
-    for i in tqdm(range(n_batches), desc='Loading batches: '):
+    for i in tqdm(range(n_batches), desc=f'Loading {n_batches} batches of {batch_size} clips: '):
         start = time()
-        _, __ = next(iter(loader))
+        try:
+            # Shape: (batch, channels, pitch, time)
+            batch, __ = next(iter(loader))
+            assert len(batch.size()) == 4
+        except Exception as e:
+            logger.warning(f'Failed to create batch {i} with error: {e}')
         times.append(time() - start)
-    logger.info(f'Took {np.mean(times):.2}s (SD = {np.std(times):.2f}) '
-                f'to create {n_batches} batches of {batch_size} items.')
+
+    logger.info(f'Took {np.sum(times):.2f}s to create {n_batches} batches of {batch_size} items. '
+                f'(Mean = {np.mean(times):.2f}s, SD = {np.std(times):.2f}) ')
