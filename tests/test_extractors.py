@@ -12,7 +12,7 @@ from deep_pianist_identification.extractors import (
     get_singlechannel_piano_roll, get_multichannel_piano_roll,
     MelodyExtractor, HarmonyExtractor, DynamicsExtractor, RhythmExtractor
 )
-from deep_pianist_identification.utils import get_project_root, CLIP_LENGTH, PIANO_KEYS, FPS
+from deep_pianist_identification.utils import get_project_root, CLIP_LENGTH, PIANO_KEYS, FPS, MIDI_OFFSET
 
 EXTRACTORS = [MelodyExtractor, HarmonyExtractor, DynamicsExtractor, RhythmExtractor]
 
@@ -30,7 +30,7 @@ class ExtractorTest(unittest.TestCase):
     # Expected number of notes, after truncating those outside the clip range
     input_notes = len([i for i in input_starts if i <= CLIP_LENGTH])
 
-    def test_clip_boundaries(self):
+    def test_output_midi(self):
         # The final note in this MIDI occurs at ~45 seconds, so it should be removed with 30 second clips
         final_note = self.long_midi.instruments[0].notes[-1]
         # Iterate over all extractor objects
@@ -41,14 +41,17 @@ class ExtractorTest(unittest.TestCase):
             output_notes = rendered.output_midi.instruments[0].notes
             # Output notes should be changed
             self.assertFalse(input_notes == output_notes)
-            # Final note should be removed
+            # Number of notes should be reduced in output
+            self.assertLess(len(output_notes), len(input_notes))
+            # Final note should be removed in output
             self.assertIn(final_note, input_notes)
             self.assertNotIn(final_note, output_notes)
-            # No notes should be outside clip boundaries
-            self.assertFalse(any(n.start > CLIP_LENGTH for n in output_notes))
-            self.assertFalse(any(n.start < 0 for n in output_notes))
-            # Input notes can be outside clip boundary
-            self.assertTrue(any(n.start > CLIP_LENGTH for n in input_notes))
+            # No notes should be outside clip boundaries in output
+            self.assertTrue(all(n.start <= CLIP_LENGTH for n in output_notes))
+            self.assertTrue(all(n.start >= 0 for n in output_notes))
+            # Output notes should be within the range acceptable for the piano
+            self.assertTrue(all(n.pitch <= MIDI_OFFSET + PIANO_KEYS for n in output_notes))
+            self.assertTrue(all(n.pitch >= MIDI_OFFSET for n in output_notes))
 
     def test_multichannel_roll_shape(self):
         multichannel_roll = get_multichannel_piano_roll(self.long_midi)
