@@ -9,7 +9,7 @@ from pretty_midi import PrettyMIDI, Note, Instrument
 from deep_pianist_identification.utils import MIDI_OFFSET, PIANO_KEYS, CLIP_LENGTH
 
 
-def data_augmentation_transpose(pretty: PrettyMIDI, shift_limit: int = 6) -> PrettyMIDI:
+def data_augmentation_transpose(pretty: PrettyMIDI, shift_limit: int = 12) -> PrettyMIDI:
     """Randomly transposes all notes in a MIDI file by +/- shif_limit"""
     # Pick a random value to shift by
     shift_val = np.random.randint(-shift_limit, shift_limit)
@@ -36,7 +36,7 @@ def data_augmentation_transpose(pretty: PrettyMIDI, shift_limit: int = 6) -> Pre
     return temp
 
 
-def data_augmentation_dilate(pretty: PrettyMIDI, dilate_val: int = 0.1) -> PrettyMIDI:
+def data_augmentation_dilate(pretty: PrettyMIDI, dilate_val: int = 0.2) -> PrettyMIDI:
     """Randomly multiplies start and stop time for all notes in a MIDI file by +/- (1 + dilate_val)"""
     # Pick a random value to shift by
     shift_val = np.random.uniform(-dilate_val, dilate_val)
@@ -133,13 +133,3 @@ def data_augmentation_velocity_change(pretty: PrettyMIDI, velocity_limit: int = 
         newinstruments.append(newinstrument)
     temp.instruments = newinstruments
     return temp
-
-
-# add new augmentation functions in here
-augment_funcs = [
-    data_augmentation_transpose,
-    data_augmentation_velocity_change,
-    data_augmentation_time_occlude,
-    data_augmentation_pitch_occlude,
-    data_augmentation_dilate
-]
