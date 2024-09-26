@@ -92,8 +92,7 @@ class MelodyExtractor(BaseExtractor):
                 # Snap note start and end with the given time resolution
                 note_start = quantize(note_start, self.quantize_resolution)
                 note_end = quantize(note_end, self.quantize_resolution)
-                # Randomize velocity between 0 and 127
-                note_velocity = np.random.randint(0, 127)
+                note_velocity = 127  # 1 = note on, 0 = note off
                 yield note_start, note_end, note_pitch, note_velocity
 
     @staticmethod
@@ -178,14 +177,13 @@ class HarmonyExtractor(BaseExtractor):
             # Get the adjusted note start and end time
             chord_start = note_idx * chord_duration
             chord_end = (note_idx + 1) * chord_duration
-            # Randomize the velocity for this chord
-            chord_velocity = np.random.randint(0, 127)
+            chord_velocity = 127  # 1 = note on, 0 = note off
             if chord_end > CLIP_LENGTH:
                 chord_end = CLIP_LENGTH
             # Iterate through each note in the chord and set the start and end time correctly, keeping pitch + velocity
             for note in chord:
                 _, __, note_pitch, ___ = note
-                yield float(chord_start), float(chord_end), int(note_pitch), int(chord_velocity)
+                yield float(chord_start), float(chord_end), note_pitch, chord_velocity
 
 
 class RhythmExtractor(BaseExtractor):
@@ -207,7 +205,7 @@ class RhythmExtractor(BaseExtractor):
             )):
                 # Randomise the pitch and velocity of the note
                 note_pitch = np.random.randint(MIDI_OFFSET, (PIANO_KEYS + MIDI_OFFSET) - 1)
-                note_velocity = np.random.randint(0, 127)  # Between 0 and 127
+                note_velocity = 127  # 1 = note on, 0 = note off
                 yield note_start, note_end, note_pitch, note_velocity
 
 
@@ -291,7 +289,7 @@ def create_outputs_from_extractors(track_name: str, extractors: list, raw_midi: 
             [init_roll, melody.roll, harmony.roll, rhythm.roll, dynamics.roll],
             ['Raw', 'Melody', 'Harmony', 'Rhythm', 'Dynamics']
     ):
-        sns.heatmap(roller, ax=a, mask=roller == 0, cmap='mako_r', cbar=None)
+        sns.heatmap(normalize_array(roller), ax=a, mask=roller == 0, cmap='mako', cbar=None)
         a.patch.set_edgecolor('black')
         a.patch.set_linewidth(1)
         a.set(title=tit, yticks=yt, xticks=xt, xticklabels=xt, yticklabels=yt)
