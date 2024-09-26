@@ -167,7 +167,8 @@ class TrainModule:
     def save_checkpoint(self, metrics) -> None:
         """Save the model checkpoint at the current epoch"""
         checkpoint_after = self.checkpoint_cfg.get("checkpoint_after_n_epochs", 1)
-        if self.current_epoch % checkpoint_after == 0:
+        # We always want to checkpoint on the final epoch!
+        if (self.current_epoch % checkpoint_after == 0) or (self.current_epoch + 1 == self.epochs):
             # Get the folder of checkpoints for the current experiment/run, and create if it doesn't exist
             checkpoint_folder = os.path.join(get_project_root(), 'checkpoints', self.experiment, self.run)
             if not os.path.exists(checkpoint_folder):
