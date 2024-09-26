@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader
 from torchmetrics.classification import Accuracy, F1Score, ConfusionMatrix
 from tqdm import tqdm
 
-from deep_pianist_identification.dataloader import MIDILoader
+from deep_pianist_identification.dataloader import MIDILoader, remove_bad_clips_from_batch
 from deep_pianist_identification.encoders import CRNNet, CNNet
 from deep_pianist_identification.utils import DEVICE, N_CLASSES, seed_everything, get_project_root
 
@@ -46,6 +46,7 @@ class TrainModule:
             batch_size=self.batch_size,
             shuffle=True,
             drop_last=False,
+            collate_fn=remove_bad_clips_from_batch
         )
         logger.debug(f'Initialising test dataloader with batch size {self.batch_size} '
                      f'and parameters {self.test_dataset_cfg}')
@@ -57,6 +58,7 @@ class TrainModule:
             batch_size=self.batch_size,
             shuffle=True,
             drop_last=False,
+            collate_fn=remove_bad_clips_from_batch
         )
         # LOSS AND METRICS
         logger.debug('Initialising loss and metrics...')

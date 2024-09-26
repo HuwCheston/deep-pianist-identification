@@ -8,14 +8,14 @@ import os
 import numpy as np
 import pandas as pd
 from pretty_midi import PrettyMIDI
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, default_collate
 from tqdm import tqdm
 
 from deep_pianist_identification.data_augmentation import data_augmentation_transpose
 from deep_pianist_identification.extractors import get_multichannel_piano_roll, get_piano_roll, normalize_array
 from deep_pianist_identification.utils import get_project_root, PIANO_KEYS, FPS, MIDI_OFFSET
 
-__all__ = ["MIDILoader"]
+__all__ = ["MIDILoader", "remove_bad_clips_from_batch"]
 
 MINIMUM_FRAMES = 5  # a note must last this number of frames to be used
 AUGMENTATION_PROB = 0.1
@@ -103,12 +103,23 @@ class MIDILoader(Dataset):
         # Load the piano roll as either single channel (all valid MIDI notes) or multichannel (split into concepts)
         # We normalize the piano roll directly in each function, as required
         if self.multichannel:
-            piano_roll = get_multichannel_piano_roll(
-                pm, use_concepts=self.use_concepts, normalize=self.normalize_velocity
-            )
+            try:
+                piano_roll = get_multichannel_piano_roll(
+                    pm, use_concepts=self.use_concepts, normalize=self.normalize_velocity
+                )
+            # If the clip somehow contains no chords or melody notes, we need to return None to skip using it
+            except Exception as err:
+                logger.warning(f'Failed for {track_path}, clip {clip_idx}, skipping! {err}')
+                return None
         else:
             piano_roll = get_singlechannel_piano_roll(pm, normalize=self.normalize_velocity)
         return piano_roll, target_class
+
+
+def remove_bad_clips_from_batch(returned_batch):
+    """Removes clips from a batch where there was an issue creating one of the concepts"""
+    filtered_batch = list(filter(lambda x: x is not None, returned_batch))
+    return default_collate(filtered_batch)
 
 
 if __name__ == "__main__":
@@ -116,18 +127,18 @@ if __name__ == "__main__":
     from loguru import logger
 
     batch_size = 12
-    n_batches = 10
+    n_batches = 100
     times = []
     loader = DataLoader(
         MIDILoader(
             'train',
             data_augmentation=False,
             multichannel=True,
-            use_concepts=[0],
             normalize_velocity=True
         ),
         batch_size=batch_size,
         shuffle=True,
+        collate_fn=remove_bad_clips_from_batch,
     )
 
     for i in tqdm(range(n_batches), desc=f'Loading {n_batches} batches of {batch_size} clips: '):
