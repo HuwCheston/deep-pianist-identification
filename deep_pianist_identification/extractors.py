@@ -17,7 +17,8 @@ MINIMUM_FRAMES = 5  # a note must last this number of frames to be used
 QUANTIZE_RESOLUTION = (1 / FPS) * 10  # 100 ms, the duration of a triplet eighth note at the mean JTD tempo (200 BPM)
 
 __all__ = [
-    "normalize_array", "get_multichannel_piano_roll", "get_piano_roll", "quantize", "get_singlechannel_piano_roll"
+    "normalize_array", "get_multichannel_piano_roll", "get_piano_roll", "quantize", "get_singlechannel_piano_roll",
+    "MelodyExtractor", "DynamicsExtractor", "RhythmExtractor", "HarmonyExtractor",
 ]
 
 
@@ -27,7 +28,7 @@ def normalize_array(track_array: np.ndarray) -> np.ndarray:
 
 
 @jit(nopython=True, fastmath=True)
-def get_piano_roll(clip_notes: list[tuple]) -> np.ndarray:
+def get_piano_roll(clip_notes) -> np.ndarray:
     """Largely the same as PrettyMIDI.get_piano_roll, but with optimizations using Numba"""
     clip_array = np.zeros((PIANO_KEYS, CLIP_LENGTH * FPS), dtype=np.float32)
     frame_iter = np.linspace(0, CLIP_LENGTH, (CLIP_LENGTH * FPS) + 1)
@@ -48,6 +49,7 @@ class BaseExtractor:
 
     def __init__(self, midi_obj: PrettyMIDI):
         self.input_midi = midi_obj
+        self.output_midi = None  # Will be added in child classes after processing
 
     def get_midi_events(self):
         """Overwritten in child classes"""
@@ -87,6 +89,7 @@ class MelodyExtractor(BaseExtractor):
         for note in self.input_midi.instruments[0].notes:
             note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
             if all((
+                    note_end <= CLIP_LENGTH,
                     (note_end - note_start) > (MINIMUM_FRAMES / FPS),
                     note_pitch < PIANO_KEYS + MIDI_OFFSET,
                     note_pitch >= self.lower_bound
@@ -145,6 +148,7 @@ class HarmonyExtractor(BaseExtractor):
         for note in self.input_midi.instruments[0].notes:
             note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
             if all((
+                    note_end <= CLIP_LENGTH,
                     (note_end - note_start) > (MINIMUM_FRAMES / FPS),
                     note_pitch <= self.upper_bound
             )):
@@ -201,6 +205,7 @@ class RhythmExtractor(BaseExtractor):
         for note in self.input_midi.instruments[0].notes:
             note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
             if all((
+                    note_end <= CLIP_LENGTH,
                     (note_end - note_start) > (MINIMUM_FRAMES / FPS),
                     note_pitch < PIANO_KEYS + MIDI_OFFSET,
                     note_pitch >= MIDI_OFFSET
@@ -228,6 +233,7 @@ class DynamicsExtractor(BaseExtractor):
         for note in self.input_midi.instruments[0].notes:
             note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
             if all((
+                    note_end <= CLIP_LENGTH,
                     (note_end - note_start) > (MINIMUM_FRAMES / FPS),
                     note_pitch < PIANO_KEYS + MIDI_OFFSET,
                     note_pitch >= MIDI_OFFSET
@@ -279,6 +285,7 @@ def get_singlechannel_piano_roll(pm_obj: PrettyMIDI, normalize: bool = False) ->
             note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
             # Remove notes that have pitches above and below the permissible range (of a piano keyboard)
             if all((
+                    note_end <= CLIP_LENGTH,
                     (note_end - note_start) > (MINIMUM_FRAMES / FPS),
                     note_pitch < PIANO_KEYS + MIDI_OFFSET,
                     note_pitch >= MIDI_OFFSET
@@ -306,6 +313,9 @@ def create_outputs_from_extractors(track_name: str, extractors: list, raw_midi: 
 
     rhythm, melody, harmony, dynamics = extractors
     fig, ax = plt.subplots(5, 1, sharex=True, sharey=True, figsize=(10, 10))
+    # Remove extra MIDI notes
+    raw_midi.adjust_times([0, CLIP_LENGTH + (CLIP_LENGTH // 2)], [0, CLIP_LENGTH])
+
     init_roll = raw_midi.get_piano_roll(100)[MIDI_OFFSET:MIDI_OFFSET + PIANO_KEYS, :]
     xt = range(0, 3500, 500)
     yt = range(0, PIANO_KEYS, 12)
