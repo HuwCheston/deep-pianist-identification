@@ -13,7 +13,7 @@ from pretty_midi import PrettyMIDI, Instrument, Note
 
 from deep_pianist_identification.utils import PIANO_KEYS, CLIP_LENGTH, FPS, MIDI_OFFSET
 
-MINIMUM_FRAMES = 5  # a note must last this number of frames to be used
+MINIMUM_FRAMES = 1  # a note must last this number of frames to be used
 QUANTIZE_RESOLUTION = (1 / FPS) * 10  # 100 ms, the duration of a triplet eighth note at the mean JTD tempo (200 BPM)
 
 __all__ = [
@@ -48,8 +48,29 @@ class BaseExtractor:
     """Base extractor class from which all others inherit"""
 
     def __init__(self, midi_obj: PrettyMIDI):
-        self.input_midi = midi_obj
+        self.input_midi = self.remove_invalid_midi_notes(midi_obj)
         self.output_midi = None  # Will be added in child classes after processing
+
+    @staticmethod
+    def remove_invalid_midi_notes(midi_obj: PrettyMIDI) -> PrettyMIDI:
+        temp = PrettyMIDI(resolution=midi_obj.resolution)
+        newinstruments = []
+        for instrument in midi_obj.instruments:
+            newnotes = []
+            for note in instrument.notes:
+                note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
+                if all((
+                        note_end <= CLIP_LENGTH,
+                        (note_end - note_start) > (MINIMUM_FRAMES / FPS),
+                        note_pitch < PIANO_KEYS + MIDI_OFFSET,
+                        note_pitch >= MIDI_OFFSET
+                )):
+                    newnotes.append(Note(start=note_start, end=note_end, pitch=note_pitch, velocity=note_velocity))
+            newinstrument = Instrument(program=instrument.program)
+            newinstrument.notes = newnotes
+            newinstruments.append(newinstrument)
+            temp.instruments = newinstruments
+        return temp
 
     def get_midi_events(self):
         """Overwritten in child classes"""
@@ -88,12 +109,7 @@ class MelodyExtractor(BaseExtractor):
         """Quantize note start and end, randomize velocity, and keep pitch"""
         for note in self.input_midi.instruments[0].notes:
             note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
-            if all((
-                    note_end <= CLIP_LENGTH,
-                    (note_end - note_start) > (MINIMUM_FRAMES / FPS),
-                    note_pitch < PIANO_KEYS + MIDI_OFFSET,
-                    note_pitch >= self.lower_bound
-            )):
+            if note_pitch >= self.lower_bound:
                 # Snap note start and end with the given time resolution
                 note_start = quantize(note_start, self.quantize_resolution)
                 note_end = quantize(note_end, self.quantize_resolution)
@@ -147,11 +163,7 @@ class HarmonyExtractor(BaseExtractor):
         """Quantize note start and end, randomize velocity, and keep pitch"""
         for note in self.input_midi.instruments[0].notes:
             note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
-            if all((
-                    note_end <= CLIP_LENGTH,
-                    (note_end - note_start) > (MINIMUM_FRAMES / FPS),
-                    note_pitch <= self.upper_bound
-            )):
+            if note_pitch <= self.upper_bound:
                 # Snap note start and end with the given time resolution
                 note_start = quantize(note_start, self.quantize_resolution)
                 note_end = quantize(note_end, self.quantize_resolution)
@@ -204,16 +216,10 @@ class RhythmExtractor(BaseExtractor):
         """Keep note onset and offset times, randomize pitch and velocity values"""
         for note in self.input_midi.instruments[0].notes:
             note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
-            if all((
-                    note_end <= CLIP_LENGTH,
-                    (note_end - note_start) > (MINIMUM_FRAMES / FPS),
-                    note_pitch < PIANO_KEYS + MIDI_OFFSET,
-                    note_pitch >= MIDI_OFFSET
-            )):
-                # Randomise the pitch and velocity of the note
-                note_pitch = np.random.randint(MIDI_OFFSET, (PIANO_KEYS + MIDI_OFFSET) - 1)
-                note_velocity = 127  # 1 = note on, 0 = note off
-                yield note_start, note_end, note_pitch, note_velocity
+            # Randomise the pitch and velocity of the note
+            note_pitch = np.random.randint(MIDI_OFFSET, (PIANO_KEYS + MIDI_OFFSET) - 1)
+            note_velocity = 127  # 1 = note on, 0 = note off
+            yield note_start, note_end, note_pitch, note_velocity
 
 
 class DynamicsExtractor(BaseExtractor):
@@ -232,18 +238,12 @@ class DynamicsExtractor(BaseExtractor):
         """Keep note onset and offset times, randomize pitch and velocity values"""
         for note in self.input_midi.instruments[0].notes:
             note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
-            if all((
-                    note_end <= CLIP_LENGTH,
-                    (note_end - note_start) > (MINIMUM_FRAMES / FPS),
-                    note_pitch < PIANO_KEYS + MIDI_OFFSET,
-                    note_pitch >= MIDI_OFFSET
-            )):
-                # Randomise the pitch and velocity of the note
-                note_pitch = np.random.randint(MIDI_OFFSET, (PIANO_KEYS + MIDI_OFFSET) - 1)
-                # Snap note start and end with the given time resolution
-                note_start = quantize(note_start, self.quantize_resolution)
-                note_end = quantize(note_end, self.quantize_resolution)
-                yield note_start, note_end, note_pitch, note_velocity
+            # Randomise the pitch and velocity of the note
+            note_pitch = np.random.randint(MIDI_OFFSET, (PIANO_KEYS + MIDI_OFFSET) - 1)
+            # Snap note start and end with the given time resolution
+            note_start = quantize(note_start, self.quantize_resolution)
+            note_end = quantize(note_end, self.quantize_resolution)
+            yield note_start, note_end, note_pitch, note_velocity
 
     @staticmethod
     def adjust_durations(notes: list):
@@ -279,21 +279,11 @@ def get_multichannel_piano_roll(midi_obj: PrettyMIDI, use_concepts: list = None,
 
 def get_singlechannel_piano_roll(pm_obj: PrettyMIDI, normalize: bool = False) -> np.ndarray:
     """Gets a single channel piano roll, including all data (i.e., without splitting into concepts)"""
-
-    def get_valid_notes() -> tuple:
-        for note in pm_obj.instruments[0].notes:
-            note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
-            # Remove notes that have pitches above and below the permissible range (of a piano keyboard)
-            if all((
-                    note_end <= CLIP_LENGTH,
-                    (note_end - note_start) > (MINIMUM_FRAMES / FPS),
-                    note_pitch < PIANO_KEYS + MIDI_OFFSET,
-                    note_pitch >= MIDI_OFFSET
-            )):
-                yield note_start, note_end, note_pitch, note_velocity
-
+    # We can use the base extractor, which will perform checks e.g., removing invalid notes
+    extract = BaseExtractor(pm_obj)
+    extracted_notes = extract.input_midi.instruments[0].notes
     # Get valid notes, and then create the piano roll (single channel) from these
-    roll = get_piano_roll(list(get_valid_notes()))
+    roll = get_piano_roll([(note.start, note.end, note.pitch, note.velocity) for note in extracted_notes])
     # Squeeze to create a new channel, for parity with our multichannel approach (i.e., batch, channel, pitch, time)
     roll = np.expand_dims(roll, axis=0)
     if normalize:
@@ -314,14 +304,12 @@ def create_outputs_from_extractors(track_name: str, extractors: list, raw_midi: 
     rhythm, melody, harmony, dynamics = extractors
     fig, ax = plt.subplots(5, 1, sharex=True, sharey=True, figsize=(10, 10))
     # Remove extra MIDI notes
-    raw_midi.adjust_times([0, CLIP_LENGTH + (CLIP_LENGTH // 2)], [0, CLIP_LENGTH])
-
-    init_roll = raw_midi.get_piano_roll(100)[MIDI_OFFSET:MIDI_OFFSET + PIANO_KEYS, :]
+    init_roll = get_singlechannel_piano_roll(raw_midi, normalize=True)
     xt = range(0, 3500, 500)
     yt = range(0, PIANO_KEYS, 12)
     for a, roller, tit in zip(
             ax.flatten(),
-            [init_roll, melody.roll, harmony.roll, rhythm.roll, dynamics.roll],
+            [init_roll[0], melody.roll, harmony.roll, rhythm.roll, dynamics.roll],
             ['Raw', 'Melody', 'Harmony', 'Rhythm', 'Dynamics']
     ):
         sns.heatmap(normalize_array(roller), ax=a, mask=roller == 0, cmap='mako', cbar=None)
@@ -335,9 +323,10 @@ def create_outputs_from_extractors(track_name: str, extractors: list, raw_midi: 
     fig.tight_layout()
     fig.savefig(os.path.join(ref_folder, 'midi_test.png'))
 
+    t = BaseExtractor(raw_midi)
     for mid, name in zip(
-            [test_midi_obj, melody.output_midi, rhythm.output_midi, harmony.output_midi, dynamics.output_midi],
-            ['raw', 'melody', 'rhythm', 'harmony', 'dynamics']
+            [raw_midi, t.input_midi, melody.output_midi, rhythm.output_midi, harmony.output_midi, dynamics.output_midi],
+            ['input', 'truncated', 'melody', 'rhythm', 'harmony', 'dynamics']
     ):
         mid.write(os.path.join(ref_folder, f'{name}.mid'))
         cmd = f'fluidsynth -ni -r 44100 -F "{ref_folder}/{name}.wav" "{ref_folder}/{name}.mid"'
