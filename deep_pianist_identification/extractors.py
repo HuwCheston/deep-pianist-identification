@@ -263,15 +263,20 @@ class DynamicsExtractor(BaseExtractor):
                 yield note_start, note_end, note_pitch, note_velocity
 
 
-def get_multichannel_piano_roll(midi_obj: PrettyMIDI, use_concepts: list = None, normalize: bool = False) -> np.ndarray:
+def get_multichannel_piano_roll(
+        midi_objs: list[PrettyMIDI], use_concepts: list = None, normalize: bool = False
+) -> np.ndarray:
     """For a single MIDI clip, make a four channel piano roll corresponding to Melody, Harmony, Rhythm, and Dynamics"""
     # Create all the extractors for our piano roll
     concept_mapping = {0: MelodyExtractor, 1: HarmonyExtractor, 2: RhythmExtractor, 3: DynamicsExtractor}
     if use_concepts is None:
         use_concepts = [0, 1, 2, 3]
     extractors = []
-    for concept in use_concepts:
-        extractor = concept_mapping[concept]
+    # Iterate through each of our (possibly transformed) midi objects
+    for concept_idx in use_concepts:
+        # Apply the correct extractor to the correct MIDI object
+        midi_obj = midi_objs[concept_idx]
+        extractor = concept_mapping[concept_idx]
         extractors.append(extractor(midi_obj, create_output_midi=False))
     # Normalize velocity dimension if required and stack arrays
     return np.array([normalize_array(concept.roll) if normalize else concept.roll for concept in extractors])
@@ -301,7 +306,7 @@ def create_outputs_from_extractors(track_name: str, extractors: list, raw_midi: 
     if not os.path.exists(ref_folder):
         os.makedirs(ref_folder)
 
-    rhythm, melody, harmony, dynamics = extractors
+    m, h, r, d = extractors
     fig, ax = plt.subplots(5, 1, sharex=True, sharey=True, figsize=(10, 10))
     # Remove extra MIDI notes
     init_roll = get_singlechannel_piano_roll(raw_midi, normalize=True)
@@ -309,7 +314,7 @@ def create_outputs_from_extractors(track_name: str, extractors: list, raw_midi: 
     yt = range(0, PIANO_KEYS, 12)
     for a, roller, tit in zip(
             ax.flatten(),
-            [init_roll[0], melody.roll, harmony.roll, rhythm.roll, dynamics.roll],
+            [init_roll[0], m.roll, h.roll, r.roll, d.roll],
             ['Raw', 'Melody', 'Harmony', 'Rhythm', 'Dynamics']
     ):
         sns.heatmap(normalize_array(roller), ax=a, mask=roller == 0, cmap='mako', cbar=None)
@@ -325,7 +330,7 @@ def create_outputs_from_extractors(track_name: str, extractors: list, raw_midi: 
 
     t = BaseExtractor(raw_midi)
     for mid, name in zip(
-            [raw_midi, t.input_midi, melody.output_midi, rhythm.output_midi, harmony.output_midi, dynamics.output_midi],
+            [raw_midi, t.input_midi, m.output_midi, r.output_midi, h.output_midi, d.output_midi],
             ['input', 'truncated', 'melody', 'rhythm', 'harmony', 'dynamics']
     ):
         mid.write(os.path.join(ref_folder, f'{name}.mid'))
@@ -337,14 +342,15 @@ if __name__ == "__main__":
     import os
     from time import time
     from tqdm import tqdm
-    from deep_pianist_identification.utils import get_project_root
+    from deep_pianist_identification.utils import get_project_root, seed_everything
+    from deep_pianist_identification.dataloader import data_augmentation_multichannel
     from loguru import logger
 
+    seed_everything(42)
     # Get the tracks we'll create clips from
     tracks_to_test = 50
     use_in_test = np.random.choice(os.listdir(os.path.join(get_project_root(), 'data/clips/pijama')), tracks_to_test)
-    # We'll store benchmark results in here
-    res = {'rhythm': [], 'melody': [], 'harmony': [], 'dynamics': [], 'all': []}
+    res = []
     # Iterate through each track
     for track_idx, test_track in tqdm(enumerate(use_in_test), desc=f'Making {tracks_to_test} clips...',
                                       total=tracks_to_test):
@@ -355,19 +361,18 @@ if __name__ == "__main__":
 
         # Load in the MIDI object
         test_midi_obj = PrettyMIDI(test_fpath)
-        allstart = time()
-        track_extractors = []
-        # Iterate through all extractor objects and their names
-        for ex, n in zip([RhythmExtractor, MelodyExtractor, HarmonyExtractor, DynamicsExtractor], list(res.keys())):
-            # Create the extractor and append the time to the list
-            start = time()
-            extracted = ex(test_midi_obj, create_output_midi=True)
-            res[n].append(time() - start)
-            track_extractors.append(extracted)
-        res['all'].append(time() - allstart)
+        # Augment to get different MIDI objects
+        melody, harmony, rhythm, dynamics = data_augmentation_multichannel(pm_obj=test_midi_obj, augmentation_prob=1.0)
+        # Extract each different piano roll, making sure to create the output MIDI so we can access it
+        start = time()
+        melody_roll = MelodyExtractor(melody, create_output_midi=True)
+        harmony_roll = HarmonyExtractor(harmony, create_output_midi=True)
+        rhythm_roll = RhythmExtractor(rhythm, create_output_midi=True)
+        dynamics_roll = DynamicsExtractor(dynamics, create_output_midi=True)
+        res.append(start - time())
         # For every 10 items, create a graph and WAV files
         if track_idx % 10 == 0:
-            create_outputs_from_extractors(test_track, track_extractors, test_midi_obj)
-    # Don't use the timer from the first result as the Numba functions will be compiling then
-    time_results = ', '.join(f'{i}: mean {np.mean(v[1:]):.2f}s' for i, v in res.items())
-    logger.info(f'Results -  {time_results}')
+            exts = [melody_roll, harmony_roll, rhythm_roll, dynamics_roll]
+            create_outputs_from_extractors(test_track, exts, test_midi_obj)
+    logger.info(f"Took {np.sum(res):.2f}s to get rolls for {tracks_to_test} clips "
+                f"(mean = {np.mean(res):.2f}s, SD = {np.std(res):.2f}s)")

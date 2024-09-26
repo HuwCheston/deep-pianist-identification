@@ -53,7 +53,9 @@ class ExtractorTest(unittest.TestCase):
             self.assertTrue(all(n.pitch >= MIDI_OFFSET for n in output_notes))
 
     def test_multichannel_roll_shape(self):
-        multichannel_roll = get_multichannel_piano_roll(self.long_midi)
+        multichannel_roll = get_multichannel_piano_roll(
+            [self.long_midi, self.long_midi, self.long_midi, self.long_midi]
+        )
         self.assertEqual((len(EXTRACTORS), PIANO_KEYS, CLIP_LENGTH * FPS), multichannel_roll.shape)
 
     def test_singlechannel_roll_shape(self):
