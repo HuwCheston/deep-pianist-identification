@@ -17,7 +17,7 @@ from deep_pianist_identification.utils import get_project_root
 
 __all__ = ["MIDILoader", "remove_bad_clips_from_batch"]
 
-AUGMENTATION_PROB = 1.0
+AUGMENTATION_PROB = 0.5
 
 
 def apply_data_augmentation(pm_obj: PrettyMIDI) -> PrettyMIDI:

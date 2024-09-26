@@ -110,7 +110,7 @@ def data_augmentation_time_occlude(pretty: PrettyMIDI, time_range: float = 2.5) 
     return temp
 
 
-def data_augmentation_velocity_change(pretty: PrettyMIDI, velocity_limit: int = 12) -> PrettyMIDI:
+def data_augmentation_velocity_change(pretty: PrettyMIDI, velocity_limit: int = 6) -> PrettyMIDI:
     """Randomly changes note velocity by +/- velocity_limit"""
     temp = PrettyMIDI(resolution=pretty.resolution)
     newinstruments = []
