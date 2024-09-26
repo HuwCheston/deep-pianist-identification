@@ -16,7 +16,9 @@ from deep_pianist_identification.utils import PIANO_KEYS, CLIP_LENGTH, FPS, MIDI
 MINIMUM_FRAMES = 5  # a note must last this number of frames to be used
 QUANTIZE_RESOLUTION = (1 / FPS) * 10  # 100 ms, the duration of a triplet eighth note at the mean JTD tempo (200 BPM)
 
-__all__ = ["normalize_array", "get_multichannel_piano_roll", "get_piano_roll", "quantize"]
+__all__ = [
+    "normalize_array", "get_multichannel_piano_roll", "get_piano_roll", "quantize", "get_singlechannel_piano_roll"
+]
 
 
 @jit(nopython=True)
@@ -267,6 +269,29 @@ def get_multichannel_piano_roll(midi_obj: PrettyMIDI, use_concepts: list = None,
         extractors.append(extractor(midi_obj, create_output_midi=False))
     # Normalize velocity dimension if required and stack arrays
     return np.array([normalize_array(concept.roll) if normalize else concept.roll for concept in extractors])
+
+
+def get_singlechannel_piano_roll(pm_obj: PrettyMIDI, normalize: bool = False) -> np.ndarray:
+    """Gets a single channel piano roll, including all data (i.e., without splitting into concepts)"""
+
+    def get_valid_notes() -> tuple:
+        for note in pm_obj.instruments[0].notes:
+            note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
+            # Remove notes that have pitches above and below the permissible range (of a piano keyboard)
+            if all((
+                    (note_end - note_start) > (MINIMUM_FRAMES / FPS),
+                    note_pitch < PIANO_KEYS + MIDI_OFFSET,
+                    note_pitch >= MIDI_OFFSET
+            )):
+                yield note_start, note_end, note_pitch, note_velocity
+
+    # Get valid notes, and then create the piano roll (single channel) from these
+    roll = get_piano_roll(list(get_valid_notes()))
+    # Squeeze to create a new channel, for parity with our multichannel approach (i.e., batch, channel, pitch, time)
+    roll = np.expand_dims(roll, axis=0)
+    if normalize:
+        roll = normalize_array(roll)
+    return roll
 
 
 def create_outputs_from_extractors(track_name: str, extractors: list, raw_midi: PrettyMIDI) -> None:

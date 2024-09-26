@@ -12,12 +12,11 @@ from torch.utils.data import Dataset, DataLoader, default_collate
 from tqdm import tqdm
 
 from deep_pianist_identification.data_augmentation import data_augmentation_transpose
-from deep_pianist_identification.extractors import get_multichannel_piano_roll, get_piano_roll, normalize_array
-from deep_pianist_identification.utils import get_project_root, PIANO_KEYS, FPS, MIDI_OFFSET
+from deep_pianist_identification.extractors import get_multichannel_piano_roll, get_singlechannel_piano_roll
+from deep_pianist_identification.utils import get_project_root
 
 __all__ = ["MIDILoader", "remove_bad_clips_from_batch"]
 
-MINIMUM_FRAMES = 5  # a note must last this number of frames to be used
 AUGMENTATION_PROB = 0.1
 
 
@@ -32,29 +31,6 @@ def apply_data_augmentation(pm_obj: PrettyMIDI) -> PrettyMIDI:
             return new
     # If we're not applying augmentation OR we've removed all the notes, return the initial MIDI object
     return pm_obj
-
-
-def get_singlechannel_piano_roll(pm_obj: PrettyMIDI, normalize: bool = False) -> np.ndarray:
-    """Gets a single channel piano roll, including all data (i.e., without splitting into concepts)"""
-
-    def get_valid_notes() -> tuple:
-        for note in pm_obj.instruments[0].notes:
-            note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
-            # Remove notes that have pitches above and below the permissible range (of a piano keyboard)
-            if all((
-                    (note_end - note_start) > (MINIMUM_FRAMES / FPS),
-                    note_pitch < PIANO_KEYS + MIDI_OFFSET,
-                    note_pitch >= MIDI_OFFSET
-            )):
-                yield note_start, note_end, note_pitch, note_velocity
-
-    # Get valid notes, and then create the piano roll (single channel) from these
-    roll = get_piano_roll(list(get_valid_notes()))
-    # Squeeze to create a new channel, for parity with our multichannel approach (i.e., batch, channel, pitch, time)
-    roll = np.expand_dims(roll, axis=0)
-    if normalize:
-        roll = normalize_array(roll)
-    return roll
 
 
 class MIDILoader(Dataset):
