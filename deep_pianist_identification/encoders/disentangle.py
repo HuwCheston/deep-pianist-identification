@@ -10,6 +10,8 @@ import deep_pianist_identification.utils as utils
 from deep_pianist_identification.encoders.cnn import ConvLayer
 from deep_pianist_identification.encoders.crnn import GRU
 
+__all__ = ["DisentangleNet"]
+
 
 class Concept(nn.Module):
     def __init__(self, num_layers: int = 4, use_gru: bool = True):
