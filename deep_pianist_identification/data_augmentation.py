@@ -19,16 +19,13 @@ def data_augmentation_transpose(pretty: PrettyMIDI, shift_limit: int = 12) -> Pr
         newnotes = []
         for note in instrument.notes:
             newpitch = note.pitch + shift_val
-            if newpitch > PIANO_KEYS + MIDI_OFFSET or newpitch < MIDI_OFFSET:
-                continue
-            else:
-                newnote = Note(
-                    pitch=newpitch,
-                    start=note.start,
-                    end=note.end,
-                    velocity=note.velocity
-                )
-                newnotes.append(newnote)
+            newnote = Note(
+                pitch=newpitch,
+                start=note.start,
+                end=note.end,
+                velocity=note.velocity
+            )
+            newnotes.append(newnote)
         newinstrument = Instrument(program=instrument.program)
         newinstrument.notes = newnotes
         newinstruments.append(newinstrument)
@@ -47,14 +44,13 @@ def data_augmentation_dilate(pretty: PrettyMIDI, dilate_val: int = 0.2) -> Prett
         for note in instrument.notes:
             newstart = note.start * (1 + shift_val)
             newend = note.end * (1 + shift_val)
-            if newstart >= 0. and newend < CLIP_LENGTH:
-                newnote = Note(
-                    pitch=note.pitch,
-                    start=newstart,
-                    end=newend,
-                    velocity=note.velocity
-                )
-                newnotes.append(newnote)
+            newnote = Note(
+                pitch=note.pitch,
+                start=newstart,
+                end=newend,
+                velocity=note.velocity
+            )
+            newnotes.append(newnote)
         newinstrument = Instrument(program=instrument.program)
         newinstrument.notes = newnotes
         newinstruments.append(newinstrument)
@@ -119,6 +115,7 @@ def data_augmentation_velocity_change(pretty: PrettyMIDI, velocity_limit: int = 
         for note in instrument.notes:
             # Pick a random value to shift by
             shift_val = np.random.randint(-velocity_limit, velocity_limit)
+            # PrettyMIDI won't accept velocities outside of a given range
             if note.velocity + shift_val >= 127:
                 shift_val = 0
             newnote = Note(
