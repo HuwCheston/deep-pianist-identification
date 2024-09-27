@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Test suite for augmentation functions in deep_pianist_identification/data_augmentation.py."""
+"""Test suite for augmentation functions in deep_pianist_identification/extractors.py."""
 
 import os
 import unittest
