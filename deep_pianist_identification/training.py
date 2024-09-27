@@ -17,7 +17,7 @@ from torchmetrics.classification import Accuracy, F1Score, ConfusionMatrix
 from tqdm import tqdm
 
 from deep_pianist_identification.dataloader import MIDILoader, remove_bad_clips_from_batch
-from deep_pianist_identification.encoders import CRNNet, CNNet
+from deep_pianist_identification.encoders import CRNNet, CNNet, DisentangleNet
 from deep_pianist_identification.utils import DEVICE, N_CLASSES, seed_everything, get_project_root
 
 # Any key-value pairs we don't define in our custom config will be overwritten using these
@@ -83,6 +83,12 @@ class TrainModule:
             return CNNet(**self.model_cfg)
         elif self.encoder_module == "crnn":
             return CRNNet(**self.model_cfg)
+        elif self.encoder_module == "disentangle":
+            assert all((
+                self.train_dataset_cfg.get("multichannel") is True,
+                self.test_dataset_cfg.get("multichannel") is True,
+            )), "Must set `multichannel == True` in dataloader config when using disentangle encoder!"
+            return DisentangleNet(**self.model_cfg)
 
     def step(self, features: torch.tensor, targets: torch.tensor) -> tuple:
         # Set device correctly for both features and targets
