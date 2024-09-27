@@ -27,8 +27,8 @@ DEFAULT_CONFIG = yaml.safe_load(open(os.path.join(get_project_root(), 'config', 
 class TrainModule:
     def __init__(self, **kwargs):
         # Set all keyword arguments to class parameters
-        for key, val in kwargs.items():
-            mlflow.log_param(key, val)
+        self.params = kwargs
+        for key, val in self.params.items():
             setattr(self, key, val)
         self.current_epoch = 0
         # MODEL
@@ -187,6 +187,10 @@ class TrainModule:
             logger.debug(f'Saved a checkpoint to {checkpoint_folder}')
 
     def run_training(self) -> None:
+        # Log parameters in mlflow
+        for key, val in self.params.items():
+            mlflow.log_param(key, val)
+        # Start training
         for epoch in range(self.current_epoch, self.epochs):
             self.current_epoch = epoch
             epoch_start = time()
