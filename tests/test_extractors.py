@@ -12,7 +12,9 @@ from deep_pianist_identification.extractors import (
     get_singlechannel_piano_roll, get_multichannel_piano_roll, ExtractorError,
     MelodyExtractor, HarmonyExtractor, DynamicsExtractor, RhythmExtractor
 )
-from deep_pianist_identification.utils import get_project_root, CLIP_LENGTH, PIANO_KEYS, FPS, MIDI_OFFSET
+from deep_pianist_identification.utils import (
+    get_project_root, CLIP_LENGTH, PIANO_KEYS, FPS, MIDI_OFFSET, seed_everything
+)
 
 EXTRACTORS = [MelodyExtractor, HarmonyExtractor, DynamicsExtractor, RhythmExtractor]
 
@@ -36,7 +38,7 @@ class ExtractorTest(unittest.TestCase):
         # Iterate over all extractor objects
         for extractor in EXTRACTORS:
             # Create the extractor, get the input and output MIDI files
-            rendered = extractor(self.long_midi, create_output_midi=True)
+            rendered = extractor(self.long_midi)
             input_notes = rendered.input_midi.instruments[0].notes
             output_notes = rendered.output_midi.instruments[0].notes
             # Output notes should be changed
@@ -53,9 +55,7 @@ class ExtractorTest(unittest.TestCase):
             self.assertTrue(all(n.pitch >= MIDI_OFFSET for n in output_notes))
 
     def test_multichannel_roll_shape(self):
-        multichannel_roll = get_multichannel_piano_roll(
-            [self.long_midi, self.long_midi, self.long_midi, self.long_midi]
-        )
+        multichannel_roll = get_multichannel_piano_roll(self.long_midi)
         self.assertEqual((len(EXTRACTORS), PIANO_KEYS, CLIP_LENGTH * FPS), multichannel_roll.shape)
 
     def test_singlechannel_roll_shape(self):
@@ -64,7 +64,7 @@ class ExtractorTest(unittest.TestCase):
 
     def test_melody_extractor(self):
         # Create extractor and get note data
-        extractor = MelodyExtractor(self.long_midi, create_output_midi=True)
+        extractor = MelodyExtractor(self.long_midi, data_augmentation=False)
         extracted_starts = sorted([n.start for n in extractor.output_midi.instruments[0].notes])
         extracted_ends = sorted([n.end for n in extractor.output_midi.instruments[0].notes])
         extracted_pitches = sorted([n.pitch for n in extractor.output_midi.instruments[0].notes])
@@ -80,7 +80,7 @@ class ExtractorTest(unittest.TestCase):
 
     def test_harmony_extractor(self):
         # Create extractor and get note data
-        extractor = HarmonyExtractor(self.long_midi, create_output_midi=True)
+        extractor = HarmonyExtractor(self.long_midi, data_augmentation=False)
         extracted_starts = sorted([n.start for n in extractor.output_midi.instruments[0].notes])
         extracted_ends = sorted([n.end for n in extractor.output_midi.instruments[0].notes])
         extracted_pitches = sorted([n.pitch for n in extractor.output_midi.instruments[0].notes])
@@ -96,7 +96,7 @@ class ExtractorTest(unittest.TestCase):
 
     def test_dynamics_extractor(self):
         # Create extractor and get note data
-        extractor = DynamicsExtractor(self.long_midi, create_output_midi=True)
+        extractor = DynamicsExtractor(self.long_midi, data_augmentation=False)
         extracted_starts = sorted([n.start for n in extractor.output_midi.instruments[0].notes])
         extracted_ends = sorted([n.end for n in extractor.output_midi.instruments[0].notes])
         extracted_pitches = sorted([n.pitch for n in extractor.output_midi.instruments[0].notes])
@@ -112,7 +112,7 @@ class ExtractorTest(unittest.TestCase):
 
     def test_rhythm_extractor(self):
         # Create extractor and get note data
-        extractor = RhythmExtractor(self.long_midi, create_output_midi=True)
+        extractor = RhythmExtractor(self.long_midi, data_augmentation=False)
         extracted_starts = sorted([n.start for n in extractor.output_midi.instruments[0].notes])
         extracted_ends = sorted([n.end for n in extractor.output_midi.instruments[0].notes])
         extracted_pitches = sorted([n.pitch for n in extractor.output_midi.instruments[0].notes])
@@ -135,8 +135,9 @@ class ExtractorTest(unittest.TestCase):
         )
         bm.instruments.append(badinst)
         # This clip should always raise an ExtractorError as there won't be any chords
-        self.assertRaises(ExtractorError, get_multichannel_piano_roll, [bm, bm, bm, bm])
+        self.assertRaises(ExtractorError, get_multichannel_piano_roll, bm)
 
 
 if __name__ == '__main__':
+    seed_everything(42)
     unittest.main()

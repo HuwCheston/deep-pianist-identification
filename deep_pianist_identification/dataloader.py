@@ -4,7 +4,6 @@
 """MIDI DataLoader module"""
 
 import os
-from copy import deepcopy
 
 import numpy as np
 import pandas as pd
@@ -13,49 +12,14 @@ from pretty_midi import PrettyMIDI
 from torch.utils.data import Dataset, DataLoader, default_collate
 from tqdm import tqdm
 
-# TODO: these functions should be moved inside their respective extractors
-from deep_pianist_identification.data_augmentation import (
-    data_augmentation_transpose, data_augmentation_dilate, data_augmentation_velocity_change
-)
 from deep_pianist_identification.extractors import (
     get_multichannel_piano_roll, get_singlechannel_piano_roll, ExtractorError
 )
 from deep_pianist_identification.utils import get_project_root
 
-__all__ = ["MIDILoader", "remove_bad_clips_from_batch", "data_augmentation_multichannel"]
+__all__ = ["MIDILoader", "remove_bad_clips_from_batch"]
 
 AUGMENTATION_PROB = 0.5
-
-
-def data_augmentation_multichannel(pm_obj: PrettyMIDI, augmentation_prob: float = AUGMENTATION_PROB) -> tuple:
-    def augment(func) -> PrettyMIDI:
-        midi = deepcopy(pm_obj)
-        if np.random.uniform(0., 1.) <= augmentation_prob:
-            transformed = func(midi)
-            if len(transformed.instruments[0].notes) > 0:
-                midi = transformed
-        return midi
-
-    # Apply the correct augmentation to each concept
-    melody = augment(data_augmentation_transpose)
-    harmony = augment(data_augmentation_transpose)
-    rhythm = augment(data_augmentation_dilate)
-    dynamics = augment(data_augmentation_velocity_change)
-    return melody, harmony, rhythm, dynamics
-
-
-def data_augmentation_singlechannel(pm_obj: PrettyMIDI, augmentation_prob: float = AUGMENTATION_PROB) -> PrettyMIDI:
-    """Applies a random augmentation to the MIDI object"""
-    funcs = [data_augmentation_transpose, data_augmentation_dilate, data_augmentation_velocity_change]
-    if np.random.uniform(0., 1.) <= augmentation_prob:
-        # Choose a random augmentation and apply it to the MIDI object
-        random_aug = np.random.choice(funcs)
-        new = random_aug(pm_obj)
-        # If we haven't removed all the notes from the MIDI file
-        if len(new.instruments[0].notes) > 0:
-            return new
-    # If we're not applying augmentation OR we've removed all the notes, return the initial MIDI object
-    return pm_obj
 
 
 class MIDILoader(Dataset):
@@ -103,15 +67,9 @@ class MIDILoader(Dataset):
         # Load the piano roll as either single channel (all valid MIDI notes) or multichannel (split into concepts)
         # We normalize the piano roll directly in each function, as required
         if self.multichannel:
-            if self.data_augmentation:
-                # Apply data augmentation to get four different MIDI objects, one for each concept
-                melody, harmony, rhythm, dynamics = data_augmentation_multichannel(pm, self.augmentation_prob)
-            else:
-                # Just using the raw MIDI without augmentation, one for each concept
-                melody, harmony, rhythm, dynamics = pm, pm, pm, pm
             try:
                 piano_roll = get_multichannel_piano_roll(
-                    midi_objs=[melody, harmony, rhythm, dynamics],
+                    midi_obj=pm,
                     use_concepts=self.use_concepts,
                     normalize=self.normalize_velocity
                 )
@@ -120,9 +78,6 @@ class MIDILoader(Dataset):
                 logger.warning(f'Failed for {track_path}, clip {clip_idx}, skipping! {err}')
                 return None
         else:
-            # Apply data augmentation, if required
-            if self.data_augmentation:
-                pm = data_augmentation_singlechannel(pm, self.augmentation_prob)
             piano_roll = get_singlechannel_piano_roll(pm, normalize=self.normalize_velocity)
         return piano_roll, target_class
 

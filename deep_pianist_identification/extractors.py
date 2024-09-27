@@ -6,6 +6,7 @@
 from copy import deepcopy
 from itertools import groupby
 from operator import itemgetter
+from typing import Optional
 
 import numpy as np
 from numba import jit
@@ -18,7 +19,7 @@ QUANTIZE_RESOLUTION = (1 / FPS) * 10  # 100 ms, the duration of a triplet eighth
 
 __all__ = [
     "normalize_array", "get_multichannel_piano_roll", "get_piano_roll", "quantize", "get_singlechannel_piano_roll",
-    "MelodyExtractor", "DynamicsExtractor", "RhythmExtractor", "HarmonyExtractor", "ExtractorError"
+    "MelodyExtractor", "DynamicsExtractor", "RhythmExtractor", "HarmonyExtractor", "ExtractorError", "BaseExtractor"
 ]
 
 
@@ -54,76 +55,146 @@ def quantize(midi_time: float, resolution: float = QUANTIZE_RESOLUTION) -> float
 class BaseExtractor:
     """Base extractor class from which all others inherit. Defines basic methods that are overriden in child classes"""
 
-    def __init__(self, midi_obj: PrettyMIDI):
-        self.input_midi = self.remove_invalid_midi_notes(midi_obj)
-        self.output_midi = None  # Will be added in child classes after processing
+    def __init__(self, midi_obj: PrettyMIDI, **kwargs):
+        self.input_midi = midi_obj
+        # Convert all note objects into a list of tuples to work with them easier
+        raw = [(note.start, note.end, note.pitch, note.velocity) for note in self.input_midi.instruments[0].notes]
+        # Apply data augmentation
+        augmented = list(self.augmentation(raw))
+        # Remove notes which fail validation checks
+        validated = list(self.validation(augmented))
+        # Transform data into correct format
+        transformed = list(self.transformation(validated))
+        # Create output in both PrettyMIDI and piano roll format
+        self.roll = get_piano_roll(transformed)
+        self.output_midi = self.output(transformed)
 
-    @staticmethod
-    def remove_invalid_midi_notes(midi_obj: PrettyMIDI) -> PrettyMIDI:
-        temp = PrettyMIDI(resolution=midi_obj.resolution)
-        newinstruments = []
-        for instrument in midi_obj.instruments:
-            newnotes = []
-            for note in instrument.notes:
-                note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
-                if all((
-                        note_end <= CLIP_LENGTH,
-                        (note_end - note_start) > (MINIMUM_FRAMES / FPS),
-                        note_pitch < PIANO_KEYS + MIDI_OFFSET,
-                        note_pitch >= MIDI_OFFSET
-                )):
-                    newnotes.append(Note(start=note_start, end=note_end, pitch=note_pitch, velocity=note_velocity))
-            newinstrument = Instrument(program=instrument.program)
-            newinstrument.notes = newnotes
-            newinstruments.append(newinstrument)
-            temp.instruments = newinstruments
-        return temp
+    def validate_note(self, midi_note: tuple[float, float, int, int]) -> bool:
+        """Returns True if a note fulfils all required conditions for the extractor, False if not"""
+        note_start, note_end, note_pitch, note_velocity = midi_note
+        return all((
+            note_end <= CLIP_LENGTH,  # Does the note fit within the boundaries of our clip?
+            (note_end - note_start) > (MINIMUM_FRAMES / FPS),  # If the note at least N frames long?
+            note_pitch < PIANO_KEYS + MIDI_OFFSET,  # Does the note fit within the boundaries of the piano?
+            note_pitch >= MIDI_OFFSET  # Does the note fit within the boundaries of the piano?
+        ))
 
-    def get_midi_events(self):
-        """Overwritten in child classes"""
-        pass
+    def augmentation(self, midi_notes: list[tuple]) -> list[tuple]:
+        for note in midi_notes:
+            yield note
 
-    def create_output_midi(self, notes: list[tuple]) -> PrettyMIDI:
-        """Converts a list of notes represented as tuples into a new PrettyMIDI object that can be synthesized, etc."""
-        # Create empty PrettyMIDI and Instrument classes
+    def validation(self, augmented_midi_notes: list[tuple]) -> list[tuple]:
+        for note in augmented_midi_notes:
+            if self.validate_note(note):
+                yield note
+
+    def transformation(self, validated_midi_notes: list[tuple]) -> list[tuple]:
+        for note in validated_midi_notes:
+            yield note
+
+    def output(self, transformed_midi_notes: list[tuple]) -> PrettyMIDI:
+        # Create empty PrettyMIDI and Instrument classes using the same settings as our input
         pm_obj = PrettyMIDI(resolution=self.input_midi.resolution)
         instr = Instrument(program=self.input_midi.instruments[0].program)
         # Iterate through each note and convert them to PrettyMIDI format
-        for note in notes:
+        for note in transformed_midi_notes:
             note_start, note_end, note_pitch, note_velocity = note
             instr.notes.append(Note(start=note_start, end=note_end, pitch=note_pitch, velocity=note_velocity))
         # Set the notes to the instrument object, and the instrument object to the PrettyMIDI object
         pm_obj.instruments.append(instr)
         return pm_obj
 
+    def heatmap(self, ax: Optional = None):
+        """Creates a heatmap of the piano roll in seaborn, returns a matplotlib Axes object for use in a Figure"""
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+
+        # Create a new axis object, if none is passed
+        if ax is None:
+            ax = plt.gca()
+        # Create the heatmap in seaborn
+        sns.heatmap(normalize_array(self.roll), ax=ax, mask=self.roll == 0, cmap='mako', cbar=None)
+        # Set some plot aesthetics
+        ax.patch.set_edgecolor('black')
+        ax.patch.set_linewidth(1)
+        ax.grid()
+        # Set axes limits correctly
+        ax.set(
+            xticks=range(0, 3500, 500), yticks=range(0, PIANO_KEYS, 12),
+            xticklabels=range(0, 3500, 500), yticklabels=range(0, PIANO_KEYS, 12)
+        )
+        # Return the axes object to be incorporated in a larger plot
+        return ax
+
+    def synthesize(self, output_path: str) -> None:
+        """Renders the output MIDI from the extractor as a .wav file using fluidsynth"""
+        import os
+        import subprocess
+
+        # Render the transformed MIDI as a file
+        self.output_midi.write(output_path + '.mid')
+        # Call Fluidsynth in subprocess to render the MIDI
+        cmd = f'fluidsynth -ni -r 44100 -F "{output_path}.wav" "{output_path}.mid"'
+        subprocess.call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        # Remove the MIDI file
+        os.remove(output_path + '.mid')
+
 
 class MelodyExtractor(BaseExtractor):
     """Extracts melody using skyline algorithm, while removing rhythm, harmony, and velocity"""
 
     def __init__(self, midi_obj: PrettyMIDI, **kwargs):
-        super().__init__(midi_obj)
         # Get parameter settings from kwargs
         self.lower_bound = kwargs.get('lower_bound', MIDI_OFFSET)  # Use all notes by default
         self.quantize_resolution = kwargs.get('quantize_resolution', 1 / FPS)  # Snap to nearest 10 ms
-        # Load the MIDI events, quantize, skyline, and snap the duration to fill the complete excerpt
-        quantized = list(self.get_midi_events())
-        skylined = list(self.apply_skyline(quantized))
-        adjusted = list(self.adjust_durations(skylined))
-        # Get the piano roll
-        self.roll = get_piano_roll(adjusted)
-        if kwargs.get('create_output_midi', False):
-            self.output_midi = self.create_output_midi(adjusted)
+        # Augmentation settings from kwargs
+        self.shift_limit = kwargs.get('shift_limit', 6)
+        self.data_augmentation = kwargs.get('data_augmentation', True)
+        self.augmentation_probability = kwargs.get('augmentation_probability', 0.5)
+        # Initialise the parent class and call all the overridden methods
+        super().__init__(midi_obj)
 
-    def get_midi_events(self) -> tuple:
-        """Quantize note start and end, randomize velocity, and keep pitch"""
-        for note in self.input_midi.instruments[0].notes:
-            note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
-            if note_pitch >= self.lower_bound:
+    def augmentation(self, midi_notes: list[tuple]) -> list[tuple]:
+        """Randomly transposes all notes in a MIDI file by +/- shif_limit"""
+        should_augment = np.random.uniform(0., 1.) <= self.augmentation_probability
+        # If we're augmenting
+        if self.data_augmentation and should_augment:
+            # Pick a random value to shift all notes by
+            shift_val = np.random.randint(-self.shift_limit, self.shift_limit)
+        # No shifting of notes
+        else:
+            shift_val = 0
+        # Iterate through all notes
+        for note in midi_notes:
+            note_start, note_end, note_pitch, note_velocity = note
+            # Shift the pitch by the desired value
+            note_pitch += shift_val
+            yield note_start, note_end, note_pitch, note_velocity
+
+    def validate_note(self, midi_note: Note) -> bool:
+        """Returns True if a note fulfils all required conditions for the extractor, False if not"""
+        note_start, note_end, note_pitch, note_velocity = midi_note
+        return all((
+            note_end <= CLIP_LENGTH,  # Does the note fit within the boundaries of our clip?
+            (note_end - note_start) > (MINIMUM_FRAMES / FPS),  # If the note at least N frames long?
+            note_pitch < PIANO_KEYS + MIDI_OFFSET,  # Does the note fit within the boundaries of the piano?
+            note_pitch >= MIDI_OFFSET,  # Does the note fit within the boundaries of the piano?
+            note_pitch >= self.lower_bound  # Is the note within the specified boundary?
+        ))
+
+    def validation(self, augmented_midi_notes: list[tuple]) -> list[tuple]:
+        for note in augmented_midi_notes:
+            if self.validate_note(note):
+                note_start, note_end, note_pitch, note_velocity = note
                 # Snap note start and end with the given time resolution
                 note_start = quantize(note_start, self.quantize_resolution)
                 note_end = quantize(note_end, self.quantize_resolution)
                 note_velocity = 127  # 1 = note on, 0 = note off
                 yield note_start, note_end, note_pitch, note_velocity
+
+    def transformation(self, validated_midi_notes: list[tuple]):
+        skylined = list(self.apply_skyline(validated_midi_notes))
+        return self.adjust_durations(skylined)
 
     @staticmethod
     def apply_skyline(quantized_notes: list):
@@ -158,30 +229,60 @@ class MelodyExtractor(BaseExtractor):
 
 class HarmonyExtractor(BaseExtractor):
     """Extracts harmony by grouping together near-simultaneous notes, and removes rhythm, dynamics, and melody"""
+
     def __init__(self, midi_obj: PrettyMIDI, **kwargs):
-        super().__init__(midi_obj)
         # Get the parameter settings from the kwargs, with defaults
         self.upper_bound = kwargs.get('upper_bound', PIANO_KEYS + MIDI_OFFSET)  # Use all notes by default
         self.minimum_notes = kwargs.get('minimum_notes', 3)  # Only consider triads or greater
         self.quantize_resolution = kwargs.get('quantize_resolution', 0.3)  # Snap to 300ms, i.e. 1/4 note at mean JTD
-        # Quantize the MIDI events, group into chords, then adjust the durations
-        quantized = list(self.get_midi_events())
-        chorded = list(self.group_chords(quantized))
-        adjusted = list(self.adjust_durations(chorded))
-        # Create the piano roll
-        self.roll = get_piano_roll(adjusted)
-        if kwargs.get('create_output_midi', False):
-            self.output_midi = self.create_output_midi(adjusted)
+        # Augmentation settings from kwargs
+        self.shift_limit = kwargs.get('shift_limit', 6)
+        self.data_augmentation = kwargs.get('data_augmentation', True)
+        self.augmentation_probability = kwargs.get('augmentation_probability', 0.5)
+        # Initialise the parent class and call all the overridden methods
+        super().__init__(midi_obj)
 
-    def get_midi_events(self) -> tuple:
+    def augmentation(self, midi_notes: list[tuple]) -> list[tuple]:
+        """Randomly transposes all notes in a MIDI file by +/- shift_limit"""
+        should_augment = np.random.uniform(0., 1.) <= self.augmentation_probability
+        # If we're augmenting
+        if self.data_augmentation and should_augment:
+            # Pick a random value to shift all notes by
+            shift_val = np.random.randint(-self.shift_limit, self.shift_limit)
+        # No shifting of notes
+        else:
+            shift_val = 0
+        # Iterate through all notes
+        for note in midi_notes:
+            note_start, note_end, note_pitch, note_velocity = note
+            # Shift the pitch by the desired value
+            note_pitch += shift_val
+            yield note_start, note_end, note_pitch, note_velocity
+
+    def validate_note(self, midi_note: Note) -> bool:
+        """Returns True if a note fulfils all required conditions for the extractor, False if not"""
+        note_start, note_end, note_pitch, note_velocity = midi_note
+        return all((
+            note_end <= CLIP_LENGTH,  # Does the note fit within the boundaries of our clip?
+            (note_end - note_start) > (MINIMUM_FRAMES / FPS),  # If the note at least N frames long?
+            note_pitch < PIANO_KEYS + MIDI_OFFSET,  # Does the note fit within the boundaries of the piano?
+            note_pitch >= MIDI_OFFSET,  # Does the note fit within the boundaries of the piano?
+            note_pitch <= self.upper_bound  # Is the note within the specified boundary?
+        ))
+
+    def validation(self, augmented_midi_notes: list[tuple]) -> list[tuple]:
         """Quantize note start and end, randomize velocity, and keep pitch"""
-        for note in self.input_midi.instruments[0].notes:
-            note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
-            if note_pitch <= self.upper_bound:
+        for note in augmented_midi_notes:
+            if self.validate_note(note):
+                note_start, note_end, note_pitch, note_velocity = note
                 # Snap note start and end with the given time resolution
                 note_start = quantize(note_start, self.quantize_resolution)
                 note_end = quantize(note_end, self.quantize_resolution)
                 yield note_start, note_end, note_pitch, note_velocity
+
+    def transformation(self, validated_midi_notes: list[tuple]) -> list[tuple]:
+        chorded = list(self.group_chords(validated_midi_notes))
+        return self.adjust_durations(chorded)
 
     def group_chords(self, notes: list):
         """Group simultaneous notes with at least MINIMUM_NOTES into chords (iterables of notes)"""
@@ -215,6 +316,7 @@ class HarmonyExtractor(BaseExtractor):
                 # Get the adjusted note start and end time
                 chord_start = note_idx * chord_duration
                 chord_end = (note_idx + 1) * chord_duration
+                # Set the velocity to binary
                 chord_velocity = 127  # 1 = note on, 0 = note off
                 if chord_end > CLIP_LENGTH:
                     chord_end = CLIP_LENGTH
@@ -228,18 +330,39 @@ class RhythmExtractor(BaseExtractor):
     """Extracts rhythm (note onset and offset times), while shuffling pitch and removing velocity"""
 
     def __init__(self, midi_obj: PrettyMIDI, **kwargs):
+        # Augmentation settings from kwargs
+        self.shift_limit = kwargs.get('shift_limit', 0.2)
+        self.data_augmentation = kwargs.get('data_augmentation', True)
+        self.augmentation_probability = kwargs.get('augmentation_probability', 0.5)
+        # Initialise the parent class and call all the overridden methods
         super().__init__(midi_obj)
-        midi = list(self.get_midi_events())
-        self.roll = get_piano_roll(midi)
-        if kwargs.get('create_output_midi', False):
-            self.output_midi = self.create_output_midi(midi)
 
-    def get_midi_events(self) -> tuple:
-        """Keep note onset and offset times, randomize pitch and velocity values"""
-        for note in self.input_midi.instruments[0].notes:
-            note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
-            # Randomise the pitch and velocity of the note
+    def augmentation(self, midi_notes: list[tuple]) -> list[tuple]:
+        """Randomly dilate all onset and offset times through multiplying by 1 +/- shift_limit"""
+        should_augment = np.random.uniform(0., 1.) <= self.augmentation_probability
+        # If we're augmenting
+        if self.data_augmentation and should_augment:
+            # Choose a random floating point value to shift note onset and offsets by
+            shift_val = np.random.uniform(1 - self.shift_limit, 1 + self.shift_limit)
+        # No shifting of note onset and offset times
+        else:
+            shift_val = 1.
+        # Iterate through all notes
+        for note in midi_notes:
+            note_start, note_end, note_pitch, note_velocity = note
+            # Shift the onset and offset times by the desired value
+            note_start *= shift_val
+            note_end *= shift_val
+            yield note_start, note_end, note_pitch, note_velocity
+
+    # No need to overwrite validation logic, BaseExtractor code works fine
+
+    def transformation(self, validated_midi_notes: list[tuple]) -> list[tuple]:
+        for note in validated_midi_notes:
+            note_start, note_end, note_pitch, note_velocity = note
+            # Randomise the pitch
             note_pitch = np.random.randint(MIDI_OFFSET, (PIANO_KEYS + MIDI_OFFSET) - 1)
+            # Set the velocity to binary
             note_velocity = 127  # 1 = note on, 0 = note off
             yield note_start, note_end, note_pitch, note_velocity
 
@@ -248,32 +371,50 @@ class DynamicsExtractor(BaseExtractor):
     """Extracts velocity while randomising pitch and removing note onset and offset times"""
 
     def __init__(self, midi_obj: PrettyMIDI, **kwargs):
-        super().__init__(midi_obj)
         # Get parameter settings from kwargs
         self.quantize_resolution = kwargs.get('quantize_resolution', 1 / FPS)
-        # Quantize the MIDI notes, randomize the pitch, and adjust the duration to fill the excerpt
-        quantized = list(self.get_midi_events())
-        adjusted = list(self.adjust_durations(quantized))
-        self.roll = get_piano_roll(adjusted)
-        if kwargs.get('create_output_midi', False):
-            self.output_midi = self.create_output_midi(adjusted)
+        # Augmentation settings from kwargs
+        self.shift_limit = kwargs.get('shift_limit', 12)
+        self.data_augmentation = kwargs.get('data_augmentation', True)
+        self.augmentation_probability = kwargs.get('augmentation_probability', 0.5)
+        # Initialise the parent class and call all the overridden methods
+        super().__init__(midi_obj)
 
-    def get_midi_events(self) -> tuple:
-        """Keep note onset and offset times, randomize pitch and velocity values"""
-        for note in self.input_midi.instruments[0].notes:
-            note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
-            # Randomise the pitch and velocity of the note
-            note_pitch = np.random.randint(MIDI_OFFSET, (PIANO_KEYS + MIDI_OFFSET) - 1)
-            # Snap note start and end with the given time resolution
-            note_start = quantize(note_start, self.quantize_resolution)
-            note_end = quantize(note_end, self.quantize_resolution)
-            yield note_start, note_end, note_pitch, note_velocity
+    def augmentation(self, midi_notes: list[tuple]) -> list[tuple]:
+        """Randomly transposes all notes in a MIDI file by +/- shift_limit"""
+        should_augment = np.random.uniform(0., 1.) <= self.augmentation_probability
+        # If we're augmenting
+        if self.data_augmentation and should_augment:
+            for note in midi_notes:
+                note_start, note_end, note_pitch, note_velocity = note
+                # Randomly choose a value to shift the note velocity by
+                shift_val = np.random.randint(-self.shift_limit, self.shift_limit)
+                # If shifting the note by this value would take us outside the MIDI velocity range
+                if (note_velocity + shift_val >= 127) or (note_velocity + shift_val <= 0):
+                    # Set the shift value to 0 so that we keep the note
+                    shift_val = 0
+                note_velocity += shift_val
+                yield note_start, note_end, note_pitch, note_velocity
+        # Not augmenting, so just return a generator of notes
+        else:
+            for note in midi_notes:
+                yield note
 
-    @staticmethod
-    def adjust_durations(notes: list):
+    def validation(self, augmented_midi_notes: list[tuple]) -> list[tuple]:
+        """Remove invalid notes and quantize note onset and offset times"""
+        for note in augmented_midi_notes:
+            if self.validate_note(note):
+                note_start, note_end, note_pitch, note_velocity = note
+                # Snap note start and end with the given time resolution
+                note_start = quantize(note_start, self.quantize_resolution)
+                note_end = quantize(note_end, self.quantize_resolution)
+                yield note_start, note_end, note_pitch, note_velocity
+
+    def transformation(self, validated_midi_notes: list[tuple]) -> list[tuple]:
+        """Adjust note durations and randomize pitch"""
         note_starts = itemgetter(0)
         # Group by the note start time and get the duration of each quantized bin
-        grouper = groupby(sorted(notes, key=note_starts), note_starts)
+        grouper = groupby(sorted(validated_midi_notes, key=note_starts), note_starts)
         try:
             note_duration = CLIP_LENGTH / len(list(deepcopy(grouper)))
         # This error will be caught in the dataloader collate_fn and the bad clip will be skipped.
@@ -288,13 +429,14 @@ class DynamicsExtractor(BaseExtractor):
                 note_end = (note_idx + 1) * note_duration
                 # Iterate through each individual note in the bin
                 for note in subiter:
-                    # Maintain the velocity and (randomised) pitch
-                    _, __, note_pitch, note_velocity = note
+                    _, __, ___, note_velocity = note
+                    # Randomise the pitch
+                    note_pitch = np.random.randint(MIDI_OFFSET, (PIANO_KEYS + MIDI_OFFSET) - 1)
                     yield note_start, note_end, note_pitch, note_velocity
 
 
 def get_multichannel_piano_roll(
-        midi_objs: list[PrettyMIDI], use_concepts: list = None, normalize: bool = False
+        midi_obj: PrettyMIDI, use_concepts: list = None, normalize: bool = False
 ) -> np.ndarray:
     """For a single MIDI clip, make a four channel piano roll corresponding to Melody, Harmony, Rhythm, and Dynamics"""
     # Create all the extractors for our piano roll
@@ -302,70 +444,50 @@ def get_multichannel_piano_roll(
     if use_concepts is None:
         use_concepts = [0, 1, 2, 3]
     extractors = []
-    # Iterate through each of our (possibly transformed) midi objects
     for concept_idx in use_concepts:
-        # Apply the correct extractor to the correct MIDI object
-        midi_obj = midi_objs[concept_idx]
-        extractor = concept_mapping[concept_idx]
-        extractors.append(extractor(midi_obj, create_output_midi=False))
+        # Get the correct extractor object
+        ext = concept_mapping[concept_idx]
+        # Create the extractor using our provided raw MIDI, get the piano roll, then append to the list
+        extractors.append(ext(midi_obj).roll)
     # Normalize velocity dimension if required and stack arrays
-    return np.array([normalize_array(concept.roll) if normalize else concept.roll for concept in extractors])
+    return np.array([normalize_array(concept) if normalize else concept for concept in extractors])
 
 
 def get_singlechannel_piano_roll(pm_obj: PrettyMIDI, normalize: bool = False) -> np.ndarray:
     """Gets a single channel piano roll, including all data (i.e., without splitting into concepts)"""
     # We can use the base extractor, which will perform checks e.g., removing invalid notes
     extract = BaseExtractor(pm_obj)
-    extracted_notes = extract.input_midi.instruments[0].notes
-    # Get valid notes, and then create the piano roll (single channel) from these
-    roll = get_piano_roll([(note.start, note.end, note.pitch, note.velocity) for note in extracted_notes])
     # Squeeze to create a new channel, for parity with our multichannel approach (i.e., batch, channel, pitch, time)
-    roll = np.expand_dims(roll, axis=0)
+    roll = np.expand_dims(extract.roll, axis=0)
     if normalize:
         roll = normalize_array(roll)
     return roll
 
 
-def create_outputs_from_extractors(track_name: str, extractors: list, raw_midi: PrettyMIDI) -> None:
+def create_outputs_from_extractors(track_name: str, extractors: list) -> None:
     """Creates .WAV and .PNG files for a particular track with extractors and raw_midi"""
     import matplotlib.pyplot as plt
-    import seaborn as sns
-    import subprocess
 
+    # Create the folder for this track, in our reports directory
     ref_folder = os.path.join(get_project_root(), 'reports/midi_test', track_name)
     if not os.path.exists(ref_folder):
         os.makedirs(ref_folder)
-
-    m, h, r, d = extractors
-    fig, ax = plt.subplots(5, 1, sharex=True, sharey=True, figsize=(10, 10))
-    # Remove extra MIDI notes
-    init_roll = get_singlechannel_piano_roll(raw_midi, normalize=True)
-    xt = range(0, 3500, 500)
-    yt = range(0, PIANO_KEYS, 12)
-    for a, roller, tit in zip(
-            ax.flatten(),
-            [init_roll[0], m.roll, h.roll, r.roll, d.roll],
-            ['Raw', 'Melody', 'Harmony', 'Rhythm', 'Dynamics']
-    ):
-        sns.heatmap(normalize_array(roller), ax=a, mask=roller == 0, cmap='mako', cbar=None)
-        a.patch.set_edgecolor('black')
-        a.patch.set_linewidth(1)
-        a.set(title=tit, yticks=yt, xticks=xt, xticklabels=xt, yticklabels=yt)
-        a.grid()
+    # Create the stacked piano roll object
+    extractors_names = ["Raw", "Melody", "Harmony", "Rhythm", "Dynamics"]
+    fig, ax = plt.subplots(5, 1, figsize=(10, 10), sharex=True, sharey=True)
+    for a, ext, nme in zip(ax.flatten(), extractors, extractors_names):
+        if ext is not None:
+            a = ext.heatmap(a)
+            a.set(title=nme)
+            # Create the synthesized .WAV file, while we're iterating
+            ext.synthesize(os.path.join(ref_folder, nme.lower()))
+    # Plot aesthetics
     ax[0].invert_yaxis()
     fig.supylabel('MIDI Note')
     fig.supxlabel('Frame')
     fig.tight_layout()
-    fig.savefig(os.path.join(ref_folder, 'midi_test.png'))
-
-    t = BaseExtractor(raw_midi)
-    for mid, name in zip(
-            [raw_midi, t.input_midi, m.output_midi, r.output_midi, h.output_midi, d.output_midi],
-            ['input', 'truncated', 'melody', 'rhythm', 'harmony', 'dynamics']
-    ):
-        mid.write(os.path.join(ref_folder, f'{name}.mid'))
-        cmd = f'fluidsynth -ni -r 44100 -F "{ref_folder}/{name}.wav" "{ref_folder}/{name}.mid"'
-        subprocess.call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+    # Save inside our reports directory
+    fig.savefig(os.path.join(ref_folder, 'heatmap.png'))
 
 
 if __name__ == "__main__":
@@ -373,41 +495,43 @@ if __name__ == "__main__":
     from time import time
     from tqdm import tqdm
     from deep_pianist_identification.utils import get_project_root, seed_everything
-    from deep_pianist_identification.dataloader import data_augmentation_multichannel
     from loguru import logger
 
     seed_everything(10)
     # Get the tracks we'll create clips from
-    tracks_to_test = 1000
-    use_in_test = np.random.choice(os.listdir(os.path.join(get_project_root(), 'data/clips/pijama')), tracks_to_test)
-    res = []
+    n_clips = 1000
+    use_in_test = np.random.choice(os.listdir(os.path.join(get_project_root(), 'data/clips/pijama')), n_clips)
+    res = {"base": [], "melody": [], "harmony": [], "rhythm": [], "dynamics": []}
+    all_extractors = [BaseExtractor, MelodyExtractor, HarmonyExtractor, RhythmExtractor, DynamicsExtractor]
+
     # Iterate through each track
-    for track_idx, test_track in tqdm(enumerate(use_in_test), desc=f'Making {tracks_to_test} clips...',
-                                      total=tracks_to_test):
+    for track_idx, test_track in tqdm(enumerate(use_in_test), desc=f'Making {n_clips} clips...', total=n_clips):
         # Create the filepath and skip if it does not exist (e.g., `.gitkeep` files)
         test_fpath = os.path.join(get_project_root(), 'data/clips/pijama', test_track, 'clip_000.mid')
         if not os.path.isfile(test_fpath):
             continue
-
         # Load in the MIDI object
         test_midi_obj = PrettyMIDI(test_fpath)
-        # Augment to get different MIDI objects
-        melody, harmony, rhythm, dynamics = data_augmentation_multichannel(pm_obj=test_midi_obj, augmentation_prob=1.0)
-        # Extract each different piano roll, making sure to create the output MIDI so we can access it
-        start = time()
-        try:
-            melody_roll = MelodyExtractor(melody, create_output_midi=True)
-            harmony_roll = HarmonyExtractor(harmony, create_output_midi=True)
-            rhythm_roll = RhythmExtractor(rhythm, create_output_midi=True)
-            dynamics_roll = DynamicsExtractor(dynamics, create_output_midi=True)
-        except ExtractorError as err:
-            logger.warning(f'Failed for {test_track}, skipping! {err}')
-        else:
-            # For every 10 items, create a graph and WAV files
-            if track_idx % 10 == 0:
-                exts = [melody_roll, harmony_roll, rhythm_roll, dynamics_roll]
-                create_outputs_from_extractors(test_track, exts, test_midi_obj)
-        finally:
-            res.append(time() - start)
-    logger.info(f"Took {np.sum(res):.2f}s to get rolls for {tracks_to_test} clips "
-                f"(mean = {np.mean(res):.2f}s, SD = {np.std(res):.2f}s)")
+        extracted_results = []
+        # Create each extractor
+        for name, extractor in zip(res.keys(), all_extractors):
+            start = time()
+            try:
+                # No data augmentation for now
+                created = extractor(test_midi_obj, data_augmentation=False)
+            # Log a warning if we failed to create the extractor
+            except ExtractorError as err:
+                logger.warning(f'Failed to create {name} for {test_track}, skipping! {err}')
+                extracted_results.append(None)
+            else:
+                extracted_results.append(created)
+            finally:
+                res[name].append(time() - start)
+        # For every 10 items, create a graph and WAV files
+        if track_idx % 10 == 0:
+            create_outputs_from_extractors(test_track, extracted_results)
+    # Create the results string and log
+    fmt_res = ", ".join(
+        f"{k}: total {np.mean(v):.2f}s, mean {np.mean(v):.2f}s, SD {np.std(v):.2f}s" for k, v in res.items()
+    )
+    logger.info(f"For {n_clips} clips, results: {fmt_res}")
