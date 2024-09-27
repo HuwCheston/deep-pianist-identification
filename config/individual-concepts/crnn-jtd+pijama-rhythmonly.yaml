@@ -1,18 +1,20 @@
-experiment: rhythm-only
+experiment: individual-concepts
 run: crnn-jtd+pijama-rhythmonly
 learning_rate: 1.0e-4
 batch_size: 12
 epochs: 100
 train_dataset_cfg:
   n_clips: null
-  normalize_velocity: False
-  data_augmentation: False    # No need for this
-  rhythm_only: True
+  normalize_velocity: True
+  data_augmentation: True
+  multichannel: True
+  use_concepts: [ 2 ]
 test_dataset_cfg:
   n_clips: null
-  normalize_velocity: False
+  normalize_velocity: True
   data_augmentation: False
-  rhythm_only: True
+  multichannel: True
+  use_concepts: [ 2 ]
 encoder_module: crnn
 model_cfg:
   use_ibn: False
