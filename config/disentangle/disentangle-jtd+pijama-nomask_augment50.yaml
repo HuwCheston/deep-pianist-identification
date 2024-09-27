@@ -19,7 +19,7 @@ train_dataset_cfg:
     rhythm:
       data_augmentation: True
       augmentation_probability: 0.5
-      shift_limit: 6
+      shift_limit: 0.2
     dynamics:
       data_augmentation: True
       augmentation_probability: 0.5
