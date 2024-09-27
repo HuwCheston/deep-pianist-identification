@@ -5,12 +5,12 @@ batch_size: 12
 epochs: 100
 train_dataset_cfg:
   n_clips: null
-  normalize_velocity: False
-  data_augmentation: True
+  normalize_velocity: True
+  multichannel: False    # No augmentation by default
 test_dataset_cfg:
   n_clips: null
-  normalize_velocity: False
-  data_augmentation: False
+  normalize_velocity: True
+  multichannel: False    # No augmentation by default
 encoder_module: cnn
 model_cfg:
   use_ibn: False

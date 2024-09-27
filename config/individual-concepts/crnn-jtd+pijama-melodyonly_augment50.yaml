@@ -1,20 +1,26 @@
 experiment: individual-concepts
-run: crnn-jtd+pijama-harmonyonly
+run: crnn-jtd+pijama-melodyonly_augment50
 learning_rate: 1.0e-4
 batch_size: 12
 epochs: 100
 train_dataset_cfg:
   n_clips: null
   normalize_velocity: True
-  data_augmentation: True
   multichannel: True
-  use_concepts: [ 1 ]
+  use_concepts: [ 0 ]
+  extractor_cfg:
+    melody:
+      data_augmentation: True
+      augmentation_probability: 0.5
+      shift_limit: 6
 test_dataset_cfg:
   n_clips: null
   normalize_velocity: True
-  data_augmentation: False
   multichannel: True
-  use_concepts: [ 1 ]
+  use_concepts: [ 0 ]
+  extractor_cfg:
+    melody:
+      data_augmentation: False
 encoder_module: crnn
 model_cfg:
   use_ibn: False

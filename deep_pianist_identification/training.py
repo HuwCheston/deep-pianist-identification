@@ -28,6 +28,7 @@ class TrainModule:
     def __init__(self, **kwargs):
         # Set all keyword arguments to class parameters
         for key, val in kwargs.items():
+            mlflow.log_param(key, val)
             setattr(self, key, val)
         self.current_epoch = 0
         # MODEL
