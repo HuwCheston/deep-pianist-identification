@@ -1,7 +1,7 @@
 experiment: disentangle
 run: disentangle-jtd+pijama-nomask
 learning_rate: 1.0e-4
-batch_size: 1
+batch_size: 7
 epochs: 100
 train_dataset_cfg:
   n_clips: null
@@ -17,7 +17,7 @@ train_dataset_cfg:
       augmentation_probability: 0.5
       shift_limit: 6
     rhythm:
-      data_augmentation: False
+      data_augmentation: True
       augmentation_probability: 0.5
       shift_limit: 6
     dynamics:
