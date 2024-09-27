@@ -8,6 +8,7 @@ from copy import deepcopy
 
 import numpy as np
 import pandas as pd
+from loguru import logger
 from pretty_midi import PrettyMIDI
 from torch.utils.data import Dataset, DataLoader, default_collate
 from tqdm import tqdm
@@ -130,7 +131,6 @@ def remove_bad_clips_from_batch(returned_batch):
 
 if __name__ == "__main__":
     from time import time
-    from loguru import logger
 
     batch_size = 12
     n_batches = 100
