@@ -18,8 +18,8 @@ MINIMUM_FRAMES = 1  # a note must last this number of frames to be used
 QUANTIZE_RESOLUTION = (1 / FPS) * 10  # 100 ms, the duration of a triplet eighth note at the mean JTD tempo (200 BPM)
 
 __all__ = [
-    "normalize_array", "get_multichannel_piano_roll", "get_piano_roll", "quantize", "get_singlechannel_piano_roll",
-    "MelodyExtractor", "DynamicsExtractor", "RhythmExtractor", "HarmonyExtractor", "ExtractorError", "BaseExtractor"
+    "normalize_array", "get_piano_roll", "quantize", "MelodyExtractor", "DynamicsExtractor",
+    "RhythmExtractor", "HarmonyExtractor", "ExtractorError", "BaseExtractor"
 ]
 
 
@@ -433,35 +433,6 @@ class DynamicsExtractor(BaseExtractor):
                     # Randomise the pitch
                     note_pitch = np.random.randint(MIDI_OFFSET, (PIANO_KEYS + MIDI_OFFSET) - 1)
                     yield note_start, note_end, note_pitch, note_velocity
-
-
-def get_multichannel_piano_roll(
-        midi_obj: PrettyMIDI, use_concepts: list = None, normalize: bool = False
-) -> np.ndarray:
-    """For a single MIDI clip, make a four channel piano roll corresponding to Melody, Harmony, Rhythm, and Dynamics"""
-    # Create all the extractors for our piano roll
-    concept_mapping = {0: MelodyExtractor, 1: HarmonyExtractor, 2: RhythmExtractor, 3: DynamicsExtractor}
-    if use_concepts is None:
-        use_concepts = [0, 1, 2, 3]
-    extractors = []
-    for concept_idx in use_concepts:
-        # Get the correct extractor object
-        ext = concept_mapping[concept_idx]
-        # Create the extractor using our provided raw MIDI, get the piano roll, then append to the list
-        extractors.append(ext(midi_obj).roll)
-    # Normalize velocity dimension if required and stack arrays
-    return np.array([normalize_array(concept) if normalize else concept for concept in extractors])
-
-
-def get_singlechannel_piano_roll(pm_obj: PrettyMIDI, normalize: bool = False) -> np.ndarray:
-    """Gets a single channel piano roll, including all data (i.e., without splitting into concepts)"""
-    # We can use the base extractor, which will perform checks e.g., removing invalid notes
-    extract = BaseExtractor(pm_obj)
-    # Squeeze to create a new channel, for parity with our multichannel approach (i.e., batch, channel, pitch, time)
-    roll = np.expand_dims(extract.roll, axis=0)
-    if normalize:
-        roll = normalize_array(roll)
-    return roll
 
 
 def create_outputs_from_extractors(track_name: str, extractors: list) -> None:
