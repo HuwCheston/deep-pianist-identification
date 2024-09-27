@@ -1,0 +1,27 @@
+experiment: individual-concepts
+run: crnn-jtd+pijama-dynamicsonly_noaugment
+learning_rate: 1.0e-4
+batch_size: 12
+epochs: 100
+train_dataset_cfg:
+  n_clips: null
+  normalize_velocity: True
+  data_augmentation: True
+  multichannel: True
+  use_concepts: [ 3 ]
+test_dataset_cfg:
+  n_clips: null
+  normalize_velocity: True
+  data_augmentation: False
+  multichannel: True
+  use_concepts: [ 3 ]
+encoder_module: crnn
+model_cfg:
+  use_ibn: False
+checkpoint_cfg:
+  save_checkpoints: True
+  load_checkpoints: True
+  checkpoint_after_n_epochs: 10
+mlflow_cfg:
+  use: True
+  tracking_uri: http://127.0.0.1:8000
