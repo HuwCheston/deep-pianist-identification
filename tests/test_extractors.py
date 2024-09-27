@@ -6,10 +6,10 @@
 import os
 import unittest
 
-from pretty_midi import PrettyMIDI
+from pretty_midi import PrettyMIDI, Instrument, Note
 
 from deep_pianist_identification.extractors import (
-    get_singlechannel_piano_roll, get_multichannel_piano_roll,
+    get_singlechannel_piano_roll, get_multichannel_piano_roll, ExtractorError,
     MelodyExtractor, HarmonyExtractor, DynamicsExtractor, RhythmExtractor
 )
 from deep_pianist_identification.utils import get_project_root, CLIP_LENGTH, PIANO_KEYS, FPS, MIDI_OFFSET
@@ -125,6 +125,17 @@ class ExtractorTest(unittest.TestCase):
         self.assertTrue(all(extracted in self.input_ends for extracted in extracted_ends))
         # Number of onsets should be identical
         self.assertEqual(len(extracted_starts), self.input_notes)
+
+    def test_bad_clip(self):
+        # Create a new MIDI object with only two notes
+        bm = PrettyMIDI()
+        badinst = Instrument(program=0)
+        badinst.notes.extend(
+            [Note(pitch=50, start=5, end=6, velocity=60), Note(pitch=50, start=10, end=11, velocity=1)]
+        )
+        bm.instruments.append(badinst)
+        # This clip should always raise an ExtractorError as there won't be any chords
+        self.assertRaises(ExtractorError, get_multichannel_piano_roll, [bm, bm, bm, bm])
 
 
 if __name__ == '__main__':

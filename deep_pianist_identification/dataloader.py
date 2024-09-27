@@ -13,9 +13,13 @@ from pretty_midi import PrettyMIDI
 from torch.utils.data import Dataset, DataLoader, default_collate
 from tqdm import tqdm
 
-from deep_pianist_identification.data_augmentation import data_augmentation_transpose, data_augmentation_dilate, \
-    data_augmentation_velocity_change
-from deep_pianist_identification.extractors import get_multichannel_piano_roll, get_singlechannel_piano_roll
+# TODO: these functions should be moved inside their respective extractors
+from deep_pianist_identification.data_augmentation import (
+    data_augmentation_transpose, data_augmentation_dilate, data_augmentation_velocity_change
+)
+from deep_pianist_identification.extractors import (
+    get_multichannel_piano_roll, get_singlechannel_piano_roll, ExtractorError
+)
 from deep_pianist_identification.utils import get_project_root
 
 __all__ = ["MIDILoader", "remove_bad_clips_from_batch", "data_augmentation_multichannel"]
@@ -112,7 +116,7 @@ class MIDILoader(Dataset):
                     normalize=self.normalize_velocity
                 )
             # If the clip somehow contains no chords or melody notes, we need to return None to skip using it
-            except Exception as err:
+            except ExtractorError as err:
                 logger.warning(f'Failed for {track_path}, clip {clip_idx}, skipping! {err}')
                 return None
         else:
@@ -149,12 +153,8 @@ if __name__ == "__main__":
 
     for i in tqdm(range(n_batches), desc=f'Loading {n_batches} batches of {batch_size} clips: '):
         start = time()
-        try:
-            # Shape: (batch, channels, pitch, time)
-            batch, __ = next(iter(loader))
-            assert len(batch.size()) == 4
-        except Exception as e:
-            logger.warning(f'Failed to create batch {i} with error: {e}')
+        # Shape: (batch, channels, pitch, time)
+        batch, __ = next(iter(loader))
         times.append(time() - start)
 
     logger.info(f'Took {np.sum(times):.2f}s to create {n_batches} batches of {batch_size} items. '
