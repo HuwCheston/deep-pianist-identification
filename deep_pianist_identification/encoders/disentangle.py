@@ -46,13 +46,13 @@ class DisentangleNet(nn.Module):
             use_gru: bool = True,
             num_attention_heads: int = 2,
             use_masking: bool = False,
-            masking_probability: float = 0.3,
+            mask_probability: float = 0.3,
             max_masked_concepts: int = 3
     ):
         super(DisentangleNet, self).__init__()
         # Whether to randomly mask individual channels after processing
         self.use_masking = use_masking
-        self.masking_probability = masking_probability
+        self.mask_probability = mask_probability
         self.max_masked_concepts = max_masked_concepts  # Max up to this number of concepts
         self.dropper = nn.Dropout(p=1.0)  # Always deactivated during testing!
         # Layers for each individual musical concept
@@ -70,7 +70,7 @@ class DisentangleNet(nn.Module):
 
     def mask(self, embeddings: list[torch.tensor]) -> list[torch.tensor]:
         # If we're applying masking
-        if np.random.uniform(0, 1) <= self.masking_probability:
+        if np.random.uniform(0, 1) <= self.mask_probability:
             # Choose between 1 and N concepts to mask
             n_to_zero = np.random.randint(1, self.max_masked_concepts + 1)
             # Get the required indexes from the list
