@@ -66,7 +66,7 @@ class BaseExtractor:
         # Transform data into correct format
         transformed = list(self.transformation(validated))
         # Create output in both PrettyMIDI and piano roll format
-        self.roll = get_piano_roll(transformed)
+        self.roll = self.create_roll(transformed)  # Will raise an ExtractorError if no notes present
         self.output_midi = self.output(transformed)
 
     def validate_note(self, midi_note: tuple[float, float, int, int]) -> bool:
@@ -103,6 +103,17 @@ class BaseExtractor:
         # Set the notes to the instrument object, and the instrument object to the PrettyMIDI object
         pm_obj.instruments.append(instr)
         return pm_obj
+
+    @staticmethod
+    def create_roll(transformed_midi_notes: list[tuple]):
+        """Try and create a piano roll array, raises an `ExtractorError` when no notes are present"""
+        try:
+            return get_piano_roll(transformed_midi_notes)
+        # We could simply use the non-jit function with get_piano_roll.py_func
+        # But I think it makes more sense to raise the error, catch the resulting None in the dataloader + collate_fn,
+        # and remove this bad clip from the batch so we don't use it during training.
+        except ValueError:
+            raise ExtractorError('no notes present in clip when creating piano roll!')
 
     def heatmap(self, ax: Optional = None):
         """Creates a heatmap of the piano roll in seaborn, returns a matplotlib Axes object for use in a Figure"""
