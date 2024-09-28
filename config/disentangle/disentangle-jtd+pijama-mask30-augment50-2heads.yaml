@@ -1,0 +1,53 @@
+experiment: disentangle
+run: disentangle-jtd+pijama-mask30-augment50-2heads
+learning_rate: 1.0e-4
+batch_size: 7
+epochs: 100
+train_dataset_cfg:
+  n_clips: null
+  normalize_velocity: True
+  multichannel: True
+  extractor_cfg:
+    melody:
+      data_augmentation: True
+      augmentation_probability: 0.5
+      shift_limit: 6
+    harmony:
+      data_augmentation: True
+      augmentation_probability: 0.5
+      shift_limit: 6
+    rhythm:
+      data_augmentation: True
+      augmentation_probability: 0.5
+      shift_limit: 0.2
+    dynamics:
+      data_augmentation: True
+      augmentation_probability: 0.5
+      shift_limit: 12
+test_dataset_cfg:
+  n_clips: null
+  normalize_velocity: True
+  multichannel: True
+  extractor_cfg:
+    melody:
+      data_augmentation: False
+    harmony:
+      data_augmentation: False
+    rhythm:
+      data_augmentation: False
+    dynamics:
+      data_augmentation: False
+encoder_module: disentangle
+model_cfg:
+  use_gru: True
+  use_masking: True
+  mask_probability: 0.3
+  max_masked_concepts: 3
+  num_attention_heads: 2
+checkpoint_cfg:
+  save_checkpoints: True
+  load_checkpoints: True
+  checkpoint_after_n_epochs: 10
+mlflow_cfg:
+  use: True
+  tracking_uri: http://127.0.0.1:8000
