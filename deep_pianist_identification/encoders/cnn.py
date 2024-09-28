@@ -68,10 +68,10 @@ class ConvLayer(nn.Module):
 
 
 class LinearLayer(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int):
+    def __init__(self, in_channels: int, out_channels: int, p: float = 0.5):
         super().__init__()
         self.fc = nn.Linear(in_channels, out_channels)
-        self.drop = nn.Dropout(0.5)
+        self.drop = nn.Dropout(p)
 
     def forward(self, a) -> torch.tensor:
         a = self.fc(a)

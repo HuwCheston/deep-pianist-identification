@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 
 import deep_pianist_identification.utils as utils
-from deep_pianist_identification.encoders.cnn import ConvLayer
+from deep_pianist_identification.encoders.cnn import ConvLayer, LinearLayer
 from deep_pianist_identification.encoders.crnn import GRU
 
 __all__ = ["DisentangleNet"]
@@ -59,8 +59,8 @@ class DisentangleNet(nn.Module):
         self.self_attention = nn.MultiheadAttention(512, num_heads=num_heads, batch_first=True)
         self.pooling = nn.AdaptiveAvgPool1d(1)
         # Linear layers project on to final output
-        self.fc1 = nn.Linear(512, 128)
-        self.fc2 = nn.Linear(128, utils.N_CLASSES)
+        self.fc1 = LinearLayer(512, 128)
+        self.fc2 = LinearLayer(128, utils.N_CLASSES)
 
     def forward(self, x):
         # Split multi-dimensional piano roll into each concept
