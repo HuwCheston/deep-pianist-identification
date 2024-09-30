@@ -32,21 +32,49 @@ class GeM(nn.Module):
 class Concept(nn.Module):
     def __init__(self, num_layers: int = 4, use_gru: bool = True):
         super(Concept, self).__init__()
-        # Convolutional layers output size: [64, 64, 128, 128, 256, 256, 512, 512]
-        # Each layer goes: conv -> dropout -> relu -> batchnorm -> avgpool
-        # TODO: consider whether to pool only every two layers as in Kong et al. model
-        self.layer1 = ConvLayer(1, 64, has_pool=True)
-        self.layer2 = ConvLayer(64, 128, has_pool=True)
-        self.layer3 = ConvLayer(128, 256, has_pool=True)
-        self.layer4 = ConvLayer(256, 512, has_pool=False)  # No pooling for final layer
-        self.gru = GRU(512 * 11)
+        # Create the required number of convolutional layers
+        self.layers = self.create_convolutional_layers(num_layers)
+        # TODO: add option to not use GRU here
+        self.gru = GRU(512 * int(utils.PIANO_KEYS / len(self.layers)))  # final_output * (input_height / num_layers)
         self.maxpool = nn.AdaptiveMaxPool2d((512, 1))
 
+    @staticmethod
+    def create_convolutional_layers(num_layers: int) -> list[nn.Module]:
+        assert num_layers in [2, 4, 8], "Module `num_layers` must be either 2, 4, or 8"
+        # TODO: consider layer pooling strategies
+        if num_layers == 2:
+            return nn.ModuleList([
+                ConvLayer(1, 256, has_pool=False),
+                ConvLayer(256, 512, has_pool=True),
+            ])
+        elif num_layers == 4:
+            # TODO: previously we used pooling on layer 1, 2, and 3
+            return nn.ModuleList([
+                ConvLayer(1, 64, has_pool=False),
+                ConvLayer(64, 128, has_pool=True),
+                ConvLayer(128, 256, has_pool=False),
+                ConvLayer(256, 512, has_pool=True)
+            ])
+        else:
+            # Convolutional layers output size: [64, 64, 128, 128, 256, 256, 512, 512]
+            # Each layer goes: conv -> dropout -> relu -> batchnorm -> avgpool
+            # No pooling or IBN for final layer
+            return nn.ModuleList([
+                ConvLayer(1, 64),
+                ConvLayer(64, 64, has_pool=True),
+                ConvLayer(64, 128),
+                ConvLayer(128, 128, has_pool=True),
+                ConvLayer(128, 256),
+                ConvLayer(256, 256, has_pool=True),
+                ConvLayer(256, 512),
+                ConvLayer(512, 512, has_pool=False)
+            ])
+
     def forward(self, x):
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
+        # Iterate through all convolutional layers and process input
+        for layer_num in range(len(self.layers)):
+            x = self.layers[layer_num](x)
+        # Final GRU and maxpooling modules
         x = self.gru(x)
         x = self.maxpool(x)
         # (batch, channels, features)
@@ -150,7 +178,14 @@ if __name__ == '__main__':
         shuffle=True,
         collate_fn=remove_bad_clips_from_batch
     )
-    model = DisentangleNet(use_masking=True, mask_probability=0.3, pool_type="avg").to(utils.DEVICE)
+    model = DisentangleNet(
+        use_masking=True,
+        mask_probability=0.3,
+        num_layers=8,
+        pool_type="avg",
+        use_gru=False,
+        num_attention_heads=2
+    ).to(utils.DEVICE)
     print(utils.total_parameters(model))
     for feat, _ in loader:
         embeds = model(feat.to(utils.DEVICE))
