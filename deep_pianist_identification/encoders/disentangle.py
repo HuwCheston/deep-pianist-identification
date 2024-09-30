@@ -30,6 +30,8 @@ class GeM(nn.Module):
 
 
 class Concept(nn.Module):
+    """Individual embedding per piano roll channel, i.e. harmony, melody, rhythm, dynamics."""
+
     def __init__(self, num_layers: int = 4, use_gru: bool = True):
         super(Concept, self).__init__()
         # Create the required number of convolutional layers
@@ -124,19 +126,28 @@ class DisentangleNet(nn.Module):
             return GeM()
 
     def mask(self, embeddings: list[torch.tensor]) -> list[torch.tensor]:
-        # If we're applying masking
+        """Randomly sets 0:self.max_masked_concepts embeddings to 0 and detaches from computation graph"""
+        # When training, we want to use a random combination of masks N% of the time
         if np.random.uniform(0, 1) <= self.mask_probability:
             # Choose between 1 and N concepts to mask
             n_to_zero = np.random.randint(1, self.max_masked_concepts + 1)
             # Get the required indexes from the list
             idx_to_zero = np.random.choice(len(embeddings), n_to_zero, replace=False)
-            # Apply the masking
-            for idx in idx_to_zero:
-                # By using dropout, we ensure that we use all masks during testing
-                embeddings[idx] = self.dropper(embeddings[idx])
+        else:
+            idx_to_zero = []
+        # Apply the masking by setting the corresponding tensor to 0
+        for idx in idx_to_zero:
+            embeddings[idx] = torch.zeros(
+                embeddings[idx].size(),
+                dtype=embeddings[idx].dtype,
+                device=embeddings[idx].device,
+                requires_grad=False  # ensure that gradient flow is prevented for the masked features
+            )
+            assert embeddings[idx].requires_grad is False
         return embeddings
 
-    def forward(self, x):
+    def forward_features(self, x: torch.tensor) -> tuple[torch.tensor]:
+        """Processes inputs in shape (batch, channels, height, width) to lists of (batch, 1, features)"""
         # Split multi-dimensional piano roll into each concept
         melody, harmony, rhythm, dynamics = torch.split(x, 1, 1)
         # Process concepts individually
@@ -144,12 +155,11 @@ class DisentangleNet(nn.Module):
         harmony = self.harmony_concept(harmony)
         rhythm = self.rhythm_concept(rhythm)
         dynamics = self.dynamics_concept(dynamics)
-        # Combine all embeddings into a single list and apply random masking if required
-        embeddings = [melody, harmony, rhythm, dynamics]
-        if self.use_masking:
-            embeddings = self.mask(embeddings)
-        # Stack into a single tensor: (batch, channels, features)
-        x = torch.cat(embeddings, dim=1)
+        # Combine all embeddings into a single list
+        return [melody, harmony, rhythm, dynamics]
+
+    def forward_pooled(self, x: torch.tensor) -> torch.tensor:
+        """Pools a (possibly masked) input in shape (batch, channels, features), to (batch, classes)"""
         # Self-attention across channels
         x, _ = self.self_attention(x, x, x)
         # Pool across channels
@@ -160,6 +170,19 @@ class DisentangleNet(nn.Module):
         # Project onto final output
         x = self.fc1(x)
         x = self.fc2(x)
+        return x
+
+    def forward(self, x: torch.tensor) -> torch.tensor:
+        """Model forward pass. Processes single embedding per concept, masks, pools, and projects to class logits."""
+        # (batch, channels, height, width) -> list of (batch, 1, features) for each concept
+        x = self.forward_features(x)
+        # If required, apply random masking to concept embeddings during training
+        if self.use_masking and self.training:
+            x = self.mask(x)
+        # Combine list to (batch, channels, features), where channels = 4
+        x = torch.cat(x, dim=1)
+        # Pool output to (batch, classes)
+        x = self.forward_pooled(x)
         return x
 
 
@@ -180,12 +203,13 @@ if __name__ == '__main__':
     )
     model = DisentangleNet(
         use_masking=True,
-        mask_probability=0.3,
+        mask_probability=1.0,
         num_layers=8,
         pool_type="avg",
         use_gru=False,
         num_attention_heads=2
     ).to(utils.DEVICE)
+    model.eval()
     print(utils.total_parameters(model))
     for feat, _ in loader:
         embeds = model(feat.to(utils.DEVICE))
