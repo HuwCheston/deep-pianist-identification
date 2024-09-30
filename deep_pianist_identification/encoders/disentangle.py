@@ -11,7 +11,22 @@ import deep_pianist_identification.utils as utils
 from deep_pianist_identification.encoders.cnn import ConvLayer, LinearLayer
 from deep_pianist_identification.encoders.crnn import GRU
 
-__all__ = ["DisentangleNet"]
+__all__ = ["DisentangleNet", "GeM"]
+
+
+class GeM(nn.Module):
+    """Compresses a multidimensional input to a fixed-length vector with generalized mean (GeM) pooling."""
+
+    def __init__(self, p: int = 3, eps: float = 1e-6):
+        super(GeM, self).__init__()
+        # This sets p to a trainable parameter with an initial parameter
+        self.p = nn.Parameter(torch.ones(1) * p)
+        # Margin value to prevent division by zero
+        self.eps = eps
+
+    def forward(self, x) -> torch.tensor:
+        """Pools input of (batch, features, channels) to (batch, features) with GeM"""
+        return nn.functional.avg_pool1d(x.clamp(min=self.eps).pow(self.p), kernel_size=x.size(-1)).pow(1.0 / self.p)
 
 
 class Concept(nn.Module):
@@ -47,7 +62,8 @@ class DisentangleNet(nn.Module):
             num_attention_heads: int = 2,
             use_masking: bool = False,
             mask_probability: float = 0.3,
-            max_masked_concepts: int = 3
+            max_masked_concepts: int = 3,
+            pool_type: str = "avg"
     ):
         super(DisentangleNet, self).__init__()
         # Whether to randomly mask individual channels after processing
@@ -62,11 +78,22 @@ class DisentangleNet(nn.Module):
         self.dynamics_concept = Concept(num_layers, use_gru)
         # Learn connections and pooling between concepts (i.e., channels)
         self.self_attention = nn.MultiheadAttention(512, num_heads=num_attention_heads, batch_first=True)
-        # TODO: consider whether max (or max + avg) pooling might work better here
-        self.pooling = nn.AdaptiveAvgPool1d(1)
+        self.pooling = self.get_pooling_module(pool_type)
         # Linear layers project on to final output: these have dropout added
         self.fc1 = LinearLayer(512, 128, p=0.5)
         self.fc2 = LinearLayer(128, utils.N_CLASSES, p=0.5)
+
+    @staticmethod
+    def get_pooling_module(pool_type: str) -> nn.Module:
+        """Returns the correct final pooling module to use after the self-attention layer"""
+        accept = ["gem", "max", "avg"]
+        assert pool_type in accept, "Module `pool_type` must be one of" + ", ".join(accept)
+        if pool_type == "max":
+            return nn.AdaptiveMaxPool1d(1)
+        elif pool_type == "avg":
+            return nn.AdaptiveAvgPool1d(1)
+        else:
+            return GeM()
 
     def mask(self, embeddings: list[torch.tensor]) -> list[torch.tensor]:
         # If we're applying masking
@@ -100,7 +127,7 @@ class DisentangleNet(nn.Module):
         # Pool across channels
         batch, channels, features = x.size()
         x = x.reshape((batch, features, channels))
-        x = self.pooling(x)
+        x = self.pooling(x)  # Can be either Avg, Max, or GeM pooling
         x = x.squeeze(2)  # Remove unnecessary final layer
         # Project onto final output
         x = self.fc1(x)
@@ -123,7 +150,7 @@ if __name__ == '__main__':
         shuffle=True,
         collate_fn=remove_bad_clips_from_batch
     )
-    model = DisentangleNet(use_masking=True, masking_probability=0.3).to(utils.DEVICE)
+    model = DisentangleNet(use_masking=True, mask_probability=0.3, pool_type="avg").to(utils.DEVICE)
     print(utils.total_parameters(model))
     for feat, _ in loader:
         embeds = model(feat.to(utils.DEVICE))
