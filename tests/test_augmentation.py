@@ -34,7 +34,12 @@ class AugmentationTest(unittest.TestCase):
         self.assertFalse(all(aug in self.input_pitches for aug in augmented_pitches))
 
     def test_harmony_augmentation(self):
-        augmented = HarmonyExtractor(self.long_midi, data_augmentation=True, augmentation_probability=1.0)
+        augmented = HarmonyExtractor(
+            self.long_midi,
+            data_augmentation=True,
+            augmentation_probability=1.0,
+            shift_limit=12
+        )
         augmented_pitches = [i.pitch for i in augmented.output_midi.instruments[0].notes]
         # Number of notes should be the same or lower, if we're transposing out of bounds
         self.assertLessEqual(len(augmented_pitches), len(self.input_pitches))
