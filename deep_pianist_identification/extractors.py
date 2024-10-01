@@ -6,7 +6,7 @@
 from copy import deepcopy
 from itertools import groupby
 from operator import itemgetter
-from typing import Optional
+from typing import Optional, Any
 
 import numpy as np
 from numba import jit
@@ -56,7 +56,7 @@ class BaseExtractor:
     """Base extractor class from which all others inherit. Defines basic methods that are overriden in child classes"""
 
     def __init__(self, midi_obj: PrettyMIDI, **kwargs):
-        self.input_midi = midi_obj
+        self.input_midi = self.validate_raw_midi(midi_obj)
         # Convert all note objects into a list of tuples to work with them easier
         raw = [(note.start, note.end, note.pitch, note.velocity) for note in self.input_midi.instruments[0].notes]
         # Apply data augmentation
@@ -68,6 +68,20 @@ class BaseExtractor:
         # Create output in both PrettyMIDI and piano roll format
         self.roll = self.create_roll(transformed)  # Will raise an ExtractorError if no notes present
         self.output_midi = self.output(transformed)
+
+    @staticmethod
+    def validate_raw_midi(input_midi: Any) -> PrettyMIDI:
+        """Checks input PrettyMIDI object and raises ExtractorError when problems are found"""
+        # Input must be a PrettyMIDI object
+        if not isinstance(input_midi, PrettyMIDI):
+            raise ExtractorError(f"expected PrettyMIDI input, but found {type(input_midi)}")
+        # Input must contain instruments
+        if len(input_midi.instruments) < 1:
+            raise ExtractorError("no instruments found in PrettyMIDI input; does the input contain any MIDI events?")
+        # First instrument must contain notes
+        if len(input_midi.instruments[0].notes) < 1:
+            raise ExtractorError("MIDI input does not contain any notes")
+        return input_midi
 
     def validate_note(self, midi_note: tuple[float, float, int, int]) -> bool:
         """Returns True if a note fulfils all required conditions for the extractor, False if not"""
@@ -156,6 +170,7 @@ class MelodyExtractor(BaseExtractor):
 
     def __init__(self, midi_obj: PrettyMIDI, **kwargs):
         # Get parameter settings from kwargs
+        # TODO: we should check the interval between successive notes as well
         self.lower_bound = kwargs.get('lower_bound', MIDI_OFFSET)  # Use all notes by default
         self.quantize_resolution = kwargs.get('quantize_resolution', 1 / FPS)  # Snap to nearest 10 ms
         # Augmentation settings from kwargs

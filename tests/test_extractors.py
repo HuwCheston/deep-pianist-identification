@@ -117,7 +117,20 @@ class ExtractorTest(unittest.TestCase):
         # Number of onsets should be identical
         self.assertEqual(len(extracted_starts), self.input_notes)
 
-    def test_bad_clip(self):
+    def test_bad_clip_pre_augmentation(self):
+        # Contains no instrument objects
+        bad_empty = PrettyMIDI()
+        self.assertRaises(ExtractorError, lambda x: MelodyExtractor(x), bad_empty)
+        # Not a PrettyMIDI object
+        bad_wrongtype = dict(i_am="bad")
+        self.assertRaises(ExtractorError, lambda x: MelodyExtractor(x), bad_wrongtype)
+        # Contains an instrument object, but no notes
+        bad_nonotes = PrettyMIDI()
+        badinst = Instrument(program=0)
+        bad_nonotes.instruments.append(badinst)
+        self.assertRaises(ExtractorError, lambda x: RhythmExtractor(x), bad_nonotes)
+
+    def test_bad_clip_post_augmentation(self):
         # Create a new MIDI object with only two notes
         bm = PrettyMIDI()
         badinst = Instrument(program=0)
@@ -125,7 +138,7 @@ class ExtractorTest(unittest.TestCase):
             [Note(pitch=50, start=5, end=6, velocity=60), Note(pitch=50, start=10, end=11, velocity=1)]
         )
         bm.instruments.append(badinst)
-        # This clip should always raise an ExtractorError as there won't be any chords
+        # This clip should always raise an ExtractorError when extracting features, as there won't be any chords
         self.assertRaises(ExtractorError, lambda x: HarmonyExtractor(x), bm)
 
 
