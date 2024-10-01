@@ -32,53 +32,71 @@ class GeM(nn.Module):
 class Concept(nn.Module):
     """Individual embedding per piano roll channel, i.e. harmony, melody, rhythm, dynamics."""
 
-    def __init__(self, num_layers: int = 4, use_gru: bool = True):
+    def __init__(self, num_layers: int = 8, use_gru: bool = True):
         super(Concept, self).__init__()
         # Create the required number of convolutional layers
         self.layers = self.create_convolutional_layers(num_layers)
-        # TODO: add option to not use GRU here
-        self.gru = GRU(512 * int(utils.PIANO_KEYS / len(self.layers)))  # final_output * (input_height / num_layers)
-        self.maxpool = nn.AdaptiveMaxPool2d((512, 1))
+        # We pool after every two layers, apart from in the final layer
+        output_pools = (num_layers // 2) - 1
+        # The number of output features after the final convolutional layer
+        self.output_features = 2 ** (num_layers // 2 + 5)
+        # The number of output channels in final layer (equivalent to the initial height, divided by 2 for each pool)
+        self.output_channels = utils.PIANO_KEYS // 2 ** output_pools
+        # Whether we're processing the input with a final BiGRU layer
+        self.use_gru = use_gru
+        if self.use_gru:
+            self.gru = GRU(
+                input_size=self.output_features * self.output_channels,  # channels * features (== 5632 always)
+                hidden_size=self.output_features // 2
+            )
+        self.maxpool = nn.AdaptiveMaxPool2d((self.output_features, 1))
 
     @staticmethod
-    def create_convolutional_layers(num_layers: int) -> list[nn.Module]:
-        assert num_layers in [2, 4, 8], "Module `num_layers` must be either 2, 4, or 8"
-        # TODO: consider layer pooling strategies
-        if num_layers == 2:
-            return nn.ModuleList([
-                ConvLayer(1, 256, has_pool=False),
-                ConvLayer(256, 512, has_pool=True),
-            ])
-        elif num_layers == 4:
-            # TODO: previously we used pooling on layer 1, 2, and 3
-            return nn.ModuleList([
-                ConvLayer(1, 64, has_pool=False),
-                ConvLayer(64, 128, has_pool=True),
-                ConvLayer(128, 256, has_pool=False),
-                ConvLayer(256, 512, has_pool=True)
-            ])
-        else:
-            # Convolutional layers output size: [64, 64, 128, 128, 256, 256, 512, 512]
-            # Each layer goes: conv -> dropout -> relu -> batchnorm -> avgpool
-            # No pooling or IBN for final layer
-            return nn.ModuleList([
-                ConvLayer(1, 64),
-                ConvLayer(64, 64, has_pool=True),
-                ConvLayer(64, 128),
-                ConvLayer(128, 128, has_pool=True),
-                ConvLayer(128, 256),
-                ConvLayer(256, 256, has_pool=True),
-                ConvLayer(256, 512),
-                ConvLayer(512, 512, has_pool=False)
-            ])
+    def create_convolutional_layers(num_layers: int) -> nn.ModuleList:
+        # This is what we used in our run that achieved acc = 0.52
+        # return nn.ModuleList([
+        #     ConvLayer(1, 64, has_pool=True),
+        #     ConvLayer(64, 128, has_pool=True),
+        #     ConvLayer(128, 256, has_pool=True),
+        #     ConvLayer(256, 512, has_pool=False)  # No pooling for final layer
+        # ])
+
+        assert num_layers % 2 == 0, f"Number of convolutional layers must be even, but received {num_layers} layers."
+        # Arbitrarily long list of embedding values, i.e. 64, 128, 256, 512, 1024, 2048, ...
+        dims = [1] + [64 * 2 ** i for i in range(512)]
+        layers = nn.ModuleList([])
+        # We create two layers for each iteration for simplicity
+        for i in range(0, num_layers // 2):
+            input_channels, output_channels = dims[i], dims[i + 1]
+            # Odd-numbered layers increase channel dimension, have no pooling
+            ol = ConvLayer(
+                input_channels,
+                output_channels,
+                has_pool=False
+            )
+            # Even-numbered layers maintain channel dimension, but have pooling
+            el = ConvLayer(
+                output_channels,
+                output_channels,
+                has_pool=False if (i + 1 == num_layers // 2) else True  # No pooling for final layer
+            )
+            # Add the layers to our list
+            layers.extend([ol, el])
+        # Check that the final convolutional layer does not have pooling
+        assert len(layers[-1]) == 4
+        return layers
 
     def forward(self, x):
         # Iterate through all convolutional layers and process input
         for layer_num in range(len(self.layers)):
             x = self.layers[layer_num](x)
         # Final GRU and maxpooling modules
-        x = self.gru(x)
-        x = self.maxpool(x)
+        if self.use_gru:
+            x = self.gru(x)
+            x = self.maxpool(x)
+        # With no GRU, just pool and remove final redundant dimension
+        else:
+            x = nn.functional.adaptive_max_pool2d(x, 1).squeeze(-1)
         # (batch, channels, features)
         x = x.permute(0, 2, 1)
         return x
@@ -106,12 +124,25 @@ class DisentangleNet(nn.Module):
         self.harmony_concept = Concept(num_layers, use_gru)
         self.rhythm_concept = Concept(num_layers, use_gru)
         self.dynamics_concept = Concept(num_layers, use_gru)
-        # Learn connections and pooling between concepts (i.e., channels)
-        self.self_attention = nn.MultiheadAttention(512, num_heads=num_attention_heads, batch_first=True)
+        self.concept_embed_dim = self.melody_concept.output_features
+        # Attention and pooling between concepts (i.e., channels)
+        self.self_attention = nn.MultiheadAttention(
+            embed_dim=self.concept_embed_dim,
+            num_heads=num_attention_heads,
+            batch_first=True  # Means we don't have to permute tensor in forward
+        )
         self.pooling = self.get_pooling_module(pool_type)
-        # Linear layers project on to final output: these have dropout added
-        self.fc1 = LinearLayer(512, 128, p=0.5)
-        self.fc2 = LinearLayer(128, utils.N_CLASSES, p=0.5)
+        # Linear layers project on to final output: these have dropout added with p=0.5
+        self.fc1 = LinearLayer(
+            in_channels=self.concept_embed_dim,
+            out_channels=self.concept_embed_dim // 4,
+            p=0.5
+        )
+        self.fc2 = LinearLayer(
+            in_channels=self.concept_embed_dim // 4,  # i.e., fc1 out_channels
+            out_channels=utils.N_CLASSES,
+            p=0.5
+        )
 
     @staticmethod
     def get_pooling_module(pool_type: str) -> nn.Module:
@@ -181,6 +212,7 @@ class DisentangleNet(nn.Module):
             x = self.mask(x)
         # Combine list to (batch, channels, features), where channels = 4
         x = torch.cat(x, dim=1)
+        print('Features size: ', x.size())
         # Pool output to (batch, classes)
         x = self.forward_pooled(x)
         return x
@@ -206,7 +238,7 @@ if __name__ == '__main__':
         mask_probability=1.0,
         num_layers=8,
         pool_type="avg",
-        use_gru=False,
+        use_gru=True,
         num_attention_heads=2
     ).to(utils.DEVICE)
     model.eval()

@@ -57,6 +57,10 @@ class ConvLayer(nn.Module):
         if has_pool:
             self.avgpool = nn.AvgPool2d(kernel_size=(2, 2), padding=0)
 
+    def __len__(self) -> int:
+        """Returns the number of modules in the convolutional layer."""
+        return 5 if self.has_pool else 4
+
     def forward(self, a) -> torch.tensor:
         a = self.conv(a)
         a = self.drop(a)
