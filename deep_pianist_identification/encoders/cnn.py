@@ -138,6 +138,6 @@ if __name__ == "__main__":
     )
     model = CNNet(use_ibn=False).to(DEVICE)
     print(sum(p.numel() for p in model.parameters()))
-    for feat, _ in loader:
+    for feat, _, __ in loader:
         embeds = model(feat.to(DEVICE))
         print(embeds.size())

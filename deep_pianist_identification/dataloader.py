@@ -108,9 +108,9 @@ class MIDILoader(Dataset):
         except ExtractorError as e:
             logger.warning(f'Failed for {track_path}, clip {clip_idx}, skipping! {e}')
             return None
-        # Otherwise, return the roll and target class index
+        # Otherwise, return the roll, target class index, and the raw name of the track
         else:
-            return piano_roll, target_class
+            return piano_roll, target_class, track_path.split(os.path.sep)[-1]
 
 
 if __name__ == "__main__":
@@ -133,7 +133,7 @@ if __name__ == "__main__":
     for i in tqdm(range(n_batches), desc=f'Loading {n_batches} batches of {batch_size} clips: '):
         start = time()
         # Shape: (batch, channels, pitch, time)
-        batch, __ = next(iter(loader))
+        batch, _, __ = next(iter(loader))
         times.append(time() - start)
 
     logger.info(f'Took {np.sum(times):.2f}s to create {n_batches} batches of {batch_size} items. '

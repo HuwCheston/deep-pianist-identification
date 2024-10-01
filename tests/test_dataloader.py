@@ -27,7 +27,7 @@ class DataloaderTest(unittest.TestCase):
             shuffle=True,
             collate_fn=remove_bad_clips_from_batch,
         )
-        roll, _ = next(iter(loader))
+        roll, _, __ = next(iter(loader))
         self.assertEqual((self.batch_size, 1, PIANO_KEYS, CLIP_LENGTH * FPS), roll.shape)
 
     def test_multichannel_output(self):
@@ -41,7 +41,7 @@ class DataloaderTest(unittest.TestCase):
             shuffle=True,
             collate_fn=remove_bad_clips_from_batch,
         )
-        roll, _ = next(iter(loader))
+        roll, _, __ = next(iter(loader))
         self.assertEqual((self.batch_size, 4, PIANO_KEYS, CLIP_LENGTH * FPS), roll.shape)
 
     def test_multichannel_invidualconcept_output(self):
@@ -56,7 +56,7 @@ class DataloaderTest(unittest.TestCase):
             shuffle=True,
             collate_fn=remove_bad_clips_from_batch,
         )
-        roll, _ = next(iter(loader))
+        roll, _, __ = next(iter(loader))
         self.assertEqual((self.batch_size, 3, PIANO_KEYS, CLIP_LENGTH * FPS), roll.shape)
         # Velocity should be moved into our 3rd channel, from the fourth
         self.assertTrue(torch.unique(roll[0, 2, :, :]).numel() > 2)
@@ -74,7 +74,7 @@ class DataloaderTest(unittest.TestCase):
             shuffle=True,
             collate_fn=remove_bad_clips_from_batch,
         )
-        roll, _ = next(iter(loader))
+        roll, _, __ = next(iter(loader))
         # Max velocity should be greater than 1
         self.assertTrue(roll[0, 0, :, :].max() >= 1)
         # With normalization
@@ -88,7 +88,7 @@ class DataloaderTest(unittest.TestCase):
             shuffle=True,
             collate_fn=remove_bad_clips_from_batch,
         )
-        roll, _ = next(iter(loader))
+        roll, _, __ = next(iter(loader))
         # Max velocity should equal 1
         self.assertTrue(roll[0, 0, :, :].max() == 1.0)
 

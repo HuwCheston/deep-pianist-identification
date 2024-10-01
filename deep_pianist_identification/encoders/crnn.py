@@ -78,6 +78,6 @@ if __name__ == "__main__":
     )
     model = CRNNet(use_ibn=True).to(utils.DEVICE)
     print(utils.total_parameters(model))
-    for feat, _ in loader:
+    for feat, _, __ in loader:
         embeds = model(feat.to(utils.DEVICE))
         print(embeds.size())
