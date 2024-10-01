@@ -26,6 +26,36 @@ MIDI_OFFSET = 21
 CLIP_LENGTH = 30
 N_CLASSES = 25
 
+# Converts class indices into string names
+CLASS_MAPPING = {
+    0: 'Abdullah Ibrahim',
+    1: 'Ahmad Jamal',
+    2: 'Benny Green',
+    3: 'Bill Evans',
+    4: 'Bobby Timmons',
+    5: 'Brad Mehldau',
+    6: 'Cedar Walton',
+    7: 'Chick Corea',
+    8: 'Gene Harris',
+    9: 'Geoffrey Keezer',
+    10: 'Geri Allen',
+    11: 'Hank Jones',
+    12: 'John Hicks',
+    13: 'Junior Mance',
+    14: 'Keith Jarrett',
+    15: 'Kenny Barron',
+    16: 'Kenny Drew',
+    17: 'Lennie Tristano',
+    18: 'McCoy Tyner',
+    19: 'Oscar Peterson',
+    20: 'Red Garland',
+    21: 'Stanley Cowell',
+    22: 'Teddy Wilson',
+    23: 'Thelonious Monk',
+    24: 'Tommy Flanagan'
+}
+PIANIST_MAPPING = {v: k for k, v in CLASS_MAPPING.items()}  # Inverted, maps string names to class indexes
+
 
 def seed_everything(seed: int = 42) -> None:
     """Sets all random seeds for reproducible results."""
@@ -36,6 +66,7 @@ def seed_everything(seed: int = 42) -> None:
 
 def total_parameters(layer) -> int:
     return sum(p.numel() for p in layer.parameters())
+
 
 @contextmanager
 def timer(name: str) -> ContextManager[None]:
@@ -70,7 +101,7 @@ def get_pianist_names(datasets: tuple = ('jtd', 'pijama')) -> set:
     res = {dat: [] for dat in datasets}
     # Iterate through each dataset
     for database in datasets:
-        database_path = os.path.join(get_project_root(), 'data', database)
+        database_path = os.path.join(get_project_root(), 'data/raw', database)
         # Iterate through the folders corresponding to each track in the database
         for f in os.listdir(database_path):
             if not os.path.isdir(os.path.join(database_path, f)):
