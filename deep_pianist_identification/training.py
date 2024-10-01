@@ -8,12 +8,13 @@ from time import time
 
 import mlflow
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 import yaml
 from loguru import logger
 from torch.utils.data import DataLoader
-from torchmetrics.classification import Accuracy, F1Score, ConfusionMatrix
+from torchmetrics.classification import Accuracy, ConfusionMatrix
 from tqdm import tqdm
 
 from deep_pianist_identification.dataloader import MIDILoader, remove_bad_clips_from_batch
@@ -64,7 +65,6 @@ class TrainModule:
         # LOSS AND METRICS
         logger.debug('Initialising loss and metrics...')
         self.loss_fn = nn.CrossEntropyLoss(reduction='mean').to(DEVICE)
-        self.f1_fn = F1Score(task="multiclass", num_classes=N_CLASSES, average="macro").to(DEVICE)
         self.acc_fn = Accuracy(task="multiclass", num_classes=N_CLASSES).to(DEVICE)
         self.confusion_matrix_fn = ConfusionMatrix(
             task="multiclass",
@@ -98,46 +98,93 @@ class TrainModule:
         logits = self.model(features)
         # No need to softmax beforehand, `nn.CrossEntropyLoss` does this automatically
         loss = self.loss_fn(logits, targets)
-        predictions = torch.argmax(logits, dim=1)
-        # Compute metrics
-        f1 = self.f1_fn(predictions, targets)
+        softmaxed = nn.functional.softmax(logits, dim=1)
+        predictions = torch.argmax(softmaxed, dim=1)
+        # Compute clip level metrics
         acc = self.acc_fn(predictions, targets)
-        return loss, f1, acc, predictions
+        return loss, acc, softmaxed
+
+    @staticmethod
+    def groupby_tracks(
+            track_names: list[str],
+            batched_track_predictions: list[torch.tensor],
+            batched_track_targets: list[torch.tensor]
+    ) -> tuple[torch.tensor, torch.tensor]:
+        """Groups clip predictions by source track, averages class probabilities, returns predicted and actual class"""
+        # Create a DataFrame: one row per clip, one column per class predicted
+        pred_df = pd.DataFrame(torch.cat(batched_track_predictions).tolist())
+        # Set columns containing the names of each track and the target class
+        pred_df['track_name'] = track_names
+        pred_df['ground_truth'] = torch.cat(batched_track_targets).tolist()
+        # Group by underlying track name and average the class probabilities across all clips from one track
+        grouped = pred_df.groupby(['track_name', 'ground_truth']).mean()
+        # Extract the predicted and target class indexes
+        pred_class = np.argmax(grouped.to_numpy(), axis=1)
+        target_class = grouped.index.get_level_values(1).to_numpy()
+        # Convert predicted and target class indexes to tensors and return on the correct device
+        return torch.tensor(pred_class, device=DEVICE, dtype=int), torch.tensor(target_class, device=DEVICE, dtype=int)
 
     def training(self, epoch_num: int) -> tuple[float, float, float]:
-        train_loss, train_fs, train_acc = [], [], []
+        # Lists to track metrics across all batches
+        clip_losses, clip_accs = [], []
+        track_names, track_preds, track_targets = [], [], []
+        # Set model mode correctly
         self.model.train()
-        for features, targets in tqdm(
+        # Iterate through all batches, with a nice TQDM counter
+        for features, targets, batch_names in tqdm(
                 self.train_loader,
                 total=len(self.train_loader),
                 desc=f'Training, epoch {epoch_num} / {self.epochs}...'
         ):
-            loss, f1, acc, _ = self.step(features, targets)
+            # Forwards pass
+            loss, acc, preds = self.step(features, targets)
+            # Backwards pass
             self.optimizer.zero_grad()
             loss.backward()
+            # Optimizer step
             self.optimizer.step()
-            # Append all metrics from this batch
-            train_loss.append(loss.item())
-            train_fs.append(f1.item())
-            train_acc.append(acc.item())
-        return np.mean(train_loss), np.mean(train_fs), np.mean(train_acc)
+            # Append all clip-level metrics from this batch
+            clip_losses.append(loss.item())
+            clip_accs.append(acc.item())
+            # Append the names of the tracks and the corresponding predictions for track-level metrics
+            track_names.extend(batch_names)  # Single list of strings
+            track_preds.append(preds)  # List of tensors, one tensor per clip, containing class logits
+            track_targets.append(targets)  # List of tensors, one tensor per batch, containing target classes
+        # Group by tracks, average probabilities, and get predicted and target classes
+        predictions, targets = self.groupby_tracks(track_names, track_preds, track_targets)
+        # Compute track-level accuracy
+        track_acc = self.acc_fn(predictions, targets).item()
+        # Return clip loss + accuracy, track accuracy
+        return np.mean(clip_losses), np.mean(clip_accs), track_acc
 
     def testing(self, epoch_num: int) -> tuple[float, float, float]:
-        test_loss, test_fs, test_acc = [], [], []
+        # Lists to track metrics across all batches
+        clip_losses, clip_accs = [], []
+        track_names, track_preds, track_targets = [], [], []
+        # Set model mode correctly
         self.model.eval()
+        # Iterate through all batches, with a nice TQDM counter
         with torch.no_grad():
-            for features, targets in tqdm(
+            for features, targets, batch_names in tqdm(
                     self.test_loader,
                     total=len(self.test_loader),
                     desc=f'Testing, epoch {epoch_num} / {self.epochs}...'
             ):
                 # Forwards pass
-                loss, f1, acc, _ = self.step(features, targets)
-                # No backwards pass
-                test_loss.append(loss.item())
-                test_fs.append(f1.item())
-                test_acc.append(acc.item())
-        return np.mean(test_loss), np.mean(test_fs), np.mean(test_acc)
+                loss, acc, preds = self.step(features, targets)
+                # No backwards pass, just append all clip-level metrics from this batch
+                clip_losses.append(loss.item())
+                clip_accs.append(acc.item())
+                # Append the names of the tracks and the corresponding predictions for track-level metrics
+                track_names.extend(batch_names)  # Single list of strings
+                track_preds.append(preds)  # List of tensors, one tensor per clip, containing class logits
+                track_targets.append(targets)  # List of tensors, one tensor per batch, containing target classes
+        # Group by tracks, average probabilities, and get predicted and target classes
+        predictions, targets = self.groupby_tracks(track_names, track_preds, track_targets)
+        # Compute track-level accuracy
+        track_acc = self.acc_fn(predictions, targets).item()
+        # Return clip loss + accuracy, track accuracy
+        return np.mean(clip_losses), np.mean(clip_accs), track_acc
 
     def load_checkpoint(self) -> None:
         """Load the latest checkpoint for the current experiment and run"""
@@ -195,20 +242,26 @@ class TrainModule:
             self.current_epoch = epoch
             epoch_start = time()
             # Training
-            train_loss, train_f, train_acc = self.training(epoch)
-            logger.debug(f'Epoch {epoch} / {self.epochs}, training finished: loss {train_loss}, accuracy {train_acc}')
+            train_loss, train_acc_clip, train_acc_track = self.training(epoch)
+            logger.debug(f'Epoch {epoch} / {self.epochs}, training finished: '
+                         f'loss {train_loss:.3f}, '
+                         f'accuracy (clip) {train_acc_clip:.3f}, '
+                         f'accuracy (track) {train_acc_track:.3f}')
             # Testing
-            test_loss, test_f, test_acc = self.testing(epoch)
-            logger.debug(f'Epoch {epoch} / {self.epochs}, testing finished: loss {test_loss}, accuracy {test_acc}')
+            test_loss, test_acc_clip, test_acc_track = self.testing(epoch)
+            logger.debug(f'Epoch {epoch} / {self.epochs}, testing finished: '
+                         f'loss {test_loss:.3f}, '
+                         f'accuracy (clip) {test_acc_clip:.3f}, '
+                         f'accuracy (track) {test_acc_track:.3f}')
             # Log parameters from this epoch in MLFlow
             metrics = dict(
                 epoch_time=time() - epoch_start,
                 train_loss=train_loss,
-                train_f=train_f,
-                train_acc=train_acc,
+                train_acc=train_acc_clip,
+                train_acc_track=train_acc_track,
                 test_loss=test_loss,
-                test_f=test_f,
-                test_acc=test_acc
+                test_acc=test_acc_clip,
+                test_acc_track=test_acc_track,
             )
             # Checkpoint the run, if we need to
             if self.checkpoint_cfg["save_checkpoints"]:
