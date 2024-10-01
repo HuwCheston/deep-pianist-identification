@@ -212,7 +212,6 @@ class DisentangleNet(nn.Module):
             x = self.mask(x)
         # Combine list to (batch, channels, features), where channels = 4
         x = torch.cat(x, dim=1)
-        print('Features size: ', x.size())
         # Pool output to (batch, classes)
         x = self.forward_pooled(x)
         return x
