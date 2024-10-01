@@ -168,13 +168,7 @@ class DisentangleNet(nn.Module):
             idx_to_zero = []
         # Apply the masking by setting the corresponding tensor to 0
         for idx in idx_to_zero:
-            embeddings[idx] = torch.zeros(
-                embeddings[idx].size(),
-                dtype=embeddings[idx].dtype,
-                device=embeddings[idx].device,
-                requires_grad=False  # ensure that gradient flow is prevented for the masked features
-            )
-            assert embeddings[idx].requires_grad is False
+            embeddings[idx] = self.dropper(embeddings)
         return embeddings
 
     def forward_features(self, x: torch.tensor) -> tuple[torch.tensor]:
