@@ -4,6 +4,7 @@
 """Training module"""
 
 import os
+import warnings
 from time import time
 
 import mlflow
@@ -17,6 +18,7 @@ from torch.utils.data import DataLoader
 from torchmetrics.classification import Accuracy, ConfusionMatrix
 from tqdm import tqdm
 
+import deep_pianist_identification.plotting as plotting
 from deep_pianist_identification.dataloader import MIDILoader, remove_bad_clips_from_batch
 from deep_pianist_identification.encoders import CRNNet, CNNet, DisentangleNet
 from deep_pianist_identification.utils import DEVICE, N_CLASSES, seed_everything, get_project_root
@@ -121,6 +123,8 @@ class TrainModule:
         # Extract the predicted and target class indexes
         pred_class = np.argmax(grouped.to_numpy(), axis=1)
         target_class = grouped.index.get_level_values(1).to_numpy()
+        # Quick check, lengths should be the same
+        assert len(pred_class) == len(target_class)
         # Convert predicted and target class indexes to tensors and return on the correct device
         return torch.tensor(pred_class, device=DEVICE, dtype=int), torch.tensor(target_class, device=DEVICE, dtype=int)
 
@@ -157,6 +161,43 @@ class TrainModule:
         # Return clip loss + accuracy, track accuracy
         return np.mean(clip_losses), np.mean(clip_accs), track_acc
 
+    def save_figure(self, figure, filename: str) -> None:
+        """Saves a figure either locally or on MLflow as an artifact, depending on configuration"""
+        # Will be passed to `fig.savefig`
+        save_kwargs = dict(format='png', facecolor=plotting.WHITE)
+        # If we're using mlflow, log directly using their API
+        if self.mlflow_cfg["use"]:
+            mlflow.log_figure(figure, filename, save_kwargs=save_kwargs)
+            logger.debug(f'Saved figure {filename} on MLFlow as an artifact for {self.experiment}/{self.run}')
+        # Otherwise, create the figure locally in the checkpoints directory for this run
+        else:
+            figures_folder = os.path.join(get_project_root(), 'checkpoints', self.experiment, self.run, 'figures')
+            # Make the directory if it does not exist
+            if not os.path.exists(figures_folder):
+                os.makedirs(figures_folder, exist_ok=True)
+            figure.savefig(os.path.join(figures_folder, filename), **save_kwargs)
+            logger.debug(f'Saved figure {filename} in {figures_folder}')
+
+    def plot_confusion_matrix(self, predictions: torch.tensor, targets: torch.tensor) -> None:
+        """Plots a confusion matrix between `predictions` and `targets`"""
+        # Create the confusion matrix as a tensor, expressed in percentages
+        # This will raise weird errors about NaNs being present, but the output is fine, so ignore
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            mat = self.confusion_matrix_fn(predictions, targets) * 100
+        # Detach from computational graph if required
+        if mat.requires_grad:
+            mat = mat.detach()
+        # Convert to a numpy array
+        mat = mat.cpu().numpy()
+        # Create the plot
+        cm = plotting.HeatmapConfusionMatrix(mat)
+        cm.create_plot()
+        # Save the figure, either on MLflow or locally (depending on our configuration)
+        self.save_figure(cm.fig, f"epoch_{str(self.current_epoch).zfill(3)}_confusionmatrix.png")
+        # Close the figure in matplotlib
+        cm.close()
+
     def testing(self, epoch_num: int) -> tuple[float, float, float]:
         # Lists to track metrics across all batches
         clip_losses, clip_accs = [], []
@@ -183,6 +224,9 @@ class TrainModule:
         predictions, targets = self.groupby_tracks(track_names, track_preds, track_targets)
         # Compute track-level accuracy
         track_acc = self.acc_fn(predictions, targets).item()
+        # Save a confusion matrix for test set predictions if we're using checkpoints
+        if self.current_epoch % plotting.PLOT_AFTER_N_EPOCHS == 0:
+            self.plot_confusion_matrix(predictions, targets)
         # Return clip loss + accuracy, track accuracy
         return np.mean(clip_losses), np.mean(clip_accs), track_acc
 
