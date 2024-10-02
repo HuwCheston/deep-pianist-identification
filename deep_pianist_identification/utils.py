@@ -25,7 +25,7 @@ MIDI_OFFSET = 21
 
 CLIP_LENGTH = 30  # Each clip will start at CLIP_LENGTH + PADDING size, then will be cropped to CLIP_SIZE later
 HOP_SIZE = 30
-CLIP_PADDING = 20  # Added to the end of each clip to facilitate random cropping/time dilation
+CLIP_PADDING = 30  # Added to the end of each clip to facilitate random cropping/time dilation
 
 
 # Converts class indices into string names
