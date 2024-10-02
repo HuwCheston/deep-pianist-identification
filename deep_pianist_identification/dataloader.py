@@ -13,10 +13,10 @@ from torch.utils.data import Dataset, DataLoader, default_collate
 from tqdm import tqdm
 
 from deep_pianist_identification.extractors import (
-    ExtractorError, BaseExtractor, MelodyExtractor, HarmonyExtractor, RhythmExtractor, DynamicsExtractor,
-    normalize_array,
+    ExtractorError, RollExtractor, MelodyExtractor, HarmonyExtractor, RhythmExtractor, DynamicsExtractor,
+    normalize_array, augment_midi
 )
-from deep_pianist_identification.utils import get_project_root
+from deep_pianist_identification.utils import get_project_root, CLIP_LENGTH
 
 __all__ = ["MIDILoader", "remove_bad_clips_from_batch"]
 
@@ -32,6 +32,9 @@ class MIDILoader(Dataset):
             self,
             split: str,
             n_clips: int = None,
+            data_augmentation: bool = True,
+            augmentation_probability: float = 0.5,
+            jitter_start: bool = True,
             normalize_velocity: bool = True,
             multichannel: bool = False,
             use_concepts: str = None,
@@ -39,7 +42,11 @@ class MIDILoader(Dataset):
     ):
         super().__init__()
         # Unpack provided arguments as attributes
+        self.split = split
         self.normalize_velocity = normalize_velocity
+        self.data_augmentation = data_augmentation if split == "train" else False  # Never augment during testing
+        self.augmentation_probability = augmentation_probability
+        self.jitter_start = jitter_start if split == "train" else False  # Never jitter during testing
         self.multichannel = multichannel
         self.use_concepts = use_concepts
         self.extractor_cfg = extractor_cfg if extractor_cfg is not None else dict()
@@ -62,30 +69,46 @@ class MIDILoader(Dataset):
 
     def get_singlechannel_piano_roll(self, midi_obj: PrettyMIDI) -> np.ndarray:
         """Gets a single channel piano roll, including all data (i.e., without splitting into concepts)"""
-        # We can use the base extractor, which will perform checks e.g., removing invalid notes
-        # Our base extractor class doesn't accept any extra arguments, as it doesn't perform augmentations etc.
-        extract = BaseExtractor(midi_obj)
-        roll = extract.roll
-        # Normalize if required
+        # Apply data augmentation to the MIDI clip if required
+        if self.data_augmentation and self.split == "train":
+            if np.random.uniform(0.0, 1.0) <= self.augmentation_probability:
+                midi_obj = augment_midi(midi_obj)
+        # If required, sample a random start time for the clip
+        if self.jitter_start and self.split == "train":
+            clip_start = np.random.uniform(0.0, CLIP_LENGTH // 2)
+        # Otherwise, just use the start of the cli
+        else:
+            clip_start = 0.0
+        # Create the basic extractor object
+        roll = RollExtractor(midi_obj, clip_start=clip_start).roll
+        # Normalize velocity dimension if required
         if self.normalize_velocity:
             roll = normalize_array(roll)
-        # Squeeze to create a new channel, for parity with our multichannel approach (i.e., batch, channel, pitch, time)
-        return np.expand_dims(roll, axis=0)
+        # Squeeze to create a new channel, for parity with our multichannel approach
+        return np.expand_dims(roll, axis=0)  # (batch, channel, pitch, time)
 
     def get_multichannel_piano_roll(self, midi_obj: PrettyMIDI) -> np.ndarray:
         """For a single MIDI clip, make a four channel roll corresponding to Melody, Harmony, Rhythm, and Dynamics"""
-        # Create all the extractors for our piano roll
-        # Use the provided extractor configuration, or if this doesn't exist, fall back on default arguments in class
-        mel = MelodyExtractor(midi_obj, **self.extractor_cfg.get("melody", dict()))
-        harm = HarmonyExtractor(midi_obj, **self.extractor_cfg.get("harmony", dict()))
-        rhy = RhythmExtractor(midi_obj, **self.extractor_cfg.get("rhythm", dict()))
-        dyn = DynamicsExtractor(midi_obj, **self.extractor_cfg.get("dynamics", dict()))
+        # Apply data augmentation to the MIDI clip if required
+        if self.data_augmentation and self.split == "train":
+            midi_obj = augment_midi(midi_obj)
+        # If required, sample a random start time for the clip
+        if self.jitter_start and self.split == "train":
+            clip_start = np.random.uniform(0.0, CLIP_LENGTH // 2)
+        # Otherwise, just use the start of the clip
+        else:
+            clip_start = 0.0
+        # Create all the extractor objects
+        mel = MelodyExtractor(midi_obj, clip_start=clip_start, **self.extractor_cfg.get("melody", dict()))
+        harm = HarmonyExtractor(midi_obj, clip_start=clip_start, **self.extractor_cfg.get("harmony", dict()))
+        rhy = RhythmExtractor(midi_obj, clip_start=clip_start, **self.extractor_cfg.get("rhythm", dict()))
+        dyn = DynamicsExtractor(midi_obj, clip_start=clip_start, **self.extractor_cfg.get("dynamics", dict()))
         extractors = [mel, harm, rhy, dyn]
         # Normalize velocity dimension if required and stack arrays
         stacked = np.array([normalize_array(c.roll) if self.normalize_velocity else c.roll for c in extractors])
         # Using all arrays
         if self.use_concepts is None:
-            return stacked
+            return stacked  # (batch, channel, pitch, time)
         # Remove any arrays we do not want to use
         else:
             return stacked[self.use_concepts, :, :]
@@ -124,6 +147,9 @@ if __name__ == "__main__":
             'train',
             multichannel=True,
             normalize_velocity=True,
+            data_augmentation=True,
+            augmentation_probability=1.0,
+            jitter_start=True
         ),
         batch_size=batch_size,
         shuffle=True,
