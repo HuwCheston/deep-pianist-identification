@@ -277,10 +277,16 @@ class TrainModule:
             )
             logger.debug(f'Saved a checkpoint to {checkpoint_folder}')
 
+    def log_run_params_to_mlflow(self):
+        """If we're using MLFlow, log all run parameters to the dashboard"""
+        if self.mlflow_cfg["use"]:
+            # TODO: we should expand individual dictionaries here and account for duplicate keys somehow
+            for key, val in self.params.items():
+                mlflow.log_param(key, val)
+            logger.debug("Logged all run parameters to MLFlow dashboard!")
+
     def run_training(self) -> None:
-        # Log parameters in mlflow
-        for key, val in self.params.items():
-            mlflow.log_param(key, val)
+        self.log_run_params_to_mlflow()
         # Start training
         for epoch in range(self.current_epoch, self.epochs):
             self.current_epoch = epoch
@@ -333,19 +339,35 @@ if __name__ == "__main__":
 
     seed_everything()
 
+    # Parsing arguments from the command line interface
     parser = argparse.ArgumentParser(description='Run model training')
     parser.add_argument("-c", "--config", default=None, type=str, help="Path to config file")
+    # Adding all arguments from our default configuration, allowing these to be updated
     for k, v in DEFAULT_CONFIG.items():
         parser.add_argument(f"--{k.replace('_', '-')}", default=v, type=type(v))
+    # Parse all arguments from the provided YAML file
     args = vars(parser.parse_args())
     if args['config'] is not None:
         parse_config_yaml(args)
 
-    tm = TrainModule(**args)
+    # Running training with logging on MLFlow
     if args["mlflow_cfg"]["use"]:
         mlflow.set_tracking_uri(uri=args["mlflow_cfg"]["tracking_uri"])
-        mlflow.set_experiment(args["experiment"])
-        with mlflow.start_run(run_name=args["run"]):
-            tm.run_training()
-    else:
+        try:
+            mlflow.set_experiment(args["experiment"])
+        # If we're unable to reach the MLFlow server somehow
+        except mlflow.exceptions.MlflowException as err:
+            logger.warning(f'Could not connect to MLFlow, falling back to running locally! {err}')
+            # This will mean we break out of the current IF statement, and activate the next IF NOT statement
+            # in order to train locally, without using MLFlow
+            args["mlflow_cfg"]["use"] = False
+        else:
+            # Otherwise, start training with the arguments we've passed in
+            tm = TrainModule(**args)
+            with mlflow.start_run(run_name=args["run"]):
+                tm.run_training()
+
+    # Running training locally
+    if not args["mlflow_cfg"]["use"]:
+        tm = TrainModule(**args)
         tm.run_training()

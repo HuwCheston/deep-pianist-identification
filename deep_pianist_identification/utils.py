@@ -71,15 +71,17 @@ def total_parameters(layer) -> int:
 @contextmanager
 def timer(name: str) -> ContextManager[None]:
     """Print out how long it takes to execute the provided block."""
+    from loguru import logger
+    start = time()
     try:
-        start = time()
         yield
     except Exception as e:
         end = time()
+        logger.warning(f"Took {end - start:.2f} seconds to {name} and raised {e}.")
         raise e
     else:
         end = time()
-        print(f"Took {end - start:.2f} seconds to {name}.")
+        logger.debug(f"Took {end - start:.2f} seconds to {name}.")
 
 
 def get_project_root() -> Path:
