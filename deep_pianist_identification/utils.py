@@ -23,8 +23,10 @@ PIANO_KEYS = 88
 FPS = 100
 MIDI_OFFSET = 21
 
-CLIP_LENGTH = 30
-N_CLASSES = 25
+CLIP_LENGTH = 30  # Each clip will start at CLIP_LENGTH + PADDING size, then will be cropped to CLIP_SIZE later
+HOP_SIZE = 30
+CLIP_PADDING = 20  # Added to the end of each clip to facilitate random cropping/time dilation
+
 
 # Converts class indices into string names
 CLASS_MAPPING = {
@@ -55,6 +57,7 @@ CLASS_MAPPING = {
     24: 'Tommy Flanagan'
 }
 PIANIST_MAPPING = {v: k for k, v in CLASS_MAPPING.items()}  # Inverted, maps string names to class indexes
+N_CLASSES = 25
 
 
 def seed_everything(seed: int = 42) -> None:
