@@ -6,6 +6,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+from loguru import logger
 
 import deep_pianist_identification.utils as utils
 from deep_pianist_identification.encoders.cnn import ConvLayer, LinearLayer
@@ -44,6 +45,11 @@ class Concept(nn.Module):
         self.output_channels = utils.PIANO_KEYS // 2 ** output_pools
         # Whether we're processing the input with a final BiGRU layer
         self.use_gru = use_gru
+        # HACK FOR GETTING OLD RESULTS BACK
+        if num_layers == 4:
+            logger.debug("Using old results hack...")
+            self.output_features = 512
+            self.output_channels = 11
         if self.use_gru:
             self.gru = GRU(
                 input_size=self.output_features * self.output_channels,  # channels * features (== 5632 always)
@@ -53,15 +59,16 @@ class Concept(nn.Module):
 
     @staticmethod
     def create_convolutional_layers(num_layers: int) -> nn.ModuleList:
-        # This is what we used in our run that achieved acc = 0.52
-        # return nn.ModuleList([
-        #     ConvLayer(1, 64, has_pool=True),
-        #     ConvLayer(64, 128, has_pool=True),
-        #     ConvLayer(128, 256, has_pool=True),
-        #     ConvLayer(256, 512, has_pool=False)  # No pooling for final layer
-        # ])
-
         assert num_layers % 2 == 0, f"Number of convolutional layers must be even, but received {num_layers} layers."
+        # HACK FOR GETTING OLD RESULTS BACK
+        if num_layers == 4:
+            return nn.ModuleList([
+                ConvLayer(1, 64, has_pool=True),
+                ConvLayer(64, 128, has_pool=True),
+                ConvLayer(128, 256, has_pool=True),
+                ConvLayer(256, 512, has_pool=False)  # No pooling for final layer
+            ])
+
         # Arbitrarily long list of embedding values, i.e. 64, 128, 256, 512, 1024, 2048, ...
         dims = [1] + [64 * 2 ** i for i in range(512)]
         layers = nn.ModuleList([])
@@ -228,8 +235,8 @@ if __name__ == '__main__':
     )
     model = DisentangleNet(
         use_masking=True,
-        mask_probability=1.0,
-        num_layers=8,
+        mask_probability=0.3,
+        num_layers=4,
         pool_type="avg",
         use_gru=True,
         num_attention_heads=2
