@@ -26,6 +26,7 @@ class AugmentationTest(unittest.TestCase):
     input_velocities = [n.velocity for n in input_notes]
 
     def test_melody_augmentation(self):
+        seed_everything(42)
         augmented = MelodyExtractor(self.long_midi, data_augmentation=True, augmentation_probability=1.0)
         augmented_pitches = [i.pitch for i in augmented.output_midi.instruments[0].notes]
         # Number of notes should be the same or lower, if we're transposing out of bounds
@@ -34,6 +35,7 @@ class AugmentationTest(unittest.TestCase):
         self.assertFalse(all(aug in self.input_pitches for aug in augmented_pitches))
 
     def test_harmony_augmentation(self):
+        seed_everything(42)
         augmented = HarmonyExtractor(
             self.long_midi,
             data_augmentation=True,
@@ -47,6 +49,7 @@ class AugmentationTest(unittest.TestCase):
         self.assertFalse(all(aug in self.input_pitches for aug in augmented_pitches))
 
     def test_velocity_augmentation(self):
+        seed_everything(42)
         augmented = DynamicsExtractor(self.long_midi, data_augmentation=True, augmentation_probability=1.0)
         augmented_velocities = [i.velocity for i in augmented.output_midi.instruments[0].notes]
         # Number of notes should be identical
@@ -55,6 +58,7 @@ class AugmentationTest(unittest.TestCase):
         self.assertFalse(all(aug == inp for aug, inp in zip(augmented_velocities, self.input_velocities)))
 
     def test_time_dilate_augmentation(self):
+        seed_everything(42)
         augmented = RhythmExtractor(self.long_midi, data_augmentation=True, augmentation_probability=1.0)
         augmented_starts = sorted([i.start for i in augmented.output_midi.instruments[0].notes])
         augmented_ends = sorted([i.end for i in augmented.output_midi.instruments[0].notes])
