@@ -1,16 +1,20 @@
 experiment: baselines
 run: crnn-jtd+pijama
 learning_rate: 1.0e-4
-batch_size: 12
+batch_size: 5
 epochs: 100
 train_dataset_cfg:
   n_clips: null
   normalize_velocity: True
   multichannel: False
+  data_augmentation: False
+  jitter_start: False
 test_dataset_cfg:
   n_clips: null
   normalize_velocity: True
   multichannel: False
+  data_augmentation: False
+  jitter_start: False
 encoder_module: crnn
 model_cfg:
   use_ibn: False
@@ -20,4 +24,4 @@ checkpoint_cfg:
   checkpoint_after_n_epochs: 10
 mlflow_cfg:
   use: True
-  tracking_uri: http://127.0.0.1:8080
+  tracking_uri: http://127.0.0.1:5000
