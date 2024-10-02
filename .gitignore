@@ -114,3 +114,8 @@ target/
 # Ignore model files used by MVSEP
 *.th
 *.onnx
+
+# Keep data split CSV files
+!/references/data_splits/test_split.csv
+!/references/data_splits/train_split.csv
+!/references/data_splits/validation_split.csv
