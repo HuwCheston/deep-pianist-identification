@@ -28,7 +28,10 @@ class DataloaderTest(unittest.TestCase):
             collate_fn=remove_bad_clips_from_batch,
         )
         roll, _, __ = next(iter(loader))
+        # Shape should be (batch, 1, 88, 3000)
         self.assertEqual((self.batch_size, 1, PIANO_KEYS, CLIP_LENGTH * FPS), roll.shape)
+        # Array should contain values other than just zero
+        self.assertTrue(roll.any())
 
     def test_multichannel_output(self):
         loader = DataLoader(
@@ -42,7 +45,10 @@ class DataloaderTest(unittest.TestCase):
             collate_fn=remove_bad_clips_from_batch,
         )
         roll, _, __ = next(iter(loader))
+        # Test the size of the array
         self.assertEqual((self.batch_size, 4, PIANO_KEYS, CLIP_LENGTH * FPS), roll.shape)
+        # Array should contain values other than just zero
+        self.assertTrue(roll.any())
 
     def test_multichannel_invidualconcept_output(self):
         loader = DataLoader(
@@ -57,7 +63,10 @@ class DataloaderTest(unittest.TestCase):
             collate_fn=remove_bad_clips_from_batch,
         )
         roll, _, __ = next(iter(loader))
+        # Shape should be (batch, 3, 88, 3000)
         self.assertEqual((self.batch_size, 3, PIANO_KEYS, CLIP_LENGTH * FPS), roll.shape)
+        # Array should contain values other than just zero
+        self.assertTrue(roll.any())
         # Velocity should be moved into our 3rd channel, from the fourth
         self.assertTrue(torch.unique(roll[0, 2, :, :]).numel() > 2)
         self.assertFalse(torch.unique(roll[0, 0, :, :]).numel() > 2)

@@ -9,7 +9,7 @@ import unittest
 from pretty_midi import PrettyMIDI, Instrument, Note
 
 from deep_pianist_identification.extractors import (
-    ExtractorError, MelodyExtractor, HarmonyExtractor, DynamicsExtractor, RhythmExtractor
+    ExtractorError, MelodyExtractor, HarmonyExtractor, DynamicsExtractor, RhythmExtractor, RollExtractor
 )
 from deep_pianist_identification.utils import (
     get_project_root, CLIP_LENGTH, PIANO_KEYS, MIDI_OFFSET, seed_everything
@@ -37,7 +37,7 @@ class ExtractorTest(unittest.TestCase):
         # Iterate over all extractor objects
         for extractor in EXTRACTORS:
             # Create the extractor, get the input and output MIDI files
-            rendered = extractor(self.long_midi)
+            rendered = extractor(self.long_midi, clip_start=0.0)
             input_notes = rendered.input_midi.instruments[0].notes
             output_notes = rendered.output_midi.instruments[0].notes
             # Output notes should be changed
@@ -55,7 +55,7 @@ class ExtractorTest(unittest.TestCase):
 
     def test_melody_extractor(self):
         # Create extractor and get note data
-        extractor = MelodyExtractor(self.long_midi, data_augmentation=False)
+        extractor = MelodyExtractor(self.long_midi, data_augmentation=False, clip_start=0.0)
         extracted_starts = sorted([n.start for n in extractor.output_midi.instruments[0].notes])
         extracted_ends = sorted([n.end for n in extractor.output_midi.instruments[0].notes])
         extracted_pitches = sorted([n.pitch for n in extractor.output_midi.instruments[0].notes])
@@ -71,7 +71,7 @@ class ExtractorTest(unittest.TestCase):
 
     def test_harmony_extractor(self):
         # Create extractor and get note data
-        extractor = HarmonyExtractor(self.long_midi, data_augmentation=False)
+        extractor = HarmonyExtractor(self.long_midi, data_augmentation=False, clip_start=0.0)
         extracted_starts = sorted([n.start for n in extractor.output_midi.instruments[0].notes])
         extracted_ends = sorted([n.end for n in extractor.output_midi.instruments[0].notes])
         extracted_pitches = sorted([n.pitch for n in extractor.output_midi.instruments[0].notes])
@@ -87,7 +87,7 @@ class ExtractorTest(unittest.TestCase):
 
     def test_dynamics_extractor(self):
         # Create extractor and get note data
-        extractor = DynamicsExtractor(self.long_midi, data_augmentation=False)
+        extractor = DynamicsExtractor(self.long_midi, data_augmentation=False, clip_start=0.0)
         extracted_starts = sorted([n.start for n in extractor.output_midi.instruments[0].notes])
         extracted_ends = sorted([n.end for n in extractor.output_midi.instruments[0].notes])
         extracted_pitches = sorted([n.pitch for n in extractor.output_midi.instruments[0].notes])
@@ -98,12 +98,10 @@ class ExtractorTest(unittest.TestCase):
         self.assertFalse(all(extracted in self.input_pitches for extracted in extracted_pitches))
         # Velocity should be identical
         self.assertTrue(all(extracted in self.input_velocities for extracted in extracted_velocities))
-        # Number of notes should be identical
-        self.assertEqual(self.input_notes, len(extracted_starts))
 
     def test_rhythm_extractor(self):
         # Create extractor and get note data
-        extractor = RhythmExtractor(self.long_midi, data_augmentation=False)
+        extractor = RhythmExtractor(self.long_midi, data_augmentation=False, clip_start=0.0)
         extracted_starts = sorted([n.start for n in extractor.output_midi.instruments[0].notes])
         extracted_ends = sorted([n.end for n in extractor.output_midi.instruments[0].notes])
         extracted_pitches = sorted([n.pitch for n in extractor.output_midi.instruments[0].notes])
@@ -114,23 +112,38 @@ class ExtractorTest(unittest.TestCase):
         # Original and extracted onset start and end times should be identical
         self.assertTrue(all(extracted in self.input_starts for extracted in extracted_starts))
         self.assertTrue(all(extracted in self.input_ends for extracted in extracted_ends))
-        # Number of onsets should be identical
-        self.assertEqual(len(extracted_starts), self.input_notes)
 
-    def test_bad_clip_pre_augmentation(self):
+    def test_jittering(self):
+        # Create a test MIDI object
+        test_midi = PrettyMIDI()
+        inst = Instrument(program=0)
+        inst.notes.extend(
+            [Note(pitch=50, start=5, end=6, velocity=60), Note(pitch=50, start=10, end=11, velocity=1)]
+        )
+        test_midi.instruments.append(inst)
+        # We should crop out the first MIDI note
+        clip_start = 9.0
+        output_midi = RollExtractor(test_midi, clip_start=clip_start).output_midi
+        self.assertGreater(len(test_midi.instruments[0].notes), len(output_midi.instruments[0].notes))
+        # Get the final note for both our test and output MIDI
+        input_note = test_midi.instruments[0].notes[-1]
+        output_note = output_midi.instruments[0].notes[-1]
+        # The start and end time of the output notes should be adjusted to match the start of the clip
+        self.assertTrue(output_note.start == input_note.start - clip_start)
+        self.assertTrue(output_note.end == input_note.end - clip_start)
+
+    def test_bad_clips(self):
         # Contains no instrument objects
         bad_empty = PrettyMIDI()
-        self.assertRaises(ExtractorError, lambda x: MelodyExtractor(x), bad_empty)
+        self.assertRaises(ExtractorError, lambda x: MelodyExtractor(x, clip_start=0.0), bad_empty)
         # Not a PrettyMIDI object
         bad_wrongtype = dict(i_am="bad")
-        self.assertRaises(ExtractorError, lambda x: MelodyExtractor(x), bad_wrongtype)
+        self.assertRaises(ExtractorError, lambda x: MelodyExtractor(x, clip_start=0.0), bad_wrongtype)
         # Contains an instrument object, but no notes
         bad_nonotes = PrettyMIDI()
         badinst = Instrument(program=0)
         bad_nonotes.instruments.append(badinst)
-        self.assertRaises(ExtractorError, lambda x: RhythmExtractor(x), bad_nonotes)
-
-    def test_bad_clip_post_augmentation(self):
+        self.assertRaises(ExtractorError, lambda x: RhythmExtractor(x, clip_start=0.0), bad_nonotes)
         # Create a new MIDI object with only two notes
         bm = PrettyMIDI()
         badinst = Instrument(program=0)
