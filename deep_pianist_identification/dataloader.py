@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 from pretty_midi import PrettyMIDI
+from tenacity import retry, retry_if_exception, stop_after_attempt
 from torch.utils.data import Dataset, DataLoader, default_collate
 from tqdm import tqdm
 
@@ -19,6 +20,8 @@ from deep_pianist_identification.extractors import (
 from deep_pianist_identification.utils import get_project_root, CLIP_LENGTH
 
 __all__ = ["MIDILoader", "remove_bad_clips_from_batch"]
+
+MAX_RETRIES = 10
 
 
 def remove_bad_clips_from_batch(returned_batch):
@@ -50,6 +53,8 @@ class MIDILoader(Dataset):
         self.multichannel = multichannel
         self.use_concepts = use_concepts
         self.extractor_cfg = extractor_cfg if extractor_cfg is not None else dict()
+        # This is the function we'll use to create the piano roll from the raw MIDI input: single or multichannel
+        self.creator_func = self.get_multichannel_piano_roll if self.multichannel else self.get_singlechannel_piano_roll
         # Load in the CSV and get all the clips into a list
         csv_path = os.path.join(get_project_root(), 'references/data_splits', f'{split}_split.csv')
         self.clips = list(self.get_clips_for_split(csv_path))
@@ -67,6 +72,11 @@ class MIDILoader(Dataset):
             for clip_idx in range(track_clips):
                 yield track_path, track['pianist'], clip_idx
 
+    @retry(
+        stop=stop_after_attempt(MAX_RETRIES),
+        reraise=True,
+        retry=retry_if_exception(ExtractorError),
+    )
     def get_singlechannel_piano_roll(self, midi_obj: PrettyMIDI) -> np.ndarray:
         """Gets a single channel piano roll, including all data (i.e., without splitting into concepts)"""
         # Apply data augmentation to the MIDI clip if required
@@ -87,18 +97,24 @@ class MIDILoader(Dataset):
         # Squeeze to create a new channel, for parity with our multichannel approach
         return np.expand_dims(roll, axis=0)  # (batch, channel, pitch, time)
 
+    @retry(
+        stop=stop_after_attempt(MAX_RETRIES),
+        reraise=True,
+        retry=retry_if_exception(ExtractorError),
+    )
     def get_multichannel_piano_roll(self, midi_obj: PrettyMIDI) -> np.ndarray:
         """For a single MIDI clip, make a four channel roll corresponding to Melody, Harmony, Rhythm, and Dynamics"""
         # Apply data augmentation to the MIDI clip if required
         if self.data_augmentation and self.split == "train":
             midi_obj = augment_midi(midi_obj)
-        # If required, sample a random start time for the clip
+        # Sample a random start time for the clip if required
         if self.jitter_start and self.split == "train":
             clip_start = np.random.uniform(0.0, CLIP_LENGTH // 2)
         # Otherwise, just use the start of the clip
         else:
             clip_start = 0.0
         # Create all the extractor objects
+        # TODO: sort out how configs are passed through here
         mel = MelodyExtractor(midi_obj, clip_start=clip_start, **self.extractor_cfg.get("melody", dict()))
         harm = HarmonyExtractor(midi_obj, clip_start=clip_start, **self.extractor_cfg.get("harmony", dict()))
         rhy = RhythmExtractor(midi_obj, clip_start=clip_start, **self.extractor_cfg.get("rhythm", dict()))
@@ -121,15 +137,14 @@ class MIDILoader(Dataset):
         # Load in the clip as a PrettyMIDI object
         pm = PrettyMIDI(os.path.join(track_path, f'clip_{str(clip_idx).zfill(3)}.mid'))
         # Load the piano roll as either single channel (all valid MIDI notes) or multichannel (split into concepts)
-        if self.multichannel:
-            creator_func = self.get_multichannel_piano_roll
-        else:
-            creator_func = self.get_singlechannel_piano_roll
-        # If creating the piano roll fails for whatever reason, return None which will be caught in the collate_fn
         try:
-            piano_roll = creator_func(pm)
+            piano_roll = self.creator_func(pm)
+        # If creating the piano roll fails for whatever reason, return None which will be caught in the collate_fn
+        # This will be retried MAX_RETRIES times in case it's just an issue with the random augmentation/jittering
         except ExtractorError as e:
-            logger.warning(f'Failed for {track_path}, clip {clip_idx}, skipping! {e}')
+            logger.error(f'Failed to create piano rolls for {track_path} (clip {clip_idx}) '
+                         f'after retrying {MAX_RETRIES} times. Skipping this clip! '
+                         f'Error message: {e}')
             return None
         # Otherwise, return the roll, target class index, and the raw name of the track
         else:
@@ -138,9 +153,11 @@ class MIDILoader(Dataset):
 
 if __name__ == "__main__":
     from time import time
+    from deep_pianist_identification.utils import seed_everything, SEED
+
+    seed_everything(SEED)
 
     batch_size = 12
-    n_batches = 100
     times = []
     loader = DataLoader(
         MIDILoader(
@@ -156,11 +173,12 @@ if __name__ == "__main__":
         collate_fn=remove_bad_clips_from_batch,
     )
 
-    for i in tqdm(range(n_batches), desc=f'Loading {n_batches} batches of {batch_size} clips: '):
-        start = time()
-        # Shape: (batch, channels, pitch, time)
-        batch, _, __ = next(iter(loader))
+    start = time()
+    proc = 0
+    for batch, _, __ in tqdm(loader, desc=f'Loading batches of {batch_size} clips: '):
         times.append(time() - start)
+        start = time()
+        proc += 1
 
-    logger.info(f'Took {np.sum(times):.2f}s to create {n_batches} batches of {batch_size} items. '
+    logger.info(f'Took {np.sum(times):.2f}s to create batches of {batch_size} items. '
                 f'(Mean = {np.mean(times):.2f}s, SD = {np.std(times):.2f}) ')

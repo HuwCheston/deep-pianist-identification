@@ -15,6 +15,7 @@ from deep_pianist_identification.utils import seed_everything, PIANO_KEYS, CLIP_
 class DataloaderTest(unittest.TestCase):
     batch_size = 1
     n_batches = 1
+    bad_clip, bad_idx = "jarrettk-pt-unaccompanied-xxxx-187f2exh", 15
 
     def test_singlechannel_output(self):
         loader = DataLoader(
@@ -100,6 +101,23 @@ class DataloaderTest(unittest.TestCase):
         roll, _, __ = next(iter(loader))
         # Max velocity should equal 1
         self.assertTrue(roll[0, 0, :, :].max() == 1.0)
+
+    def test_skip_bad_clip(self):
+        loader = MIDILoader(
+            'train',
+            multichannel=True,
+            normalize_velocity=False,
+        )
+        # Keith Jarrett doesn't play anything in this clip
+        bad_clip_idx = [idx for idx, clip in enumerate(loader.clips)
+                        if self.bad_clip in clip[0] and clip[2] == self.bad_idx]
+        roll = loader.__getitem__(bad_clip_idx[0])  # This will also raise a message in Loguru
+        self.assertIsNone(roll)
+        # Keith Jarrett plays something in this clip
+        good_clip_idx = [idx for idx, clip in enumerate(loader.clips)
+                         if self.bad_clip in clip[0] and clip[2] == self.bad_idx - 1]
+        roll = loader.__getitem__(good_clip_idx[0])
+        self.assertIsNotNone(roll)
 
 
 if __name__ == '__main__':
