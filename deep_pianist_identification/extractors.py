@@ -216,7 +216,7 @@ class MelodyExtractor(RollExtractor):
         # TODO: we should check the interval between successive notes as well
         # self.lower_bound = kwargs.get('lower_bound', 40)  # By default, use all notes above the E below middle C
         self.lower_bound = kwargs.get('lower_bound', MIDI_OFFSET)  # Use all notes by default
-        self.quantize_resolution = kwargs.get('quantize_resolution', 0.05)  # Snap to nearest 50 ms
+        self.quantize_resolution = kwargs.get('quantize_resolution', 1 / FPS)  # Snap to nearest 10 ms
         # Initialise the parent class and call all the overridden methods
         super().__init__(midi_obj, clip_start=clip_start)
 
@@ -364,7 +364,7 @@ class DynamicsExtractor(RollExtractor):
 
     def __init__(self, midi_obj: PrettyMIDI, clip_start: float = 0, **kwargs):
         # Get parameter settings from kwargs
-        self.quantize_resolution = kwargs.get('quantize_resolution', 0.05)  # Snap to nearest 50 ms
+        self.quantize_resolution = kwargs.get('quantize_resolution', 1 / FPS)  # Snap to nearest 10 ms
         # Initialise the parent class and call all the overridden methods
         super().__init__(midi_obj, clip_start=clip_start)
 
