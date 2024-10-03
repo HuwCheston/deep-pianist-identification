@@ -12,7 +12,7 @@ from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 from deep_pianist_identification.utils import (
-    get_project_root, SEED, PIANIST_MAPPING, CLIP_PADDING, CLIP_LENGTH, seed_everything
+    get_project_root, SEED, PIANIST_MAPPING, seed_everything
 )
 
 TRAIN_SIZE, TEST_SIZE, VALIDATION_SIZE = 0.8, 0.1, 0.1
@@ -32,8 +32,9 @@ def get_tracks(databases: tuple = ('pijama', 'jtd')):
                 track_duration, track_notes = get_track_duration_and_notes(track_path)
                 # Is the track long enough for us to create at least one clip from it?
                 # Do we have at least one MIDI note in the track?
-                if track_duration >= CLIP_PADDING + CLIP_LENGTH and track_notes > 0:
-                    yield database, PIANIST_MAPPING[pianist], pianist, track, track_duration
+                # # TODO: do we need to add padding here?
+                # if track_duration >= CLIP_PADDING + CLIP_LENGTH and track_notes > 0:
+                yield database, PIANIST_MAPPING[pianist], pianist, track, track_duration
 
 
 def get_track_duration_and_notes(track_name: str) -> tuple[float, int]:
