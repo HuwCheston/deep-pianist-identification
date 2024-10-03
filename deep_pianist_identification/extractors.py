@@ -12,7 +12,7 @@ import numpy as np
 from numba import jit
 from pretty_midi import PrettyMIDI, Instrument, Note
 
-from deep_pianist_identification.utils import PIANO_KEYS, CLIP_LENGTH, HOP_SIZE, FPS, MIDI_OFFSET
+from deep_pianist_identification.utils import PIANO_KEYS, CLIP_LENGTH, HOP_SIZE, FPS, MIDI_OFFSET, MAX_VELOCITY
 
 MINIMUM_FRAMES = 1  # a note must last this number of frames to be used
 QUANTIZE_RESOLUTION = (1 / FPS) * 10  # 100 ms, the duration of a triplet eighth note at the mean JTD tempo (200 BPM)
@@ -102,6 +102,8 @@ def augment_midi(midi_obj: PrettyMIDI, **kwargs) -> PrettyMIDI:
         note_end *= dilate_amount
         # Add a RANDOM value to each note velocity, within the limit
         note_velocity += np.random.randint(-balance_limit, balance_limit)
+        # Clip note velocity between 0 and 127
+        note_velocity = max(0, min(note_velocity, MAX_VELOCITY))
         augmented_notes.append((note_start, note_end, note_pitch, note_velocity))
     # Return the output in PrettyMIDI format again with the same metadata as our input
     output = note_list_to_midi(augmented_notes, input_midi.resolution, input_midi.instruments[0].program)
@@ -140,7 +142,7 @@ class RollExtractor:
             # Note must last for at least N frames (default = 1)
             (note_end - note_start) > (MINIMUM_FRAMES / FPS),
             # Note must have a velocity within the acceptable MIDI range
-            0 < note_velocity < 127,
+            0 < note_velocity < MAX_VELOCITY,
         ))
 
     def preparation(self, midi_notes: list[tuple]) -> list[tuple]:
@@ -232,7 +234,7 @@ class MelodyExtractor(RollExtractor):
                 note_start = quantize(note_start, self.quantize_resolution)
                 note_end = quantize(note_end, self.quantize_resolution)
                 # Set the velocity to maximum to binarize
-                note_velocity = 127  # 1 = note on, 0 = note off
+                note_velocity = MAX_VELOCITY  # 1 = note on, 0 = note off
                 quantized_notes.append((note_start, note_end, note_pitch, note_velocity))
         # Apply the skyline algorithm and adjust the duration of notes
         skylined = list(self.apply_skyline(quantized_notes))
@@ -331,7 +333,7 @@ class HarmonyExtractor(RollExtractor):
                 chord_start = note_idx * chord_duration
                 chord_end = (note_idx + 1) * chord_duration
                 # Set the velocity to binary
-                chord_velocity = 127  # 1 = note on, 0 = note off
+                chord_velocity = MAX_VELOCITY  # 1 = note on, 0 = note off
                 if chord_end > CLIP_LENGTH:
                     chord_end = CLIP_LENGTH
                 # Iterate through each note in the chord and set the times correctly, keeping pitch + velocity
@@ -355,7 +357,7 @@ class RhythmExtractor(RollExtractor):
             # Randomise the pitch
             note_pitch = np.random.randint(MIDI_OFFSET, (PIANO_KEYS + MIDI_OFFSET) - 1)
             # Set the velocity to binary
-            note_velocity = 127  # 1 = note on, 0 = note off
+            note_velocity = MAX_VELOCITY  # 1 = note on, 0 = note off
             yield note_start, note_end, note_pitch, note_velocity
 
 

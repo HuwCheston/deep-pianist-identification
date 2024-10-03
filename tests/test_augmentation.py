@@ -6,10 +6,10 @@
 import os
 import unittest
 
-from pretty_midi import PrettyMIDI
+from pretty_midi import PrettyMIDI, Instrument, Note
 
 from deep_pianist_identification.extractors import augment_midi
-from deep_pianist_identification.utils import get_project_root, seed_everything
+from deep_pianist_identification.utils import get_project_root, seed_everything, MAX_VELOCITY
 
 
 class AugmentationTest(unittest.TestCase):
@@ -40,6 +40,24 @@ class AugmentationTest(unittest.TestCase):
         self.assertEqual(len(augmented_velocities), len(self.input_velocities))
         # Augmented velocities should be different to input velocities
         self.assertFalse(all(aug == inp for aug, inp in zip(augmented_velocities, self.input_velocities)))
+
+    def test_velocity_clipping(self):
+        # Input MIDI with velocity values above 127 and below 0
+        # This should never happen in reality, but we just want to test that these values are successfully clipped
+        input_midi = PrettyMIDI()
+        instr = Instrument(0, is_drum=False)
+        instr.notes.extend([
+            Note(velocity=5000, pitch=50, start=5, end=6), Note(velocity=-5000, pitch=50, start=6, end=7)
+        ])
+        input_midi.instruments.append(instr)
+        # Apply the augmentation
+        augmented = augment_midi(input_midi)
+        # Test the first note is clipped to MAX_VELOCITY (127)
+        loud_note = augmented.instruments[0].notes[0]
+        self.assertEqual(loud_note.velocity, MAX_VELOCITY)
+        # Test the second note is clipped to 0
+        quiet_note = augmented.instruments[0].notes[-1]
+        self.assertEqual(quiet_note.velocity, 0)
 
     def test_dilate_augmentation(self):
         # Augment the input MIDI clip

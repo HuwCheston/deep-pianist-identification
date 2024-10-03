@@ -22,6 +22,7 @@ SEED = 42
 PIANO_KEYS = 88
 FPS = 100
 MIDI_OFFSET = 21
+MAX_VELOCITY = 127
 
 CLIP_LENGTH = 30  # Each clip will start at CLIP_LENGTH + PADDING size, then will be cropped to CLIP_SIZE later
 HOP_SIZE = 30
