@@ -4,6 +4,7 @@
 """Validation module. Accepts the same YAML configurations as in `training.py`."""
 
 import os
+from copy import deepcopy
 from itertools import combinations
 from time import time
 
@@ -98,49 +99,55 @@ class ValidateModule:
     def validate_multichannel(self) -> list[dict]:
         """Validation for multichannel models: compute accuracy for all combinations of masked concepts"""
 
-        def step(r: torch.tensor, idx_to_mask: list[int]):
-            # These are the features for each individual concept
-            embeddings = self.model.forward_features(r)
-            # Apply the required masks to each embedding and concatenate
-            for to_mask in idx_to_mask:
-                embeddings[to_mask] = embeddings[to_mask] * torch.zeros_like(embeddings[to_mask])
-            features = torch.cat(embeddings, dim=1)
-            # Calculate the raw class logits and then apply the softmax
-            logits = self.model.forward_pooled(features)
-            return torch.nn.functional.softmax(logits, dim=1)
+        def apply_masks(embedding_list, idx_to_mask):
+            for embedding_idx in range(len(embedding_list)):
+                embed = embedding_list[embedding_idx]
+                if embedding_idx in idx_to_mask:
+                    embed *= torch.zeros_like(embed)
+                yield embed
+
+        combo_accuracies = {}
+        track_names, track_targets = [], []
+        with torch.no_grad():
+            for roll, targets, tracks in tqdm(self.validation_dataloader, desc=f"Multi-channel Prediction: "):
+                # Set devices correctly for all tensors
+                roll = roll.to(DEVICE)
+                targets = targets.to(DEVICE)
+                # Append the track names and targets to the list
+                track_names.extend(tracks)
+                track_targets.append(targets)
+                # Compute the individual embeddings
+                embeddings = self.model.forward_features(roll)
+                # Iterate through all indexes to mask: i.e., [0, 1, 2, 3], [0, 1, 2], [1, 2, 3]...
+                for mask_idxs in MASK_COMBINATIONS:
+                    # Mask the required embeddings for this combination
+                    new_embeddings = list(apply_masks(deepcopy(embeddings), mask_idxs))
+                    # Stack into a tensor, calculate logits, and softmax
+                    stacked = torch.cat(new_embeddings, dim=1)
+                    logits = self.model.forward_pooled(stacked)
+                    softmaxed = torch.nn.functional.softmax(logits, dim=1)
+                    # Get clip level accuracy
+                    combo_preds = torch.argmax(softmaxed, dim=1)
+                    combo_accuracy = self.acc_fn(combo_preds, targets).item()
+                    # Get the names of the concepts that ARE NOT masked this iteration
+                    cmasks = '+'.join(mask for i, mask in enumerate(MASKS) if i not in mask_idxs)
+                    if cmasks not in combo_accuracies.keys():
+                        combo_accuracies[cmasks] = {"clip_accuracy": [], "track_predictions": []}
+                    # Append clip accuracy and predictions to the dictionary for this combination of masks
+                    combo_accuracies[cmasks]["clip_accuracy"].append(combo_accuracy)
+                    combo_accuracies[cmasks]["track_predictions"].append(softmaxed)
 
         all_accuracies = []
-        with torch.no_grad():
-            # Iterate through all indexes to mask: i.e., [0, 1, 2, 3], [0, 1, 2], [1, 2, 3]...
-            for combo in MASK_COMBINATIONS:
-                # Get the names of the concepts that ARE NOT masked this iteration
-                cmasks = '+'.join(mask for i, mask in enumerate(MASKS) if i not in combo)
-                combo_clip_accs, combo_track_names, combo_track_preds, combo_track_targets = [], [], [], []
-                # Iterate through all clips in the validation dataset
-                for roll, targets, tracks in tqdm(self.validation_dataloader, desc=f"Predicting using {cmasks}: "):
-                    # Set devices correctly for all tensors
-                    roll = roll.to(DEVICE)
-                    targets = targets.to(DEVICE)
-                    # Step forward with the model, get the class probabilities
-                    soft = step(roll, combo)
-                    # Get clip level accuracy
-                    clip_preds = torch.argmax(soft, dim=1)
-                    clip_accuracy = self.acc_fn(clip_preds, targets).item()
-                    # Append everything to our list for running totals across the batch
-                    combo_clip_accs.append(clip_accuracy)
-                    combo_track_names.extend(tracks)
-                    combo_track_preds.append(soft)
-                    combo_track_targets.append(targets)
-                # TODO: create a confusion matrix here
-                # TODO: compute decrease in accuracy for individual performers based on masks
-                # Group tracks by the name and get the average predictions and target classes
-                predictions, targets = groupby_tracks(combo_track_names, combo_track_preds, combo_track_targets)
-                # Calculate track-level accuracy and mean clip-level accuracy
-                track_acc = self.acc_fn(predictions, targets).item()
-                clip_acc = np.mean(combo_clip_accs)
-                # Append all the results as a dictionary and log
-                all_accuracies.append(dict(model=self.run, concepts=cmasks, clip_acc=clip_acc, track_acc=track_acc))
-                logger.info(f"Results for {cmasks}: clip accuracy {clip_acc:.2f}, track accuracy {track_acc:.2f}")
+        # Iterate through all individual combinations of masks
+        for mask, vals in combo_accuracies.items():
+            # Average clip-level accuracy
+            clip_acc = np.mean(vals["clip_accuracy"])
+            # Group by track names and calculate average track-level accuracy
+            p, t = groupby_tracks(track_names, vals["track_predictions"], track_targets)
+            track_acc = self.acc_fn(p, t).item()
+            # Log and store a dictionary for this combination of masks
+            logger.info(f"Results for concepts {mask}: clip accuracy {clip_acc:.2f}, track accuracy {track_acc:.2f}")
+            all_accuracies.append(dict(model=self.run, concepts="multichannel", clip_acc=clip_acc, track_acc=track_acc))
         return all_accuracies
 
     def validate_singlechannel(self) -> list[dict]:
