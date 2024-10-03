@@ -112,10 +112,11 @@ class Concept(nn.Module):
 class DisentangleNet(nn.Module):
     def __init__(
             self,
-            num_layers: int = 4,
             use_gru: bool = True,
-            num_attention_heads: int = 2,
             use_masking: bool = False,
+            use_attention: bool = True,
+            num_layers: int = 4,
+            num_attention_heads: int = 2,
             mask_probability: float = 0.3,
             max_masked_concepts: int = 3,
             pool_type: str = "avg"
@@ -133,11 +134,13 @@ class DisentangleNet(nn.Module):
         self.dynamics_concept = Concept(num_layers, use_gru)
         self.concept_embed_dim = self.melody_concept.output_features
         # Attention and pooling between concepts (i.e., channels)
-        self.self_attention = nn.MultiheadAttention(
-            embed_dim=self.concept_embed_dim,
-            num_heads=num_attention_heads,
-            batch_first=True  # Means we don't have to permute tensor in forward
-        )
+        self.use_attention = use_attention
+        if self.use_attention:
+            self.self_attention = nn.MultiheadAttention(
+                embed_dim=self.concept_embed_dim,
+                num_heads=num_attention_heads,
+                batch_first=True  # Means we don't have to permute tensor in forward
+            )
         self.pooling = self.get_pooling_module(pool_type)
         # Linear layers project on to final output: these have dropout added with p=0.5
         self.fc1 = LinearLayer(
@@ -193,7 +196,8 @@ class DisentangleNet(nn.Module):
     def forward_pooled(self, x: torch.tensor) -> torch.tensor:
         """Pools a (possibly masked) input in shape (batch, channels, features), to (batch, classes)"""
         # Self-attention across channels
-        x, _ = self.self_attention(x, x, x)
+        if self.use_attention:
+            x, _ = self.self_attention(x, x, x)
         # Pool across channels
         batch, channels, features = x.size()
         x = x.reshape((batch, features, channels))
@@ -234,11 +238,12 @@ if __name__ == '__main__':
         collate_fn=remove_bad_clips_from_batch
     )
     model = DisentangleNet(
+        use_attention=True,
         use_masking=True,
+        use_gru=True,
         mask_probability=0.3,
         num_layers=4,
         pool_type="avg",
-        use_gru=True,
         num_attention_heads=2
     ).to(utils.DEVICE)
     model.train()
