@@ -21,10 +21,58 @@ from tqdm import tqdm
 import deep_pianist_identification.plotting as plotting
 from deep_pianist_identification.dataloader import MIDILoader, remove_bad_clips_from_batch
 from deep_pianist_identification.encoders import CRNNet, CNNet, DisentangleNet
-from deep_pianist_identification.utils import DEVICE, N_CLASSES, seed_everything, get_project_root
+from deep_pianist_identification.utils import DEVICE, N_CLASSES, seed_everything, get_project_root, SEED
+
+__all__ = ["groupby_tracks", "get_model", "TrainModule", "parse_config_yaml", "DEFAULT_CONFIG"]
 
 # Any key-value pairs we don't define in our custom config will be overwritten using these
 DEFAULT_CONFIG = yaml.safe_load(open(os.path.join(get_project_root(), 'config', 'debug_local.yaml')))
+
+
+def groupby_tracks(
+        track_names: list[str],
+        batched_track_predictions: list[torch.tensor],
+        batched_track_targets: list[torch.tensor]
+) -> tuple[torch.tensor, torch.tensor]:
+    """Groups clip predictions by source track, averages class probabilities, returns predicted and actual class"""
+    # Create a DataFrame: one row per clip, one column per class predicted
+    pred_df = pd.DataFrame(torch.cat(batched_track_predictions).tolist())
+    # Set columns containing the names of each track and the target class
+    pred_df['track_name'] = track_names
+    pred_df['ground_truth'] = torch.cat(batched_track_targets).tolist()
+    # Group by underlying track name and average the class probabilities across all clips from one track
+    grouped = pred_df.groupby(['track_name', 'ground_truth']).mean()
+    # Extract the predicted and target class indexes
+    pred_class = np.argmax(grouped.to_numpy(), axis=1)
+    target_class = grouped.index.get_level_values(1).to_numpy()
+    # Quick check, lengths should be the same
+    assert len(pred_class) == len(target_class)
+    # Convert predicted and target class indexes to tensors and return on the correct device
+    return torch.tensor(pred_class, device=DEVICE, dtype=int), torch.tensor(target_class, device=DEVICE, dtype=int)
+
+
+def get_model(encoder_module: str):
+    """Given a string, returns the correct encoder module"""
+    if encoder_module == "cnn":
+        return CNNet
+    elif encoder_module == "crnn":
+        return CRNNet
+    elif encoder_module == "disentangle":
+        return DisentangleNet
+
+
+def parse_config_yaml(arg_parser, raise_on_not_found: bool = False) -> None:
+    try:
+        with open(os.path.join(get_project_root(), 'config', arg_parser['config'])) as stream:
+            cfg = yaml.safe_load(stream)
+    except FileNotFoundError:
+        if raise_on_not_found:
+            raise FileNotFoundError(f'Config file {arg_parser["config"]} could not be found!')
+        else:
+            logger.error(f'Config file {arg_parser["config"]} could not be found, falling back to defaults...')
+    else:
+        for key, val in cfg.items():
+            arg_parser[key] = val
 
 
 class TrainModule:
@@ -36,7 +84,8 @@ class TrainModule:
         self.current_epoch = 0
         # MODEL
         logger.debug('Initialising model...')
-        self.model = self.get_model().to(DEVICE)
+        logger.debug(f"Using encoder {self.encoder_module} with parameters {self.model_cfg}")
+        self.model = get_model(self.encoder_module)(**self.model_cfg).to(DEVICE)
         n_params = sum(p.numel() for p in self.model.parameters())
         logger.debug(f'Model parameters: {n_params}')
         # DATALOADERS
@@ -80,19 +129,6 @@ class TrainModule:
         if self.checkpoint_cfg["load_checkpoints"]:
             self.load_checkpoint()
 
-    def get_model(self):
-        logger.debug(f"Using encoder {self.encoder_module} with parameters {self.model_cfg}")
-        if self.encoder_module == "cnn":
-            return CNNet(**self.model_cfg)
-        elif self.encoder_module == "crnn":
-            return CRNNet(**self.model_cfg)
-        elif self.encoder_module == "disentangle":
-            assert all((
-                self.train_dataset_cfg.get("multichannel") is True,
-                self.test_dataset_cfg.get("multichannel") is True,
-            )), "Must set `multichannel == True` in dataloader config when using disentangle encoder!"
-            return DisentangleNet(**self.model_cfg)
-
     def step(self, features: torch.tensor, targets: torch.tensor) -> tuple:
         # Set device correctly for both features and targets
         features = features.to(DEVICE)
@@ -105,28 +141,6 @@ class TrainModule:
         # Compute clip level metrics
         acc = self.acc_fn(predictions, targets)
         return loss, acc, softmaxed
-
-    @staticmethod
-    def groupby_tracks(
-            track_names: list[str],
-            batched_track_predictions: list[torch.tensor],
-            batched_track_targets: list[torch.tensor]
-    ) -> tuple[torch.tensor, torch.tensor]:
-        """Groups clip predictions by source track, averages class probabilities, returns predicted and actual class"""
-        # Create a DataFrame: one row per clip, one column per class predicted
-        pred_df = pd.DataFrame(torch.cat(batched_track_predictions).tolist())
-        # Set columns containing the names of each track and the target class
-        pred_df['track_name'] = track_names
-        pred_df['ground_truth'] = torch.cat(batched_track_targets).tolist()
-        # Group by underlying track name and average the class probabilities across all clips from one track
-        grouped = pred_df.groupby(['track_name', 'ground_truth']).mean()
-        # Extract the predicted and target class indexes
-        pred_class = np.argmax(grouped.to_numpy(), axis=1)
-        target_class = grouped.index.get_level_values(1).to_numpy()
-        # Quick check, lengths should be the same
-        assert len(pred_class) == len(target_class)
-        # Convert predicted and target class indexes to tensors and return on the correct device
-        return torch.tensor(pred_class, device=DEVICE, dtype=int), torch.tensor(target_class, device=DEVICE, dtype=int)
 
     def training(self, epoch_num: int) -> tuple[float, float, float]:
         # Lists to track metrics across all batches
@@ -155,7 +169,7 @@ class TrainModule:
             track_preds.append(preds)  # List of tensors, one tensor per clip, containing class logits
             track_targets.append(targets)  # List of tensors, one tensor per batch, containing target classes
         # Group by tracks, average probabilities, and get predicted and target classes
-        predictions, targets = self.groupby_tracks(track_names, track_preds, track_targets)
+        predictions, targets = groupby_tracks(track_names, track_preds, track_targets)
         # Compute track-level accuracy
         track_acc = self.acc_fn(predictions, targets).item()
         # Return clip loss + accuracy, track accuracy
@@ -221,7 +235,7 @@ class TrainModule:
                 track_preds.append(preds)  # List of tensors, one tensor per clip, containing class logits
                 track_targets.append(targets)  # List of tensors, one tensor per batch, containing target classes
         # Group by tracks, average probabilities, and get predicted and target classes
-        predictions, targets = self.groupby_tracks(track_names, track_preds, track_targets)
+        predictions, targets = groupby_tracks(track_names, track_preds, track_targets)
         # Compute track-level accuracy
         track_acc = self.acc_fn(predictions, targets).item()
         # Save a confusion matrix for test set predictions if we're using checkpoints
@@ -239,14 +253,14 @@ class TrainModule:
             return
 
         # Get all the checkpoints for the current experiment/run combination
-        checkpoints = os.listdir(checkpoint_folder)
+        checkpoints = [i for i in os.listdir(checkpoint_folder) if i.endswith(".pth")]
         if len(checkpoints) == 0:
             logger.warning('No checkpoints have been created yet for this experiment/run, skipping load!')
             return
 
         # Sort the checkpoints and load the latest one
         latest_checkpoint = sorted(checkpoints)[-1]
-        checkpoint_path = f'{checkpoint_folder}/{latest_checkpoint}'
+        checkpoint_path = os.path.join(checkpoint_folder, latest_checkpoint)
         # This will raise a warning about possible ACE exploits, but we don't care
         loaded = torch.load(checkpoint_path, map_location=DEVICE, weights_only=False)
         # Set state dictionary for all torch objects
@@ -321,23 +335,11 @@ class TrainModule:
                 mlflow.log_metrics(metrics, step=epoch)
 
 
-def parse_config_yaml(arg_parser) -> None:
-    try:
-        with open(os.path.join(get_project_root(), 'config', arg_parser['config'])) as stream:
-            cfg = yaml.safe_load(stream)
-    except FileNotFoundError:
-        logger.warning(f'Config file {arg_parser["config"]} could not be found, falling back to defaults...')
-    else:
-        logger.debug(f'Starting training using config file {arg_parser["config"]}')
-        for key, val in cfg.items():
-            arg_parser[key] = val
-
-
 if __name__ == "__main__":
     import yaml
     import argparse
 
-    seed_everything()
+    seed_everything(SEED)
 
     # Parsing arguments from the command line interface
     parser = argparse.ArgumentParser(description='Run model training')
@@ -348,7 +350,10 @@ if __name__ == "__main__":
     # Parse all arguments from the provided YAML file
     args = vars(parser.parse_args())
     if args['config'] is not None:
+        logger.debug(f'Starting training using config file {args["config"]}')
         parse_config_yaml(args)
+    else:
+        logger.warning("No config file found, using default settings!")
 
     # Running training with logging on MLFlow
     if args["mlflow_cfg"]["use"]:
