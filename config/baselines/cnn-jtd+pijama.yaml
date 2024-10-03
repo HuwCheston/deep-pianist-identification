@@ -1,16 +1,20 @@
 experiment: baselines
 run: cnn-jtd+pijama
-learning_rate: 1.0e-4
+learning_rate: 1.0e-4    # originally 0.001
 batch_size: 12
 epochs: 100
 train_dataset_cfg:
   n_clips: null
   normalize_velocity: True
-  multichannel: False    # No augmentation by default
+  multichannel: False
+  jitter_start: False
+  data_augmentation: False
 test_dataset_cfg:
   n_clips: null
   normalize_velocity: True
-  multichannel: False    # No augmentation by default
+  multichannel: False
+  jitter_start: False
+  data_augmentation: False
 encoder_module: cnn
 model_cfg:
   use_ibn: False

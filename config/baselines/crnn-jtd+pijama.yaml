@@ -1,6 +1,6 @@
 experiment: baselines
 run: crnn-jtd+pijama
-learning_rate: 1.0e-4
+learning_rate: 1.0e-4    # originally 0.001
 batch_size: 5
 epochs: 100
 train_dataset_cfg:
