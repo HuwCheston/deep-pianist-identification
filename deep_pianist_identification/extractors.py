@@ -136,9 +136,8 @@ class RollExtractor:
         return all((
             # Note must fit within the piano keyboard
             MIDI_OFFSET <= note_pitch < PIANO_KEYS + MIDI_OFFSET,
-            # Note must start and end within the clip
-            note_start >= self.clip_start,
-            note_end <= self.clip_end,
+            # Note must start within the clip
+            self.clip_start <= note_start <= self.clip_end,  # We can keep notes that extend past the clip
             # Note must last for at least N frames (default = 1)
             (note_end - note_start) > (MINIMUM_FRAMES / FPS),
             # Note must have a velocity within the acceptable MIDI range
