@@ -3,6 +3,7 @@ run: debug_local
 learning_rate: 1.0e-3
 batch_size: 1
 epochs: 100
+classify_dataset: False
 # We just use a small toy dataset for debug purposes
 train_dataset_cfg:
   n_clips: 1

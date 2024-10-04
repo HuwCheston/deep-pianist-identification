@@ -82,10 +82,13 @@ class TrainModule:
         for key, val in self.params.items():
             setattr(self, key, val)
         self.current_epoch = 0
+        # CLASSIFICATION PROBLEM
+        self.classify_dataset = kwargs.get("classify_dataset", False)
+        logger.debug(f"Model will be trained to classify {'dataset' if self.classify_dataset else 'performer'}s!")
         # MODEL
         logger.debug('Initialising model...')
         logger.debug(f"Using encoder {self.encoder_module} with parameters {self.model_cfg}")
-        self.model = get_model(self.encoder_module)(**self.model_cfg).to(DEVICE)
+        self.model = get_model(self.encoder_module)(classify_dataset=self.classify_dataset, **self.model_cfg).to(DEVICE)
         n_params = sum(p.numel() for p in self.model.parameters())
         logger.debug(f'Model parameters: {n_params}')
         # DATALOADERS
@@ -94,6 +97,7 @@ class TrainModule:
         self.train_loader = DataLoader(
             MIDILoader(
                 'train',
+                classify_dataset=self.classify_dataset,
                 **self.train_dataset_cfg
             ),
             batch_size=self.batch_size,
@@ -106,6 +110,7 @@ class TrainModule:
         self.test_loader = DataLoader(
             MIDILoader(
                 'test',
+                classify_dataset=self.classify_dataset,
                 **self.test_dataset_cfg
             ),
             batch_size=self.batch_size,
@@ -116,12 +121,16 @@ class TrainModule:
         # LOSS AND METRICS
         logger.debug('Initialising loss and metrics...')
         self.loss_fn = nn.CrossEntropyLoss(reduction='mean').to(DEVICE)
-        self.acc_fn = Accuracy(task="multiclass", num_classes=N_CLASSES).to(DEVICE)
-        self.confusion_matrix_fn = ConfusionMatrix(
-            task="multiclass",
-            num_classes=N_CLASSES,
-            normalize='true'
-        ).to(DEVICE)
+        if self.classify_dataset:
+            self.acc_fn = Accuracy(task="binary", num_classes=2).to(DEVICE)
+            self.confusion_matrix_fn = ConfusionMatrix(task="binary", num_classes=2, normalize="true").to(DEVICE)
+        else:
+            self.acc_fn = Accuracy(task="multiclass", num_classes=N_CLASSES).to(DEVICE)
+            self.confusion_matrix_fn = ConfusionMatrix(
+                task="multiclass",
+                num_classes=N_CLASSES,
+                normalize='true'
+            ).to(DEVICE)
         # OPTIMISER
         logger.debug(f'Initialising optimiser with learning rate {self.learning_rate}')
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
@@ -239,7 +248,8 @@ class TrainModule:
         # Compute track-level accuracy
         track_acc = self.acc_fn(predictions, targets).item()
         # Save a confusion matrix for test set predictions if we're using checkpoints
-        if self.current_epoch % plotting.PLOT_AFTER_N_EPOCHS == 0:
+        # TODO: implement confusion matrixes for binary (accompanied/unaccopanied) classification
+        if self.current_epoch % plotting.PLOT_AFTER_N_EPOCHS == 0 and not self.classify_dataset:
             self.plot_confusion_matrix(predictions, targets)
         # Return clip loss + accuracy, track accuracy
         return np.mean(clip_losses), np.mean(clip_accs), track_acc
