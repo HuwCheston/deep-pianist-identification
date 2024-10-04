@@ -6,6 +6,7 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
 
 import deep_pianist_identification.utils as utils
@@ -31,6 +32,8 @@ MARKERSCALE = 1.6
 MARKERS = ['o', 's', 'D']
 HATCHES = ['/', '\\', '|', '-', '+', 'x', 'o', 'O', '.', '*']
 
+SAVE_KWS = dict(format='png', facecolor=WHITE)
+
 # Keyword arguments to use when applying a grid to a plot
 GRID_KWS = dict(color=BLACK, alpha=ALPHA, lw=LINEWIDTH / 2, ls=LINESTYLE)
 
@@ -52,6 +55,9 @@ class BasePlot:
         # Set fontsize
         plt.rcParams.update({'font.size': FONTSIZE})
         self.figure_title = kwargs.get('figure_title', 'baseplot')
+
+    def _format_df(self, df: pd.DataFrame):
+        return df
 
     def create_plot(self) -> tuple:
         """Calls plot creation, axis formatting, and figure formatting classes, then saves in the decorator"""
@@ -112,4 +118,41 @@ class HeatmapConfusionMatrix(BasePlot):
 
     def _format_fig(self):
         self.ax.invert_yaxis()
+        self.fig.tight_layout()
+
+
+class BarPlotMaskedConceptsAccuracy(BasePlot):
+    def __init__(self, df, **kwargs):
+        super().__init__(**kwargs)
+        self.df = self._format_df(df.dropna(subset="concepts"))
+        self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH // 2))
+
+    def _format_df(self, df):
+        pd.options.mode.chained_assignment = None
+        counter = lambda x: x.count('+') + 1 if '+' in x else 0
+        df["n_concepts"] = df['concepts'].apply(counter)
+        max_acc = df[df['n_concepts'] == df['n_concepts'].max()]['track_acc'].iloc[0]
+        df['track_acc'] /= max_acc
+        sort_and_title = lambda x: ', '.join(sorted([i.title() for i in x.split('+')]))
+        df["concepts"] = df["concepts"].apply(sort_and_title)
+        pd.options.mode.chained_assignment = "warn"
+        return (
+            df.sort_values(by=["n_concepts", "track_acc"], ascending=False)
+            .reset_index(drop=True)
+        )
+
+    def _create_plot(self) -> None:
+        return sns.barplot(
+            self.df, y="concepts", x="track_acc", hue="n_concepts", palette="tab10",
+            edgecolor=BLACK, linewidth=LINEWIDTH,
+            linestyle=LINESTYLE, ax=self.ax, legend=False, zorder=10
+        )
+
+    def _format_ax(self):
+        self.ax.set(ylabel="Concepts", xlabel="Track accuracy (1.0 = no masking)")
+        plt.setp(self.ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
+        self.ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
+        self.ax.grid(axis="x", zorder=0, **GRID_KWS)
+
+    def _format_fig(self):
         self.fig.tight_layout()
