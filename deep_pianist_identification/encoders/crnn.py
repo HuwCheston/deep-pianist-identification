@@ -35,8 +35,8 @@ class GRU(nn.Module):
 
 
 class CRNNet(CNNet):
-    def __init__(self, use_ibn: bool = False):
-        super().__init__(use_ibn=use_ibn)
+    def __init__(self, use_ibn: bool = False, classify_dataset: bool = False):
+        super().__init__(use_ibn=use_ibn, classify_dataset=classify_dataset)
         # Bidirectional GRU, operates on features * height dimension
         self.gru = GRU(512 * 11)  # final_output * (input_height / num_layers)
         self.maxpool = nn.AdaptiveMaxPool2d((512, 1))

@@ -84,7 +84,7 @@ class LinearLayer(nn.Module):
 
 
 class CNNet(nn.Module):
-    def __init__(self, use_ibn: bool = False):
+    def __init__(self, use_ibn: bool = False, classify_dataset: bool = False):
         super().__init__()
         # Convolutional layers output size: [64, 64, 128, 128, 256, 256, 512, 512]
         # Each layer goes: conv -> dropout -> relu -> batchnorm (-> avgpool, every 2 layers)
@@ -101,7 +101,7 @@ class CNNet(nn.Module):
         self.maxpool = nn.AdaptiveMaxPool2d(1)
         # Linear layers output size: [128, n_classes]
         self.fc1 = LinearLayer(512, 128)
-        self.fc2 = LinearLayer(128, N_CLASSES)
+        self.fc2 = LinearLayer(128, 2 if classify_dataset else N_CLASSES)
 
     def forward(self, x) -> torch.tensor:
         # (batch_size, channels, height, width)

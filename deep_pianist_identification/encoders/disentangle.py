@@ -119,7 +119,8 @@ class DisentangleNet(nn.Module):
             num_attention_heads: int = 2,
             mask_probability: float = 0.3,
             max_masked_concepts: int = 3,
-            pool_type: str = "avg"
+            pool_type: str = "avg",
+            classify_dataset: bool = False
     ):
         super(DisentangleNet, self).__init__()
         # Whether to randomly mask individual channels after processing
@@ -150,7 +151,7 @@ class DisentangleNet(nn.Module):
         )
         self.fc2 = LinearLayer(
             in_channels=self.concept_embed_dim // 4,  # i.e., fc1 out_channels
-            out_channels=utils.N_CLASSES,
+            out_channels=2 if classify_dataset else utils.N_CLASSES,  # either binary or multiclass
             p=0.5
         )
 
