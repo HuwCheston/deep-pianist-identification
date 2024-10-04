@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 
 from deep_pianist_identification.dataloader import MIDILoader, remove_bad_clips_from_batch
 from deep_pianist_identification.encoders import DisentangleNet
-from deep_pianist_identification.utils import DEVICE, N_CLASSES
+from deep_pianist_identification.utils import DEVICE, N_CLASSES, seed_everything, SEED
 
 
 class DisentangledTest(unittest.TestCase):
@@ -60,4 +60,5 @@ class DisentangledTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    seed_everything(SEED)
     unittest.main()
