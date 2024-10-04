@@ -110,14 +110,26 @@ class DataloaderTest(unittest.TestCase):
         )
         # Keith Jarrett doesn't play anything in this clip
         bad_clip_idx = [idx for idx, clip in enumerate(loader.clips)
-                        if self.bad_clip in clip[0] and clip[2] == self.bad_idx]
+                        if self.bad_clip in clip[0] and clip[-1] == self.bad_idx]
         roll = loader.__getitem__(bad_clip_idx[0])  # This will also raise a message in Loguru
         self.assertIsNone(roll)
         # Keith Jarrett plays something in this clip
         good_clip_idx = [idx for idx, clip in enumerate(loader.clips)
-                         if self.bad_clip in clip[0] and clip[2] == self.bad_idx - 1]
+                         if self.bad_clip in clip[0] and clip[-1] == self.bad_idx - 1]
         roll = loader.__getitem__(good_clip_idx[0])
         self.assertIsNotNone(roll)
+
+    def test_binary_classification(self):
+        loader = iter(MIDILoader(
+            'train',
+            multichannel=True,
+            normalize_velocity=False,
+            classify_dataset=True
+        ))
+        # Setting `classify_dataset == True` should result in a binary output for the target class
+        for i in range(50):
+            _, target, ___ = next(loader)
+            self.assertTrue(target == 0 or target == 1)
 
 
 if __name__ == '__main__':

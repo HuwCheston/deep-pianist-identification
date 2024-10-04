@@ -42,17 +42,25 @@ class MIDILoader(Dataset):
             multichannel: bool = False,
             use_concepts: str = None,
             extractor_cfg: dict = None,
+            classify_dataset: bool = False
     ):
         super().__init__()
         # Unpack provided arguments as attributes
         self.split = split
+        # If `True`, we will normalize the velocity dimension of each clip between 0 and 1
         self.normalize_velocity = normalize_velocity
+        # If `True`, we will use data augmentation with specified probability `augmentation_probability
         self.data_augmentation = data_augmentation if split == "train" else False  # Never augment during testing
         self.augmentation_probability = augmentation_probability
+        # If `True`, we will jitter the start time of each clip, between 0 and 15 seconds uniform
         self.jitter_start = jitter_start if split == "train" else False  # Never jitter during testing
+        # If `True`, we will return multichannel piano rolls, corresponding the different musical dimensions
         self.multichannel = multichannel
-        self.use_concepts = use_concepts
+        self.use_concepts = use_concepts  # For debugging: return only individual channels
+        # Individual configuration dictionaries passed to piano roll extractors, only if `multichannel == True`
         self.extractor_cfg = extractor_cfg if extractor_cfg is not None else dict()
+        # If `True`, we will train the model to classify which DATASET the clip comes from, not the performer!
+        self.classify_dataset = classify_dataset
         # This is the function we'll use to create the piano roll from the raw MIDI input: single or multichannel
         self.creator_func = self.get_multichannel_piano_roll if self.multichannel else self.get_singlechannel_piano_roll
         # Load in the CSV and get all the clips into a list
@@ -69,8 +77,12 @@ class MIDILoader(Dataset):
         for idx, track in split_df.iterrows():
             track_path = os.path.join(get_project_root(), 'data/clips', track['track'])
             track_clips = len(os.listdir(track_path))
+            # Get the dataset from the track name
+            dataset = track['track'].split('/')
+            dataset_idx = 0 if dataset == 'jtd' else 1
+            # Iterate through all clips for this track
             for clip_idx in range(track_clips):
-                yield track_path, track['pianist'], clip_idx
+                yield track_path, track['pianist'], dataset_idx, clip_idx
 
     @retry(
         stop=stop_after_attempt(MAX_RETRIES),
@@ -124,7 +136,7 @@ class MIDILoader(Dataset):
         stacked = np.array([normalize_array(c.roll) if self.normalize_velocity else c.roll for c in extractors])
         # Using all arrays
         if self.use_concepts is None:
-            return stacked  # (batch, channel, pitch, time)
+            return stacked  # (batch, channel == 4, pitch, time)
         # Remove any arrays we do not want to use
         else:
             return stacked[self.use_concepts, :, :]
@@ -133,7 +145,10 @@ class MIDILoader(Dataset):
         return len(self.clips)
 
     def __getitem__(self, idx: int) -> tuple:
-        track_path, target_class, clip_idx = self.clips[idx]
+        # Unpack the clip to get the track path, the performer and dataset index, and the index of the clip
+        track_path, target_class, target_dataset, clip_idx = self.clips[idx]
+        # This is the target class index we'll be returning, depending on the classification problem
+        target = target_dataset if self.classify_dataset else target_class
         # Load in the clip as a PrettyMIDI object
         pm = PrettyMIDI(os.path.join(track_path, f'clip_{str(clip_idx).zfill(3)}.mid'))
         # Load the piano roll as either single channel (all valid MIDI notes) or multichannel (split into concepts)
@@ -146,9 +161,9 @@ class MIDILoader(Dataset):
                          f'after retrying {MAX_RETRIES} times. Skipping this clip! '
                          f'Error message: {e}')
             return None
-        # Otherwise, return the roll, target class index, and the raw name of the track
+        # Otherwise, return the roll, target class (or dataset) index, and the raw name of the track
         else:
-            return piano_roll, target_class, track_path.split(os.path.sep)[-1]
+            return piano_roll, target, track_path.split(os.path.sep)[-1]
 
 
 if __name__ == "__main__":
