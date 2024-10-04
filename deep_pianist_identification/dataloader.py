@@ -21,7 +21,7 @@ from deep_pianist_identification.utils import get_project_root, CLIP_LENGTH
 
 __all__ = ["MIDILoader", "remove_bad_clips_from_batch"]
 
-MAX_RETRIES = 10
+MAX_RETRIES = 100
 
 
 def remove_bad_clips_from_batch(returned_batch):
