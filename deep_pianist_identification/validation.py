@@ -124,9 +124,9 @@ class ValidateModule:
         cm = plotting.HeatmapConfusionMatrix(mat)
         cm.create_plot()
         # Set the title to the concepts we've used, nicely formatted
-        cm.fig.set_title(sorted([i.title() for i in concept.split('+')]))
+        cm.ax.set_title(', '.join(sorted([i.title() for i in concept.split('+')])))
         # Save inside the checkpoints directory
-        fname = "confusion_matrix" + concept + ".png"
+        fname = "confusion_matrix" + concept + ".png" if concept != "" else "confusion_matrix.png"
         cm.fig.savefig(os.path.join(self.checkpoint_folder, "validation", fname), **plotting.SAVE_KWS)
 
     def validate_multichannel(self) -> list[dict]:
