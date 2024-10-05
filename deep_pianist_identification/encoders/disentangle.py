@@ -140,7 +140,8 @@ class DisentangleNet(nn.Module):
             self.self_attention = nn.MultiheadAttention(
                 embed_dim=self.concept_embed_dim,
                 num_heads=num_attention_heads,
-                batch_first=True  # Means we don't have to permute tensor in forward
+                batch_first=True,  # Means we don't have to permute tensor in forward
+                dropout=0.1
             )
         self.pooling = self.get_pooling_module(pool_type)
         # Linear layers project on to final output: these have dropout added with p=0.5
@@ -197,6 +198,7 @@ class DisentangleNet(nn.Module):
     def forward_pooled(self, x: torch.tensor) -> torch.tensor:
         """Pools a (possibly masked) input in shape (batch, channels, features), to (batch, classes)"""
         # Self-attention across channels
+        # TODO: make sure the tensor is in the correct format!
         if self.use_attention:
             x, _ = self.self_attention(x, x, x)
         # Pool across channels
