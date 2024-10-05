@@ -1,5 +1,5 @@
 experiment: disentangle
-run: disentangle-jtd+pijama-mask30concept1-augment50-2heads-avgpool
+run: disentangle-jtd+pijama-mask30concept1-augment50-4heads-avgpool
 learning_rate: 1.0e-4
 batch_size: 5
 epochs: 100
