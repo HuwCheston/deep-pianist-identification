@@ -1,4 +1,4 @@
-experiment: disentangle
+experiment: disentangle-noattention
 run: disentangle-jtd+pijama-mask30concept1-augment50-noattention-avgpool
 learning_rate: 1.0e-4
 batch_size: 5
