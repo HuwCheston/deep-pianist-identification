@@ -199,13 +199,16 @@ class DisentangleNet(nn.Module):
         """Pools a (possibly masked) input in shape (batch, channels, features), to (batch, classes)"""
         # Self-attention across channels
         # TODO: make sure the tensor is in the correct format!
+        # TODO: rather than attention, consider flattening to channels * features, then a linear layer to project
+        #  back to the initial output dimension (i.e., 512)
         if self.use_attention:
             x, _ = self.self_attention(x, x, x)
-        # Pool across channels
-        batch, channels, features = x.size()
-        x = x.reshape((batch, features, channels))
-        x = self.pooling(x)  # Can be either Avg, Max, or GeM pooling
-        x = x.squeeze(2)  # Remove unnecessary final layer
+        # Permute to (batch, features, channels)
+        x = x.permute(0, 2, 1)
+        # Pool across channels: can be either avg, max, or GeM pooling
+        x = self.pooling(x)
+        # Remove singleton dimension
+        x = x.squeeze(2)
         # Project onto final output
         x = self.fc1(x)
         x = self.fc2(x)
@@ -241,12 +244,13 @@ if __name__ == '__main__':
         collate_fn=remove_bad_clips_from_batch
     )
     model = DisentangleNet(
-        use_attention=True,
+        use_attention=False,
         use_masking=True,
         use_gru=True,
-        mask_probability=0.3,
+        max_masked_concepts=1,
+        mask_probability=1.0,
         num_layers=4,
-        pool_type="avg",
+        pool_type="max",
         num_attention_heads=2
     ).to(utils.DEVICE)
     model.train()

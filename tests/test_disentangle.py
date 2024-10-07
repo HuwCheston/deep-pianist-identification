@@ -5,6 +5,7 @@
 
 import unittest
 
+import torch
 from torch.utils.data import DataLoader
 
 from deep_pianist_identification.dataloader import MIDILoader, remove_bad_clips_from_batch
@@ -24,6 +25,20 @@ class DisentangledTest(unittest.TestCase):
         batch_size=1,
         collate_fn=remove_bad_clips_from_batch
     )
+
+    def test_final_pooling(self):
+        # Shape is (batch, features, channels) --- i.e., no permutation is required
+        fake_input = torch.rand((8, 512, 4), device=DEVICE)
+        # Test average pooling
+        model_avg = DisentangleNet(num_layers=4, classify_dataset=False, use_masking=False, pool_type="avg")
+        expected_avg = fake_input.mean(dim=2)  # Average over channel (last) dimension
+        actual_avg = model_avg.pooling(fake_input).squeeze(2)  # Use pool and remove singleton dimension
+        self.assertTrue(torch.all(expected_avg == actual_avg).item())
+        # Test max pooling
+        model_max = DisentangleNet(num_layers=4, classify_dataset=False, use_masking=False, pool_type="max")
+        expected_max = fake_input.max(dim=2)[0]  # Max over channel (last) dimension
+        actual_max = model_max.pooling(fake_input).squeeze(2)  # Use pool and remove singleton dimension
+        self.assertTrue(torch.all(expected_max == actual_max).item())
 
     def test_forward_features(self):
         model = DisentangleNet(num_layers=4, classify_dataset=False).to(DEVICE)

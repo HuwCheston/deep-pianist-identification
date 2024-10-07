@@ -115,8 +115,7 @@ class CNNet(nn.Module):
         x = self.layer8(x)
         # (batch_size, features)
         x = self.maxpool(x)
-        batch_size, features, _, __ = x.size()
-        x = x.reshape((batch_size, features))
+        x = x.squeeze(2).squeeze(2)  # squeeze to remove singleton dimension
         # (batch_size, n_classes)
         x = self.fc1(x)
         x = self.fc2(x)

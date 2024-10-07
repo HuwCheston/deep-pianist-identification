@@ -55,8 +55,7 @@ class CRNNet(CNNet):
         x = self.gru(x)
         # (batch_size, features)
         x = self.maxpool(x)
-        batch_size, features, _ = x.size()
-        x = x.reshape((batch_size, features))
+        x = x.squeeze(2)  # squeeze to remove singleton dimension
         # (batch_size, n_classes)
         x = self.fc1(x)
         x = self.fc2(x)
