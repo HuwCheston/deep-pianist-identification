@@ -12,7 +12,21 @@ import deep_pianist_identification.utils as utils
 from deep_pianist_identification.encoders.cnn import ConvLayer, LinearLayer
 from deep_pianist_identification.encoders.crnn import GRU
 
-__all__ = ["DisentangleNet", "GeM"]
+__all__ = ["DisentangleNet", "GeM", "MaskedAvgPooling"]
+
+
+class MaskedAvgPooling(nn.Module):
+    """Average pooling that omits dimensions which have been masked with zeros. When masks=3, equivalent to max pool."""
+
+    def __init__(self):
+        super(MaskedAvgPooling, self).__init__()
+        self.dim = 2
+
+    def forward(self, x: torch.tensor) -> torch.tensor:
+        """Computes average for all non-masked columns of a 3D tensor. Expected shape is (batch, features, channels)"""
+        mask = x != 0
+        pooled = (x * mask).sum(dim=self.dim) / mask.sum(dim=self.dim)
+        return pooled.unsqueeze(2)
 
 
 class GeM(nn.Module):
@@ -159,12 +173,14 @@ class DisentangleNet(nn.Module):
     @staticmethod
     def get_pooling_module(pool_type: str) -> nn.Module:
         """Returns the correct final pooling module to use after the self-attention layer"""
-        accept = ["gem", "max", "avg"]
+        accept = ["gem", "max", "avg", "masked-avg"]
         assert pool_type in accept, "Module `pool_type` must be one of" + ", ".join(accept)
         if pool_type == "max":
             return nn.AdaptiveMaxPool1d(1)
         elif pool_type == "avg":
             return nn.AdaptiveAvgPool1d(1)
+        elif pool_type == "masked-avg":
+            return MaskedAvgPooling()
         else:
             return GeM()
 
@@ -232,7 +248,7 @@ if __name__ == '__main__':
     from deep_pianist_identification.dataloader import MIDILoader, remove_bad_clips_from_batch
     from torch.utils.data import DataLoader
 
-    size = 1
+    size = 2
     loader = DataLoader(
         MIDILoader(
             'train',
@@ -250,7 +266,7 @@ if __name__ == '__main__':
         max_masked_concepts=1,
         mask_probability=1.0,
         num_layers=4,
-        pool_type="max",
+        pool_type="masked-avg",
         num_attention_heads=2
     ).to(utils.DEVICE)
     model.train()

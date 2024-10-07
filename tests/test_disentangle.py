@@ -9,7 +9,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from deep_pianist_identification.dataloader import MIDILoader, remove_bad_clips_from_batch
-from deep_pianist_identification.encoders import DisentangleNet
+from deep_pianist_identification.encoders import DisentangleNet, MaskedAvgPooling
 from deep_pianist_identification.utils import DEVICE, N_CLASSES, seed_everything, SEED
 
 
@@ -39,6 +39,23 @@ class DisentangledTest(unittest.TestCase):
         expected_max = fake_input.max(dim=2)[0]  # Max over channel (last) dimension
         actual_max = model_max.pooling(fake_input).squeeze(2)  # Use pool and remove singleton dimension
         self.assertTrue(torch.all(expected_max == actual_max).item())
+
+    def test_masked_avg_pooling(self):
+        pooler = MaskedAvgPooling()
+        # With one mask (column 1), should return mean of remaining columns
+        big = torch.cat([torch.zeros((3, 512, 1)), torch.rand((3, 512, 3))], dim=2)
+        expected = big[:, :, 1:].mean(dim=2).unsqueeze(2)
+        actual = pooler(big)
+        self.assertTrue(torch.all(actual == expected).item())
+        # With three dimensions masked (columns 1:3), should be equal to max pooling
+        big = torch.cat([torch.zeros((3, 512, 3)), torch.rand((3, 512, 1))], dim=2)
+        expected = big.max(dim=2)[0].unsqueeze(2)
+        actual = pooler(big)
+        self.assertTrue(torch.all(actual == expected).item())
+        # With all dimensions masked, should just return NaN
+        big = torch.zeros(3, 512, 4)
+        actual = pooler(big)
+        self.assertTrue(torch.all(torch.isnan(actual)).item())
 
     def test_forward_features(self):
         model = DisentangleNet(num_layers=4, classify_dataset=False).to(DEVICE)
