@@ -9,7 +9,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from deep_pianist_identification.dataloader import MIDILoader, remove_bad_clips_from_batch
-from deep_pianist_identification.encoders import DisentangleNet, MaskedAvgPooling
+from deep_pianist_identification.encoders import DisentangleNet, MaskedAvgPool, LinearFlatten
 from deep_pianist_identification.utils import DEVICE, N_CLASSES, seed_everything, SEED
 
 
@@ -41,7 +41,7 @@ class DisentangledTest(unittest.TestCase):
         self.assertTrue(torch.all(expected_max == actual_max).item())
 
     def test_masked_avg_pooling(self):
-        pooler = MaskedAvgPooling()
+        pooler = MaskedAvgPool()
         # With one mask (column 1), should return mean of remaining columns
         big = torch.cat([torch.zeros((3, 512, 1)), torch.rand((3, 512, 3))], dim=2)
         expected = big[:, :, 1:].mean(dim=2).unsqueeze(2)
@@ -56,6 +56,19 @@ class DisentangledTest(unittest.TestCase):
         big = torch.zeros(3, 512, 4)
         actual = pooler(big)
         self.assertTrue(torch.all(torch.isnan(actual)).item())
+
+    def test_linear_transformation(self):
+        flat = LinearFlatten()
+        tester = torch.cat([torch.zeros((4, 512, 2)), torch.ones((4, 512, 2))], dim=2)
+        actual = flat(tester)
+        # Check the size of the output
+        expected_size = (4, 512 * 4, 1)
+        self.assertTrue(expected_size, actual.size())
+        # First half of each tensor should be all ones, second should be all zeros
+        self.assertTrue(torch.all(actual[0, :1024] == 0).item())
+        self.assertTrue(torch.all(actual[0, 1024:] == 1).item())
+        # We shouldn't be able to use both the attention module and a linear pooling
+        self.assertRaises(AttributeError, lambda: DisentangleNet(use_attention=True, pool_type="linear"))
 
     def test_forward_features(self):
         model = DisentangleNet(num_layers=4, classify_dataset=False).to(DEVICE)

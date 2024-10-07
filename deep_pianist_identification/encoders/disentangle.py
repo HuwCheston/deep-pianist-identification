@@ -12,21 +12,33 @@ import deep_pianist_identification.utils as utils
 from deep_pianist_identification.encoders.cnn import ConvLayer, LinearLayer
 from deep_pianist_identification.encoders.crnn import GRU
 
-__all__ = ["DisentangleNet", "GeM", "MaskedAvgPooling"]
+__all__ = ["DisentangleNet", "GeM", "MaskedAvgPool", "LinearFlatten"]
 
 
-class MaskedAvgPooling(nn.Module):
+class MaskedAvgPool(nn.Module):
     """Average pooling that omits dimensions which have been masked with zeros. When masks=3, equivalent to max pool."""
 
     def __init__(self):
-        super(MaskedAvgPooling, self).__init__()
+        super(MaskedAvgPool, self).__init__()
         self.dim = 2
 
     def forward(self, x: torch.tensor) -> torch.tensor:
         """Computes average for all non-masked columns of a 3D tensor. Expected shape is (batch, features, channels)"""
         mask = x != 0
         pooled = (x * mask).sum(dim=self.dim) / mask.sum(dim=self.dim)
+        # We add an extra dimension here for parity with AdaptiveAvgPool/MaxPool in torch
         return pooled.unsqueeze(2)
+
+
+class LinearFlatten(nn.Module):
+    """For a tensor of shape (batch, features, channels), returns a tensor of shape (batch, features * channels)"""
+
+    def __init__(self):
+        super(LinearFlatten, self).__init__()
+
+    def forward(self, x: torch.tensor) -> torch.tensor:
+        # We add an extra dimension here for parity with AdaptiveAvgPool/MaxPool in torch
+        return torch.flatten(x.permute(0, 2, 1), start_dim=1).unsqueeze(2)
 
 
 class GeM(nn.Module):
@@ -160,7 +172,8 @@ class DisentangleNet(nn.Module):
         self.pooling = self.get_pooling_module(pool_type)
         # Linear layers project on to final output: these have dropout added with p=0.5
         self.fc1 = LinearLayer(
-            in_channels=self.concept_embed_dim,
+            # If we're flattening -> linear at the end (rather than pooling), input size will be 2048, not 512
+            in_channels=self.concept_embed_dim * 4 if pool_type == "linear" else self.concept_embed_dim,
             out_channels=self.concept_embed_dim // 4,
             p=0.5
         )
@@ -170,17 +183,21 @@ class DisentangleNet(nn.Module):
             p=0.5
         )
 
-    @staticmethod
-    def get_pooling_module(pool_type: str) -> nn.Module:
+    def get_pooling_module(self, pool_type: str) -> nn.Module:
         """Returns the correct final pooling module to use after the self-attention layer"""
-        accept = ["gem", "max", "avg", "masked-avg"]
+        accept = ["gem", "max", "avg", "masked-avg", "linear"]
         assert pool_type in accept, "Module `pool_type` must be one of" + ", ".join(accept)
         if pool_type == "max":
             return nn.AdaptiveMaxPool1d(1)
         elif pool_type == "avg":
             return nn.AdaptiveAvgPool1d(1)
         elif pool_type == "masked-avg":
-            return MaskedAvgPooling()
+            return MaskedAvgPool()
+        elif pool_type == "linear":
+            # We can't both compute self attention and use our linear pooling hack
+            if self.use_attention:
+                raise AttributeError("Cannot set both `use_attention=True` and `pool_type='linear'`")
+            return LinearFlatten()
         else:
             return GeM()
 
@@ -215,13 +232,11 @@ class DisentangleNet(nn.Module):
         """Pools a (possibly masked) input in shape (batch, channels, features), to (batch, classes)"""
         # Self-attention across channels
         # TODO: make sure the tensor is in the correct format!
-        # TODO: rather than attention, consider flattening to channels * features, then a linear layer to project
-        #  back to the initial output dimension (i.e., 512)
         if self.use_attention:
             x, _ = self.self_attention(x, x, x)
         # Permute to (batch, features, channels)
         x = x.permute(0, 2, 1)
-        # Pool across channels: can be either avg, max, or GeM pooling
+        # Pool across channels
         x = self.pooling(x)
         # Remove singleton dimension
         x = x.squeeze(2)
@@ -266,7 +281,7 @@ if __name__ == '__main__':
         max_masked_concepts=1,
         mask_probability=1.0,
         num_layers=4,
-        pool_type="masked-avg",
+        pool_type="linear",
         num_attention_heads=2
     ).to(utils.DEVICE)
     model.train()
