@@ -1,4 +1,4 @@
-experiment: disentangle
+experiment: disentangle-withattention
 run: disentangle-jtd+pijama-mask30concept1-augment50-4heads-avgpool
 learning_rate: 1.0e-4
 batch_size: 5
@@ -20,6 +20,7 @@ encoder_module: disentangle
 model_cfg:
   use_gru: True
   use_masking: True
+  use_attention: True
   mask_probability: 0.3
   max_masked_concepts: 1
   num_attention_heads: 4
