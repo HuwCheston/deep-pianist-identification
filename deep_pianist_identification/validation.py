@@ -20,7 +20,7 @@ from tqdm import tqdm
 import deep_pianist_identification.plotting as plotting
 from deep_pianist_identification.dataloader import MIDILoader, remove_bad_clips_from_batch
 from deep_pianist_identification.training import parse_config_yaml, DEFAULT_CONFIG, get_model, groupby_tracks
-from deep_pianist_identification.utils import seed_everything, SEED, DEVICE, N_CLASSES, get_project_root
+from deep_pianist_identification.utils import seed_everything, SEED, DEVICE, N_CLASSES, get_project_root, CLASS_MAPPING
 
 MASKS = ["melody", "harmony", "rhythm", "dynamics"]
 MASK_COMBINATIONS = []
@@ -35,6 +35,7 @@ class ValidateModule:
         self.params = kwargs
         for key, val in self.params.items():
             setattr(self, key, val)
+        # TODO: enable classification of performers or datasets here
         # MODEL
         logger.debug('Initialising model...')
         logger.debug(f"Using encoder {self.encoder_module} with parameters {self.model_cfg}")
@@ -171,7 +172,7 @@ class ValidateModule:
                     combo_accuracies[cmasks]["clip_accuracy"].append(combo_accuracy)
                     combo_accuracies[cmasks]["track_predictions"].append(softmaxed)
 
-        all_accuracies = []
+        global_accuracies, perclass_accuracies = [], []
         # Iterate through all individual combinations of masks
         for mask, vals in combo_accuracies.items():
             # Average clip-level accuracy
@@ -179,12 +180,20 @@ class ValidateModule:
             # Group by track names and calculate average track-level accuracy
             p, t = groupby_tracks(track_names, vals["track_predictions"], track_targets)
             track_acc = self.acc_fn(p, t).item()
+            # Calculate per-class accuracy: create the normalized confusion matrix, then take the diagonal
+            perclass_acc = self.confusion_matrix_fn(p, t).diag().cpu().numpy()
+            for class_idx, class_acc in enumerate(perclass_acc):
+                class_name = CLASS_MAPPING[class_idx]
+                perclass_accuracies.append(dict(model=self.run, concepts=mask, pianist=class_name, class_acc=class_acc))
             # Create the confusion matrix for this combination of parameters
             self.create_confusion_matrix(p, t, mask)
             # Log and store a dictionary for this combination of masks
             logger.info(f"Results for concepts {mask}: clip accuracy {clip_acc:.2f}, track accuracy {track_acc:.2f}")
-            all_accuracies.append(dict(model=self.run, concepts=mask, clip_acc=clip_acc, track_acc=track_acc))
-        return all_accuracies
+            global_accuracies.append(dict(model=self.run, concepts=mask, clip_acc=clip_acc, track_acc=track_acc))
+        # Create the per-class, per-concept accuracy dataframe and save to a csv
+        perclass_acc_df = pd.DataFrame(perclass_accuracies)
+        perclass_acc_df.to_csv(os.path.join(self.checkpoint_folder, "validation", "class_accuracy.csv"), index=False)
+        return global_accuracies
 
     def validate_singlechannel(self) -> list[dict]:
         """Validation function for single channel (i.e., baseline) models, with no concept of masking"""
