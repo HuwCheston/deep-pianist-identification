@@ -100,7 +100,7 @@ class HeatmapConfusionMatrix(BasePlot):
 
     def _format_ax(self):
         self.ax.set(
-            xlabel="Predictied pianist", ylabel="Actual pianist",
+            xlabel="Predicted pianist", ylabel="Actual pianist",
             xticks=range(utils.N_CLASSES), yticks=range(utils.N_CLASSES)
         )
         # Set axis ticks correctly

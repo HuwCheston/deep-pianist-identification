@@ -61,7 +61,7 @@ PIANIST_MAPPING = {v: k for k, v in CLASS_MAPPING.items()}  # Inverted, maps str
 N_CLASSES = 25
 
 
-def seed_everything(seed: int = 42) -> None:
+def seed_everything(seed: int = SEED) -> None:
     """Sets all random seeds for reproducible results."""
     torch.manual_seed(seed)
     random.seed(seed)
