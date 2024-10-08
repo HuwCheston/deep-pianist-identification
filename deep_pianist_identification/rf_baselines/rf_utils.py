@@ -191,7 +191,7 @@ def optimize_classifier(
     # Create the parameter sampling instance with the required parameters, number of iterations, and random state
     sampler = ParameterSampler(OPTIMIZE_PARAMS, n_iter=n_iter, random_state=utils.SEED)
     # Use lazy parallelization to create the forest and fit to the data
-    with Parallel(n_jobs=N_JOBS, verbose=5) as p:
+    with Parallel(n_jobs=1, verbose=5) as p:
         fit = p(delayed(_step)(num, params) for num, params in enumerate(sampler))
     # Get the parameter combination that yielded the best test set accuracy
     best_params = max(fit, key=lambda x: x["accuracy"])

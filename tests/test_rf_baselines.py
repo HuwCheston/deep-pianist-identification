@@ -89,6 +89,31 @@ class ForestTest(unittest.TestCase):
         self.assertEqual(expected_4grams, actual_4grams)
         self.assertEqual(expected_34grams, actual_34grams)
 
+    def test_harmony_chord_extraction(self):
+        from deep_pianist_identification.rf_baselines.harmony import extract_fn
+
+        # Create the pretty MIDI object
+        midi = PrettyMIDI()
+        instr = Instrument(program=0)
+        instr.notes.extend([
+            Note(pitch=25, start=1, end=1.5, velocity=60),
+            Note(pitch=30, start=1, end=2.5, velocity=60),
+            Note(pitch=35, start=1, end=3.5, velocity=60),
+            Note(pitch=40, start=1, end=4.5, velocity=60),
+            Note(pitch=45, start=5, end=5.5, velocity=60),
+            Note(pitch=55, start=5, end=6.5, velocity=60),
+            Note(pitch=65, start=5, end=7.5, velocity=60),
+        ])
+        midi.instruments.append(instr)
+        # These are the chords we expect to extract from the PrettyMIDI object, with transposition
+        expected_chords_transpose = [[0, 5, 10, 15], [0, 10, 20]]
+        actual_chords_transpose = list(extract_fn(midi, transpose=True))
+        self.assertEqual(expected_chords_transpose, actual_chords_transpose)
+        # These are the chords we expect to extract from the PrettyMIDI object, without transposition
+        expected_chords_notranspose = [[25, 30, 35, 40], [45, 55, 65]]
+        actual_chords_notranspose = list(extract_fn(midi, transpose=False))
+        self.assertEqual(expected_chords_notranspose, actual_chords_notranspose)
+
 
 if __name__ == '__main__':
     utils.seed_everything(utils.SEED)
