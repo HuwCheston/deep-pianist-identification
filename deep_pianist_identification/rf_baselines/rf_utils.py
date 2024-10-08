@@ -19,17 +19,19 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import ParameterSampler
 from tenacity import retry, retry_if_exception_type, wait_random_exponential, stop_after_attempt
+from tqdm import tqdm
 
 from deep_pianist_identification import utils
 
 # These are the parameters we'll sample from when optimizing
 OPTIMIZE_PARAMS = dict(
     # The number of trees to grow in the forest
-    n_estimators=[i for i in range(10, 1001, 1)],
+    n_estimators=[i for i in range(10, 401, 1)],
     # Max number of features considered for splitting a node
-    max_features=[None, 'sqrt', 'log2'],
+    # max_features=[None, 'sqrt', 'log2'],
+    max_features=['sqrt', 'log2', 1/1000, 1/100, 1/50, 1/10],
     # Max number of levels in each tree
-    max_depth=[None, *[i for i in range(1, 101, 1)]],
+    max_depth=[None, *[i for i in range(1, 41, 1)]],
     # Minimum number of samples required to split a node
     min_samples_split=[i for i in range(2, 11)],
     # Minimum number of samples required at each leaf node
@@ -186,7 +188,7 @@ def optimize_classifier(
             except (FileNotFoundError, IndexError):
                 pass
         # Create the forest model with the given parameter settings
-        forest = classifier(**parameters, random_state=utils.SEED)
+        forest = classifier(**parameters, random_state=utils.SEED, n_jobs=1)
         # Fit the model to the training data and get the test data accuracy
         forest.fit(train_features, train_targets)
         acc = accuracy_score(test_targets, forest.predict(test_features))
@@ -199,8 +201,9 @@ def optimize_classifier(
     # Create the parameter sampling instance with the required parameters, number of iterations, and random state
     sampler = ParameterSampler(OPTIMIZE_PARAMS, n_iter=n_iter, random_state=utils.SEED)
     # Use lazy parallelization to create the forest and fit to the data
-    with Parallel(n_jobs=1, verbose=5) as p:
-        fit = p(delayed(_step)(num, params) for num, params in enumerate(sampler))
+    # fit = [_step(num, params) for num, params in tqdm(enumerate(sampler), total=n_iter, desc="Fitting...")]
+    with Parallel(n_jobs=-1, verbose=5) as p:
+        fit = p(delayed(_step)(num, params) for num, params in tqdm(enumerate(sampler), total=n_iter, desc="Fitting..."))
     # Get the parameter combination that yielded the best test set accuracy
     best_params = max(fit, key=lambda x: x["accuracy"])
     return {k: v for k, v in best_params.items() if k not in ["accuracy", "iteration"]}
