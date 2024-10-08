@@ -18,6 +18,17 @@ NGRAMS = [3, 4]
 VALID_NGRAMS = 20
 
 
+def extract_fn(roll: PrettyMIDI, ngrams: list[int]):
+    """From a given piano roll, extract required melody n-grams"""
+    # Sort the notes by onset start time and calculate the intervals
+    melody = sorted(roll.instruments[0].notes, key=lambda x: x.start)
+    intervals = [i2.pitch - i1.pitch for i1, i2 in zip(melody[0:], melody[1:])]
+    # Iterate through every ngram and corresponding results dictionary
+    for n in ngrams:
+        # Extract the n-grams from the clip
+        yield [intervals[i: i + n] for i in range(len(intervals) - n + 1)]
+
+
 def extract_melody_ngrams(tpath: str, nclips: int, pianist: str, ngrams: list = None) -> tuple[dict, int]:
     """For a given track path, number of clips, and pianist, extract all melody `ngrams` and return a dictionary"""
     # Use the default ngram value, if not provided
@@ -35,13 +46,10 @@ def extract_melody_ngrams(tpath: str, nclips: int, pianist: str, ngrams: list = 
         except ExtractorError as e:
             logger.warning(f'Errored for {tpath}, clip {idx}, skipping! {e}')
             continue
-        # Sort the notes by onset start time and calculate the intervals
-        melody = sorted(roll.output_midi.instruments[0].notes, key=lambda x: x.start)
-        intervals = [i2.pitch - i1.pitch for i1, i2 in zip(melody[0:], melody[1:])]
+        # Extract the n-grams from the output midi
+        ngs = extract_fn(roll.output_midi, ngrams)
         # Iterate through every ngram and corresponding results dictionary
-        for n, di in zip(ngrams, ngram_res):
-            # Extract the n-grams from the clip
-            grams = [intervals[i: i + n] for i in range(len(intervals) - n + 1)]
+        for grams, di in zip(ngs, ngram_res):
             # Append each n-gram to the dictionary if not present already and increase the count by one
             for ng in grams:
                 ng = str(ng)
