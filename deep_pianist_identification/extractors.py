@@ -279,7 +279,7 @@ class HarmonyExtractor(RollExtractor):
         self.upper_bound = kwargs.get('upper_bound', PIANO_KEYS + MIDI_OFFSET)  # Use all notes by default
         self.minimum_notes = kwargs.get('minimum_notes', 3)  # Only consider triads or greater
         self.quantize_resolution = kwargs.get('quantize_resolution', 0.3)  # Snap to 300ms, i.e. 1/4 note at mean JTD
-        self.remove_highest_pitch = kwargs.get("remove_highest_pitch", True)
+        self.remove_highest_pitch = kwargs.get("remove_highest_pitch", False)
         # Initialise the parent class and call all the overridden methods
         super().__init__(midi_obj, clip_start=clip_start)
 
