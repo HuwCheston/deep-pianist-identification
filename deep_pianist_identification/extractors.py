@@ -279,6 +279,7 @@ class HarmonyExtractor(RollExtractor):
         self.upper_bound = kwargs.get('upper_bound', PIANO_KEYS + MIDI_OFFSET)  # Use all notes by default
         self.minimum_notes = kwargs.get('minimum_notes', 3)  # Only consider triads or greater
         self.quantize_resolution = kwargs.get('quantize_resolution', 0.3)  # Snap to 300ms, i.e. 1/4 note at mean JTD
+        self.remove_highest_pitch = kwargs.get("remove_highest_pitch", True)
         # Initialise the parent class and call all the overridden methods
         super().__init__(midi_obj, clip_start=clip_start)
 
@@ -306,9 +307,14 @@ class HarmonyExtractor(RollExtractor):
         grouper = groupby(sorted(notes, key=note_starts), note_starts)
         # Iterate through each group and keep only the note with the highest pitch
         for quantized_note_start, subiter in grouper:
-            chord = list(subiter)
             # Get the unique pitches in the chord
+            chord = list(subiter)
             pitches = set(c[2] for c in chord)
+            # Remove the top note from each chord, if we've specified this option
+            if self.remove_highest_pitch:
+                highest_pitch = max(pitches)
+                pitches = {i for i in pitches if i != highest_pitch}
+                chord = [c for c in chord if c[2] != highest_pitch]
             # Keep the chord if it has at least MINIMUM_NOTES unique pitches (i.e., not counting duplicates)
             if all((
                     len(pitches) >= self.minimum_notes,

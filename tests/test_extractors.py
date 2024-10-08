@@ -55,7 +55,7 @@ class ExtractorTest(unittest.TestCase):
 
     def test_melody_extractor(self):
         # Create extractor and get note data
-        extractor = MelodyExtractor(self.long_midi, data_augmentation=False, clip_start=0.0)
+        extractor = MelodyExtractor(self.long_midi, clip_start=0.0)
         extracted_starts = sorted([n.start for n in extractor.output_midi.instruments[0].notes])
         extracted_ends = sorted([n.end for n in extractor.output_midi.instruments[0].notes])
         extracted_pitches = sorted([n.pitch for n in extractor.output_midi.instruments[0].notes])
@@ -71,7 +71,7 @@ class ExtractorTest(unittest.TestCase):
 
     def test_harmony_extractor(self):
         # Create extractor and get note data
-        extractor = HarmonyExtractor(self.long_midi, data_augmentation=False, clip_start=0.0)
+        extractor = HarmonyExtractor(self.long_midi, clip_start=0.0, remove_highest_pitch=False)
         extracted_starts = sorted([n.start for n in extractor.output_midi.instruments[0].notes])
         extracted_ends = sorted([n.end for n in extractor.output_midi.instruments[0].notes])
         extracted_pitches = sorted([n.pitch for n in extractor.output_midi.instruments[0].notes])
@@ -85,9 +85,35 @@ class ExtractorTest(unittest.TestCase):
         # Should be more notes in the input roll than in the extracted melody
         self.assertGreater(len(self.input_pitches), len(extracted_pitches))
 
+    def test_harmony_remove_highest_pitch(self):
+        # Create the pretty MIDI object
+        midi = PrettyMIDI()
+        instr = Instrument(program=0)
+        instr.notes.extend([
+            Note(pitch=25, start=1.1, end=1.5, velocity=60),
+            Note(pitch=30, start=1.1, end=2.5, velocity=60),
+            Note(pitch=35, start=1.2, end=3.5, velocity=60),
+            Note(pitch=38, start=1.1, end=4.5, velocity=60),  # highest pitch: removed
+            Note(pitch=43, start=5.6, end=6.5, velocity=60),
+            Note(pitch=46, start=5.6, end=6.5, velocity=60),
+            Note(pitch=51, start=5.7, end=7.5, velocity=60),  # highest pitch: removed
+            Note(pitch=60, start=10.0, end=11.0, velocity=60)
+        ])
+        midi.instruments.append(instr)
+        # Test extractor that will remove top pitches in each chord
+        extractor = HarmonyExtractor(midi, clip_start=0.0, remove_highest_pitch=True, quantize_resolution=0.3)
+        expected_pitches = [25, 30, 35]
+        actual_pitches = sorted([i.pitch for i in extractor.output_midi.instruments[0].notes])
+        self.assertEqual(expected_pitches, actual_pitches)
+        # Test extractor that will maintain top pitches in each chord
+        extractor = HarmonyExtractor(midi, clip_start=0.0, remove_highest_pitch=False, quantize_resolution=0.3)
+        expected_pitches = [25, 30, 35, 38, 43, 46, 51]
+        actual_pitches = sorted([i.pitch for i in extractor.output_midi.instruments[0].notes])
+        self.assertEqual(expected_pitches, actual_pitches)
+
     def test_dynamics_extractor(self):
         # Create extractor and get note data
-        extractor = DynamicsExtractor(self.long_midi, data_augmentation=False, clip_start=0.0)
+        extractor = DynamicsExtractor(self.long_midi, clip_start=0.0)
         extracted_starts = sorted([n.start for n in extractor.output_midi.instruments[0].notes])
         extracted_ends = sorted([n.end for n in extractor.output_midi.instruments[0].notes])
         extracted_pitches = sorted([n.pitch for n in extractor.output_midi.instruments[0].notes])
@@ -101,7 +127,7 @@ class ExtractorTest(unittest.TestCase):
 
     def test_rhythm_extractor(self):
         # Create extractor and get note data
-        extractor = RhythmExtractor(self.long_midi, data_augmentation=False, clip_start=0.0)
+        extractor = RhythmExtractor(self.long_midi, clip_start=0.0)
         extracted_starts = sorted([n.start for n in extractor.output_midi.instruments[0].notes])
         extracted_ends = sorted([n.end for n in extractor.output_midi.instruments[0].notes])
         extracted_pitches = sorted([n.pitch for n in extractor.output_midi.instruments[0].notes])
