@@ -18,7 +18,7 @@ from joblib import Parallel, delayed
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import ParameterSampler
-from tenacity import retry, retry_if_exception_type
+from tenacity import retry, retry_if_exception_type, wait_random_exponential, stop_after_attempt
 
 from deep_pianist_identification import utils
 
@@ -42,7 +42,11 @@ N_ITER = 10000  # default number of iterations for optimization process
 N_JOBS = -1  # number of parallel processing cpu cores. -1 means use all cores.
 
 
-@retry(retry=retry_if_exception_type(json.JSONDecodeError))
+@retry(
+    retry=retry_if_exception_type(json.JSONDecodeError),
+    wait=wait_random_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(20)
+)
 def threadsafe_load_csv(csv_path: str) -> dict:
     """Simple wrapper around `csv.load` that catches errors when working on the same file in multiple threads"""
 
@@ -90,7 +94,11 @@ def threadsafe_save_csv(obj: list | dict, fpath: str) -> None:
         else:
             dict_writer.writerow(obj)
 
-    @retry(retry=retry_if_exception_type(PermissionError))
+    @retry(
+        retry=retry_if_exception_type(PermissionError),
+        wait=wait_random_exponential(multiplier=1, max=60),
+        stop=stop_after_attempt(20)
+    )
     def replacer():
         os.replace(temp_file.name, os.path.join(fdir, fpath))
 
