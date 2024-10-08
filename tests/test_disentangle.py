@@ -9,7 +9,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from deep_pianist_identification.dataloader import MIDILoader, remove_bad_clips_from_batch
-from deep_pianist_identification.encoders import DisentangleNet, MaskedAvgPool, LinearFlatten
+from deep_pianist_identification.encoders import DisentangleNet, MaskedAvgPool, LinearFlatten, Conv1x1
 from deep_pianist_identification.utils import DEVICE, N_CLASSES, seed_everything, SEED
 
 
@@ -68,7 +68,19 @@ class DisentangledTest(unittest.TestCase):
         self.assertTrue(torch.all(actual[0, :1024] == 0).item())
         self.assertTrue(torch.all(actual[0, 1024:] == 1).item())
         # We shouldn't be able to use both the attention module and a linear pooling
-        self.assertRaises(AttributeError, lambda: DisentangleNet(use_attention=True, pool_type="linear"))
+        self.assertRaises(NotImplementedError, lambda: DisentangleNet(use_attention=True, pool_type="linear"))
+
+    def test_conv1x1(self):
+        # Sample input of (batch, channels, features)
+        tester = torch.rand(4, 512, 4)
+        # Pass the test input through the layer
+        conv = Conv1x1(in_channels=4)
+        x = conv(tester)
+        # We'd expect to convolve along the channels dimension
+        expected = (4, 512, 1)
+        actual = x.size()
+        # Nb., we'll remove the singleton channel in DisentangleNet.forward_pooled
+        self.assertTrue(expected == actual)
 
     def test_forward_features(self):
         model = DisentangleNet(num_layers=4, classify_dataset=False).to(DEVICE)

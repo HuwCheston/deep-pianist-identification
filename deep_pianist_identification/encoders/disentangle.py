@@ -12,8 +12,10 @@ import deep_pianist_identification.utils as utils
 from deep_pianist_identification.encoders.cnn import ConvLayer, LinearLayer
 from deep_pianist_identification.encoders.crnn import GRU
 
-__all__ = ["DisentangleNet", "GeM", "MaskedAvgPool", "LinearFlatten"]
+__all__ = ["DisentangleNet", "GeM", "MaskedAvgPool", "LinearFlatten", "Conv1x1"]
 
+
+# Pooling modules: these all reduce a tensor of (batch, channels, features) to (batch, features)
 
 class MaskedAvgPool(nn.Module):
     """Average pooling that omits dimensions which have been masked with zeros. When masks=3, equivalent to max pool."""
@@ -39,6 +41,28 @@ class LinearFlatten(nn.Module):
     def forward(self, x: torch.tensor) -> torch.tensor:
         # We add an extra dimension here for parity with AdaptiveAvgPool/MaxPool in torch
         return torch.flatten(x.permute(0, 2, 1), start_dim=1).unsqueeze(2)
+
+
+class Conv1x1(nn.Module):
+    """Dimensionality reduction from (batch, channels, features) -> (batch, features) using 1x1 convolution"""
+
+    def __init__(self, in_channels: int = 4, ):
+        super(Conv1x1, self).__init__()
+        self.conv = nn.Conv1d(
+            in_channels=in_channels,
+            out_channels=1,
+            kernel_size=1,
+            stride=1,
+            padding=0,  # No padding so number of features stays the same
+            bias=True  # Nb. the bias term means that we can get a non-zero output even for zero-masked channels
+        )
+
+    def forward(self, x: torch.tensor) -> torch.tensor:
+        # (batch, features, channels) -> (batch, channels, features)
+        x = x.permute(0, 2, 1)
+        x = self.conv(x)
+        # (batch, features, 1)
+        return x.permute(0, 2, 1)
 
 
 class GeM(nn.Module):
@@ -89,6 +113,9 @@ class Concept(nn.Module):
         # HACK FOR GETTING OLD RESULTS BACK
         if num_layers == 4:
             return nn.ModuleList([
+                # TODO: rather than using three pooling layers, we can pool on layers 2 + 4 with layer 2 having a kernel
+                #  size of (2, 2) and layer 4 having a pooling size of (4, 4).
+                #  This will maintain the same (batch, 512, 11, 375) tensor size but only pool twice
                 ConvLayer(1, 64, has_pool=True),
                 ConvLayer(64, 128, has_pool=True),
                 ConvLayer(128, 256, has_pool=True),
@@ -184,8 +211,8 @@ class DisentangleNet(nn.Module):
         )
 
     def get_pooling_module(self, pool_type: str) -> nn.Module:
-        """Returns the correct final pooling module to use after the self-attention layer"""
-        accept = ["gem", "max", "avg", "masked-avg", "linear"]
+        """Returns the correct final pooling module to reduce across the channels dimension"""
+        accept = ["gem", "max", "avg", "masked-avg", "linear", "conv1x1"]
         assert pool_type in accept, "Module `pool_type` must be one of" + ", ".join(accept)
         if pool_type == "max":
             return nn.AdaptiveMaxPool1d(1)
@@ -196,8 +223,10 @@ class DisentangleNet(nn.Module):
         elif pool_type == "linear":
             # We can't both compute self attention and use our linear pooling hack
             if self.use_attention:
-                raise AttributeError("Cannot set both `use_attention=True` and `pool_type='linear'`")
+                raise NotImplementedError("Cannot set both `use_attention=True` and `pool_type='linear'`")
             return LinearFlatten()
+        elif pool_type == "conv1x1":
+            return Conv1x1(in_channels=4)
         else:
             return GeM()
 
@@ -281,7 +310,7 @@ if __name__ == '__main__':
         max_masked_concepts=1,
         mask_probability=1.0,
         num_layers=4,
-        pool_type="linear",
+        pool_type="conv1x1",
         num_attention_heads=2
     ).to(utils.DEVICE)
     model.train()
