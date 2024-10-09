@@ -403,7 +403,7 @@ class TrainModule:
                 mlflow.log_metrics(metrics, step=epoch)
             # Step forward in the LR scheduler
             self.scheduler.step()
-            logger.debug(f'LR for epoch {epoch + 1} will be {", ".join(self.scheduler.get_lr())}!')
+            logger.debug(f'LR for epoch {epoch + 1} will be {self.scheduler.get_lr()}')
 
 
 if __name__ == "__main__":
