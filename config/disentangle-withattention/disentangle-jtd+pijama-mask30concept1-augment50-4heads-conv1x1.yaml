@@ -1,0 +1,35 @@
+experiment: disentangle-withattention
+run: disentangle-jtd+pijama-mask30concept1-augment50-4heads-conv1x1
+learning_rate: 1.0e-4
+batch_size: 5
+epochs: 100
+train_dataset_cfg:
+  n_clips: null
+  normalize_velocity: True
+  multichannel: True
+  data_augmentation: True
+  augmentation_probability: 0.5
+  jitter_start: True
+test_dataset_cfg:
+  n_clips: null
+  normalize_velocity: True
+  multichannel: True
+  data_augmentation: False
+  jitter_start: False
+encoder_module: disentangle
+model_cfg:
+  use_gru: True
+  use_masking: True
+  use_attention: True
+  mask_probability: 0.3
+  max_masked_concepts: 1
+  num_attention_heads: 4
+  num_layers: 4
+  pool_type: conv1x1
+checkpoint_cfg:
+  save_checkpoints: True
+  load_checkpoints: True
+  checkpoint_after_n_epochs: 10
+mlflow_cfg:
+  use: True
+  tracking_uri: http://127.0.0.1:8000
