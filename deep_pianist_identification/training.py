@@ -20,7 +20,7 @@ from tqdm import tqdm
 
 import deep_pianist_identification.plotting as plotting
 from deep_pianist_identification.dataloader import MIDILoader, remove_bad_clips_from_batch
-from deep_pianist_identification.encoders import CRNNet, CNNet, DisentangleNet
+from deep_pianist_identification.encoders import CRNNet, CNNet, DisentangleNet, ResNet50
 from deep_pianist_identification.utils import DEVICE, N_CLASSES, seed_everything, get_project_root, SEED
 
 __all__ = ["groupby_tracks", "get_model", "TrainModule", "parse_config_yaml", "DEFAULT_CONFIG"]
@@ -53,12 +53,16 @@ def groupby_tracks(
 
 def get_model(encoder_module: str):
     """Given a string, returns the correct encoder module"""
+    encoders = ["cnn", "crnn", "disentangle", "resnet50"]
+    assert encoder_module in encoders, "`encoder_module` must be one of" + ", ".join(encoders)
     if encoder_module == "cnn":
         return CNNet
     elif encoder_module == "crnn":
         return CRNNet
     elif encoder_module == "disentangle":
         return DisentangleNet
+    elif encoder_module == "resnet50":
+        return ResNet50
 
 
 def parse_config_yaml(arg_parser, raise_on_not_found: bool = False) -> None:
