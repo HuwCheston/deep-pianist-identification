@@ -1,6 +1,5 @@
 experiment: disentangle-withattention
 run: disentangle-jtd+pijama-mask30concept1-augment50-4heads-avgpool
-learning_rate: 1.0e-4
 batch_size: 5
 epochs: 100
 train_dataset_cfg:
@@ -31,6 +30,9 @@ model_cfg:
     { in_channels: 256, out_channels: 512, conv_kernel_size: 3, has_pool: False }
   ]
   pool_type: avg
+optim_type: adam
+optim_cfg:
+  lr: 1.0e-4
 checkpoint_cfg:
   save_checkpoints: True
   load_checkpoints: True
