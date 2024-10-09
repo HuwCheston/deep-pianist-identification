@@ -17,7 +17,8 @@ test_dataset_cfg:
   data_augmentation: False
 encoder_module: crnn
 model_cfg:
-  use_ibn: True
+  pool_type: gem
+  norm_type: ibn
 checkpoint_cfg:
   save_checkpoints: True
   load_checkpoints: True
