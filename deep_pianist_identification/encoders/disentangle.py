@@ -13,74 +13,44 @@ from deep_pianist_identification.encoders.shared import (
     ConvLayer, LinearLayer, GRU, MaskedAvgPool, LinearFlatten, Conv1x1, GeM
 )
 
-__all__ = ["DisentangleNet"]
+__all__ = ["DisentangleNet", "Concept"]
+
+DEFAULT_CONV_LAYERS = [
+    dict(in_channels=1, out_channels=64, conv_kernel_size=3, has_pool=True, pool_kernel_size=2),
+    dict(in_channels=64, out_channels=128, conv_kernel_size=3, has_pool=True, pool_kernel_size=2),
+    dict(in_channels=128, out_channels=256, conv_kernel_size=3, has_pool=True, pool_kernel_size=2),
+    dict(in_channels=256, out_channels=512, conv_kernel_size=3, has_pool=False),
+]
 
 
 class Concept(nn.Module):
     """Individual embedding per piano roll channel, i.e. harmony, melody, rhythm, dynamics."""
 
-    def __init__(self, num_layers: int = 8, use_gru: bool = True):
+    def __init__(self, layers: list[dict], use_gru: bool = True):
         super(Concept, self).__init__()
         # Create the required number of convolutional layers
-        self.layers = self.create_convolutional_layers(num_layers)
-        # We pool after every two layers, apart from in the final layer
-        output_pools = (num_layers // 2) - 1
-        # The number of output features after the final convolutional layer
-        self.output_features = 2 ** (num_layers // 2 + 5)
-        # The number of output channels in final layer (equivalent to the initial height, divided by 2 for each pool)
-        self.output_channels = utils.PIANO_KEYS // 2 ** output_pools
+        self.layers: nn.ModuleList[nn.Module] = self.create_convolutional_layers(layers)
+        # Get parameters from the layers
+        self.output_channels = self.layers[-1].conv.out_channels  # Output from last convolutional layer
+        pool_kernels = [i.avgpool.kernel_size[0] for i in self.layers if len(i) == 5]  # Kernel size of all pools
+        self.output_height = utils.PIANO_KEYS // np.prod(pool_kernels)  # Input height divided by product of kernels
+        self.output_width = (utils.CLIP_LENGTH * utils.FPS) // np.prod(pool_kernels)  # Width divided by kernels
         # Whether we're processing the input with a final BiGRU layer
         self.use_gru = use_gru
-        # HACK FOR GETTING OLD RESULTS BACK
-        if num_layers == 4:
-            logger.debug("Using old results hack...")
-            self.output_features = 512
-            self.output_channels = 11
         if self.use_gru:
             self.gru = GRU(
-                input_size=self.output_features * self.output_channels,  # channels * features (== 5632 always)
-                hidden_size=self.output_features // 2
+                input_size=self.output_channels * self.output_height,  # channels * features (== 5632 always)
+                hidden_size=self.output_channels // 2
             )
-        self.maxpool = nn.AdaptiveMaxPool2d((self.output_features, 1))
+        self.maxpool = nn.AdaptiveMaxPool2d((self.output_channels, 1))
 
     @staticmethod
-    def create_convolutional_layers(num_layers: int) -> nn.ModuleList:
+    def create_convolutional_layers(layers: list[dict]) -> nn.ModuleList:
+        # Check that we have an even number of convolutional layers
+        num_layers = len(layers)
         assert num_layers % 2 == 0, f"Number of convolutional layers must be even, but received {num_layers} layers."
-        # HACK FOR GETTING OLD RESULTS BACK
-        if num_layers == 4:
-            return nn.ModuleList([
-                # TODO: rather than using three pooling layers, we can pool on layers 2 + 4 with layer 2 having a kernel
-                #  size of (2, 2) and layer 4 having a pooling size of (4, 4).
-                #  This will maintain the same (batch, 512, 11, 375) tensor size but only pool twice
-                ConvLayer(1, 64, has_pool=True),
-                ConvLayer(64, 128, has_pool=True),
-                ConvLayer(128, 256, has_pool=True),
-                ConvLayer(256, 512, has_pool=False)  # No pooling for final layer
-            ])
-
-        # Arbitrarily long list of embedding values, i.e. 64, 128, 256, 512, 1024, 2048, ...
-        dims = [1] + [64 * 2 ** i for i in range(512)]
-        layers = nn.ModuleList([])
-        # We create two layers for each iteration for simplicity
-        for i in range(0, num_layers // 2):
-            input_channels, output_channels = dims[i], dims[i + 1]
-            # Odd-numbered layers increase channel dimension, have no pooling
-            ol = ConvLayer(
-                input_channels,
-                output_channels,
-                has_pool=False
-            )
-            # Even-numbered layers maintain channel dimension, but have pooling
-            el = ConvLayer(
-                output_channels,
-                output_channels,
-                has_pool=False if (i + 1 == num_layers // 2) else True  # No pooling for final layer
-            )
-            # Add the layers to our list
-            layers.extend([ol, el])
-        # Check that the final convolutional layer does not have pooling
-        assert len(layers[-1]) == 4
-        return layers
+        # Return the layers with required parameters as a torch ModuleList that can be iterated through
+        return nn.ModuleList([ConvLayer(**layer) for layer in layers])
 
     def forward(self, x):
         # Iterate through all convolutional layers and process input
@@ -104,7 +74,7 @@ class DisentangleNet(nn.Module):
             use_gru: bool = True,
             use_masking: bool = False,
             use_attention: bool = True,
-            num_layers: int = 4,
+            layers: list[dict] = None,
             num_attention_heads: int = 2,
             mask_probability: float = 0.3,
             max_masked_concepts: int = 3,
@@ -117,17 +87,23 @@ class DisentangleNet(nn.Module):
         self.mask_probability = mask_probability
         self.max_masked_concepts = max_masked_concepts  # Max up to this number of concepts
         self.dropper = nn.Dropout(p=1.0)  # Always deactivated during testing!
+        # Use default convolutional layer strategy, if this is not passed
+        if layers is None:
+            logger.warning("No convolution layers were passed in `model_cfg`, so falling back on defaults!")
+            layers = DEFAULT_CONV_LAYERS
         # Layers for each individual musical concept
-        self.melody_concept = Concept(num_layers, use_gru)
-        self.harmony_concept = Concept(num_layers, use_gru)
-        self.rhythm_concept = Concept(num_layers, use_gru)
-        self.dynamics_concept = Concept(num_layers, use_gru)
-        self.concept_embed_dim = self.melody_concept.output_features
+        self.melody_concept = Concept(layers, use_gru)
+        self.harmony_concept = Concept(layers, use_gru)
+        self.rhythm_concept = Concept(layers, use_gru)
+        self.dynamics_concept = Concept(layers, use_gru)
+        # Log the shape of each concept encoder
+        self.concept_channels = self.melody_concept.output_channels
+        self.log_encoder_architecture(self.melody_concept)
         # Attention and pooling between concepts (i.e., channels)
         self.use_attention = use_attention
         if self.use_attention:
             self.self_attention = nn.MultiheadAttention(
-                embed_dim=self.concept_embed_dim,
+                embed_dim=self.concept_channels,
                 num_heads=num_attention_heads,
                 batch_first=True,  # Means we don't have to permute tensor in forward
                 dropout=0.1
@@ -136,15 +112,37 @@ class DisentangleNet(nn.Module):
         # Linear layers project on to final output: these have dropout added with p=0.5
         self.fc1 = LinearLayer(
             # If we're flattening -> linear at the end (rather than pooling), input size will be 2048, not 512
-            in_channels=self.concept_embed_dim * 4 if pool_type == "linear" else self.concept_embed_dim,
-            out_channels=self.concept_embed_dim // 4,
+            in_channels=self.concept_channels * 4 if pool_type == "linear" else self.concept_channels,
+            out_channels=self.concept_channels // 4,
             p=0.5
         )
         self.fc2 = LinearLayer(
-            in_channels=self.concept_embed_dim // 4,  # i.e., fc1 out_channels
+            in_channels=self.concept_channels // 4,  # i.e., fc1 out_channels
             out_channels=2 if classify_dataset else utils.N_CLASSES,  # either binary or multiclass
             p=0.5
         )
+
+    @staticmethod
+    def log_encoder_architecture(encoder: Concept):
+        """Nicely logs the architecture of a particular `Concept` to the console"""
+        # Extract output from convolution
+        concept_chan = encoder.output_channels
+        concept_height = encoder.output_height
+        concept_width = encoder.output_width
+        lay = encoder.layers
+        # Extract input and output channels from convolutional layers
+        convs = [f'{i.conv.in_channels, i.conv.out_channels}' for i in lay if hasattr(i, "conv")]
+        # Extract which layers have pools and their kernel size
+        pidx, pker = zip(*[(num, str(i.avgpool.kernel_size)) for num, i in enumerate(lay) if hasattr(i, "avgpool")])
+        # Log everything with loguru
+        logger.info(f'Encoders have {len(convs)} convolutional layers with I/O channels {">>".join(convs)}')
+        logger.info(f'Encoders have {len(pidx)} pools at layers {pidx} with kernels {", ".join(pker)}')
+        # Log GRU specific details
+        if encoder.use_gru:
+            gru = encoder.gru.gru
+            logger.info(f'Encoders are using GRU with input size {gru.input_size}, hidden size {gru.hidden_size}')
+        logger.info(f"After convolution, shape will be (B, {concept_chan}, {concept_height}, {concept_width})")
+        logger.info(f'After pooling, shape will be (B, {concept_chan})')
 
     def get_pooling_module(self, pool_type: str) -> nn.Module:
         """Returns the correct final pooling module to reduce across the channels dimension"""
@@ -196,7 +194,6 @@ class DisentangleNet(nn.Module):
     def forward_pooled(self, x: torch.tensor) -> torch.tensor:
         """Pools a (possibly masked) input in shape (batch, channels, features), to (batch, classes)"""
         # Self-attention across channels
-        # TODO: make sure the tensor is in the correct format!
         if self.use_attention:
             x, _ = self.self_attention(x, x, x)
         # Permute to (batch, features, channels)
@@ -244,8 +241,8 @@ if __name__ == '__main__':
         use_masking=True,
         use_gru=True,
         max_masked_concepts=1,
+        layers=DEFAULT_CONV_LAYERS,
         mask_probability=1.0,
-        num_layers=4,
         pool_type="conv1x1",
         num_attention_heads=2
     ).to(utils.DEVICE)

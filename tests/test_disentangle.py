@@ -5,13 +5,14 @@
 
 import unittest
 
+import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
 from deep_pianist_identification.dataloader import MIDILoader, remove_bad_clips_from_batch
-from deep_pianist_identification.encoders import DisentangleNet
+from deep_pianist_identification.encoders import DisentangleNet, Concept
 from deep_pianist_identification.encoders.shared import MaskedAvgPool, LinearFlatten, Conv1x1
-from deep_pianist_identification.utils import DEVICE, N_CLASSES, seed_everything, SEED
+from deep_pianist_identification.utils import DEVICE, N_CLASSES, seed_everything, SEED, PIANO_KEYS, FPS, CLIP_LENGTH
 
 
 class DisentangledTest(unittest.TestCase):
@@ -31,12 +32,12 @@ class DisentangledTest(unittest.TestCase):
         # Shape is (batch, features, channels) --- i.e., no permutation is required
         fake_input = torch.rand((8, 512, 4), device=DEVICE)
         # Test average pooling
-        model_avg = DisentangleNet(num_layers=4, classify_dataset=False, use_masking=False, pool_type="avg")
+        model_avg = DisentangleNet(classify_dataset=False, use_masking=False, pool_type="avg")
         expected_avg = fake_input.mean(dim=2)  # Average over channel (last) dimension
         actual_avg = model_avg.pooling(fake_input).squeeze(2)  # Use pool and remove singleton dimension
         self.assertTrue(torch.all(expected_avg == actual_avg).item())
         # Test max pooling
-        model_max = DisentangleNet(num_layers=4, classify_dataset=False, use_masking=False, pool_type="max")
+        model_max = DisentangleNet(classify_dataset=False, use_masking=False, pool_type="max")
         expected_max = fake_input.max(dim=2)[0]  # Max over channel (last) dimension
         actual_max = model_max.pooling(fake_input).squeeze(2)  # Use pool and remove singleton dimension
         self.assertTrue(torch.all(expected_max == actual_max).item())
@@ -84,7 +85,7 @@ class DisentangledTest(unittest.TestCase):
         self.assertTrue(expected == actual)
 
     def test_forward_features(self):
-        model = DisentangleNet(num_layers=4, classify_dataset=False).to(DEVICE)
+        model = DisentangleNet(classify_dataset=False).to(DEVICE)
         roll, _, __ = next(iter(self.LOADER))
         roll = roll.to(DEVICE)
         features = model.forward_features(roll)
@@ -92,7 +93,7 @@ class DisentangledTest(unittest.TestCase):
         self.assertTrue(features[0].size() == (1, 1, 512))
 
     def test_forward_pooled(self):
-        model = DisentangleNet(num_layers=4, classify_dataset=False).to(DEVICE)
+        model = DisentangleNet(classify_dataset=False).to(DEVICE)
         roll, _, __ = next(iter(self.LOADER))
         roll = roll.to(DEVICE)
         pooled = model(roll)
@@ -110,11 +111,80 @@ class DisentangledTest(unittest.TestCase):
             batch_size=1,
             collate_fn=remove_bad_clips_from_batch
         )
-        model = DisentangleNet(num_layers=4, classify_dataset=True).to(DEVICE)
+        model = DisentangleNet(classify_dataset=True).to(DEVICE)
         roll, _, __ = next(iter(binary_loader))
         roll = roll.to(DEVICE)
         pooled = model(roll)
         self.assertTrue(pooled.size() == (1, 2))
+
+    def test_concept_layer_parsing(self):
+        # Define different configurations of layers to test
+        layers2 = [
+            dict(in_channels=1, out_channels=128, has_pool=False),
+            dict(in_channels=128, out_channels=512, has_pool=True, pool_kernel_size=4)
+        ]
+        layers4_1 = [
+            dict(in_channels=1, out_channels=64, has_pool=False),
+            dict(in_channels=64, out_channels=128, has_pool=True, pool_kernel_size=2),
+            dict(in_channels=128, out_channels=256, has_pool=False),
+            dict(in_channels=256, out_channels=512, has_pool=True, pool_kernel_size=4),
+        ]
+        layers4_2 = [
+            dict(in_channels=1, out_channels=128, has_pool=False),
+            dict(in_channels=128, out_channels=128, has_pool=True, pool_kernel_size=2),
+            dict(in_channels=128, out_channels=512, has_pool=False),
+            dict(in_channels=512, out_channels=512, has_pool=True, pool_kernel_size=4),
+        ]
+        layers4_3 = [
+            dict(in_channels=1, out_channels=64, has_pool=True, pool_kernel_size=2),
+            dict(in_channels=64, out_channels=128, has_pool=True, pool_kernel_size=2),
+            dict(in_channels=128, out_channels=256, has_pool=True, pool_kernel_size=2),
+            dict(in_channels=256, out_channels=512, has_pool=False),
+        ]
+        layers8 = [
+            dict(in_channels=1, out_channels=64, has_pool=False),
+            dict(in_channels=64, out_channels=64, has_pool=True, pool_kernel_size=2),
+            dict(in_channels=64, out_channels=128, has_pool=False),
+            dict(in_channels=128, out_channels=128, has_pool=True, pool_kernel_size=2),
+            dict(in_channels=128, out_channels=256, has_pool=False),
+            dict(in_channels=256, out_channels=256, has_pool=True, pool_kernel_size=2),
+            dict(in_channels=256, out_channels=512, has_pool=False),
+            dict(in_channels=512, out_channels=512, has_pool=False),
+        ]
+        layers = [layers2, layers4_1, layers4_2, layers4_3, layers8]
+        for layer in layers:
+            conc = Concept(layers=layer)
+            # Test number of convolutional layers
+            expected_n_convs = len(layer)
+            actual_n_convs = len([i for i in conc.layers if hasattr(i, "conv")])
+            self.assertEqual(expected_n_convs, actual_n_convs)
+            # Test number of pools
+            expected_n_pools = len([i for i in layer if i["has_pool"]])
+            actual_n_pools = len([i for i in conc.layers if hasattr(i, "avgpool")])
+            self.assertEqual(expected_n_pools, actual_n_pools)
+            # Test kernel size of pools
+            expected_k = [(i["pool_kernel_size"], i["pool_kernel_size"]) for i in layer if i['has_pool']]
+            actual_k = [i.avgpool.kernel_size for i in conc.layers if hasattr(i, "avgpool")]
+            self.assertEqual(expected_k, actual_k)
+            # Test placement of pools
+            expected_i = [num for num, i in enumerate(layer) if i['has_pool']]
+            actual_i = [num for num, i in enumerate(conc.layers) if hasattr(i, "avgpool")]
+            self.assertEqual(expected_i, actual_i)
+            # Test output size from convolutional layers
+            kern = np.prod([i['pool_kernel_size'] for i in layer if i['has_pool']])
+            expected_channels = layer[-1]["out_channels"]
+            expected_height = PIANO_KEYS // kern
+            expected_width = (CLIP_LENGTH * FPS) // kern
+            expected_size = (expected_channels, expected_height, expected_width)
+            actual_size = conc.output_channels, conc.output_height, conc.output_width
+            self.assertEqual(expected_size, actual_size)
+        # With only three convolutional layers, we should raise an error
+        badlayers = [
+            dict(in_channels=1, out_channels=128, has_pool=False),
+            dict(in_channels=128, out_channels=256, has_pool=True, pool_kernel_size=4),
+            dict(in_channels=256, out_channels=512, has_pool=False),
+        ]
+        self.assertRaises(AssertionError, Concept, layers=badlayers)
 
 
 if __name__ == '__main__':
