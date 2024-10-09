@@ -76,8 +76,19 @@ class GeM(nn.Module):
         self.eps = eps
 
     def forward(self, x) -> torch.tensor:
-        """Pools input of (batch, features, channels) to (batch, features) with GeM"""
-        return nn.functional.avg_pool1d(x.clamp(min=self.eps).pow(self.p), kernel_size=x.size(-1)).pow(1.0 / self.p)
+        """Pools input with GeM"""
+        dims = len(x.size())
+        # Three dimensions: use 1D pooling
+        if dims == 3:
+            pooler = nn.functional.avg_pool1d
+            kernel_size = x.size(-1)
+        # Four dimensions: use 2D pooling
+        elif dims == 4:
+            pooler = nn.functional.avg_pool2d
+            kernel_size = (x.size(-2), x.size(-1))
+        else:
+            raise ValueError(f"GeM pooling expected either 3 or 4 dimensions, but got {dims}")
+        return pooler(x.clamp(min=self.eps).pow(self.p), kernel_size=kernel_size).pow(1. / self.p)
 
 
 class Concept(nn.Module):

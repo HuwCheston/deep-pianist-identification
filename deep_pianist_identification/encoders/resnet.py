@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 
 from deep_pianist_identification import utils
+from deep_pianist_identification.encoders import GeM
 
 __all__ = ["ResNet50", "Bottleneck"]
 
@@ -83,7 +84,12 @@ class Bottleneck(nn.Module):
 
 
 class ResNet50(nn.Module):
-    def __init__(self, layers=None, classify_dataset: bool = False):
+    def __init__(
+            self,
+            layers=None,
+            classify_dataset: bool = False,
+            pool_type: str = "avg"
+    ):
         super(ResNet50, self).__init__()
         # Use ResNet50 by default
         if layers is None:
@@ -102,7 +108,7 @@ class ResNet50(nn.Module):
         self.layer2 = self._make_layer(Bottleneck, 128, layers[1], stride=2, dilate=False)
         self.layer3 = self._make_layer(Bottleneck, 256, layers[2], stride=2, dilate=False)
         self.layer4 = self._make_layer(Bottleneck, 512, layers[3], stride=2, dilate=False)
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.pooling = self.get_pooling_module(pool_type)
         self.fc = nn.Linear(512 * Bottleneck.expansion, num_classes)
 
         for m in self.modules():
@@ -111,6 +117,16 @@ class ResNet50(nn.Module):
             elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
+
+    @staticmethod
+    def get_pooling_module(pool_type: str) -> nn.Module:
+        """Returns the correct final pooling module"""
+        accept = ["gem", "avg"]
+        assert pool_type in accept, "Module `pool_type` must be one of" + ", ".join(accept)
+        if pool_type == "avg":
+            return nn.AdaptiveAvgPool2d((1, 1))
+        else:
+            return GeM()
 
     def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
         downsample = None
@@ -156,7 +172,7 @@ class ResNet50(nn.Module):
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
-        x = self.avgpool(x)
+        x = self.pooling(x)
         x = torch.flatten(x, 1)
         x = self.fc(x)
         return x
@@ -178,7 +194,7 @@ if __name__ == "__main__":
         batch_size=size,
         shuffle=True,
     )
-    model = ResNet50().to(utils.DEVICE)
+    model = ResNet50(pool_type='gem').to(utils.DEVICE)
     print(sum(p.numel() for p in model.parameters()))
     for feat, _, __ in loader:
         embeds = model(feat.to(utils.DEVICE))
