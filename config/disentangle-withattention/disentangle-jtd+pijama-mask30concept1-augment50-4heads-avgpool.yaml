@@ -24,7 +24,12 @@ model_cfg:
   mask_probability: 0.3
   max_masked_concepts: 1
   num_attention_heads: 4
-  num_layers: 4
+  layers: [
+    { in_channels: 1, out_channels: 64, conv_kernel_size: 3, has_pool: True, pool_kernel_size: 2 },
+    { in_channels: 64, out_channels: 128, conv_kernel_size: 3, has_pool: True, pool_kernel_size: 2 },
+    { in_channels: 128, out_channels: 256, conv_kernel_size: 3, has_pool: True, pool_kernel_size: 2 },
+    { in_channels: 256, out_channels: 512, conv_kernel_size: 3, has_pool: False }
+  ]
   pool_type: avg
 checkpoint_cfg:
   save_checkpoints: True
