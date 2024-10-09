@@ -13,7 +13,7 @@ from deep_pianist_identification.utils import seed_everything, PIANO_KEYS, CLIP_
 
 
 class DataloaderTest(unittest.TestCase):
-    batch_size = 1
+    batch_size = 10  # Should have at least one valid clip in a batch of this size
     n_batches = 1
     bad_clip, bad_idx = "jarrettk-pt-unaccompanied-xxxx-187f2exh", 15
 
