@@ -9,86 +9,11 @@ import torch.nn as nn
 from loguru import logger
 
 import deep_pianist_identification.utils as utils
-from deep_pianist_identification.encoders.cnn import ConvLayer, LinearLayer
-from deep_pianist_identification.encoders.crnn import GRU
+from deep_pianist_identification.encoders.shared import (
+    ConvLayer, LinearLayer, GRU, MaskedAvgPool, LinearFlatten, Conv1x1, GeM
+)
 
-__all__ = ["DisentangleNet", "GeM", "MaskedAvgPool", "LinearFlatten", "Conv1x1"]
-
-
-# Pooling modules: these all reduce a tensor of (batch, channels, features) to (batch, features)
-
-class MaskedAvgPool(nn.Module):
-    """Average pooling that omits dimensions which have been masked with zeros. When masks=3, equivalent to max pool."""
-
-    def __init__(self):
-        super(MaskedAvgPool, self).__init__()
-        self.dim = 2
-
-    def forward(self, x: torch.tensor) -> torch.tensor:
-        """Computes average for all non-masked columns of a 3D tensor. Expected shape is (batch, features, channels)"""
-        mask = x != 0
-        pooled = (x * mask).sum(dim=self.dim) / mask.sum(dim=self.dim)
-        # We add an extra dimension here for parity with AdaptiveAvgPool/MaxPool in torch
-        return pooled.unsqueeze(2)
-
-
-class LinearFlatten(nn.Module):
-    """For a tensor of shape (batch, features, channels), returns a tensor of shape (batch, features * channels)"""
-
-    def __init__(self):
-        super(LinearFlatten, self).__init__()
-
-    def forward(self, x: torch.tensor) -> torch.tensor:
-        # We add an extra dimension here for parity with AdaptiveAvgPool/MaxPool in torch
-        return torch.flatten(x.permute(0, 2, 1), start_dim=1).unsqueeze(2)
-
-
-class Conv1x1(nn.Module):
-    """Dimensionality reduction from (batch, channels, features) -> (batch, features) using 1x1 convolution"""
-
-    def __init__(self, in_channels: int = 4, ):
-        super(Conv1x1, self).__init__()
-        self.conv = nn.Conv1d(
-            in_channels=in_channels,
-            out_channels=1,
-            kernel_size=1,
-            stride=1,
-            padding=0,  # No padding so number of features stays the same
-            bias=True  # Nb. the bias term means that we can get a non-zero output even for zero-masked channels
-        )
-
-    def forward(self, x: torch.tensor) -> torch.tensor:
-        # (batch, features, channels) -> (batch, channels, features)
-        x = x.permute(0, 2, 1)
-        x = self.conv(x)
-        # (batch, features, 1)
-        return x.permute(0, 2, 1)
-
-
-class GeM(nn.Module):
-    """Compresses a multidimensional input to a fixed-length vector with generalized mean (GeM) pooling."""
-
-    def __init__(self, p: int = 3, eps: float = 1e-6):
-        super(GeM, self).__init__()
-        # This sets p to a trainable parameter with an initial parameter
-        self.p = nn.Parameter(torch.ones(1) * p)
-        # Margin value to prevent division by zero
-        self.eps = eps
-
-    def forward(self, x) -> torch.tensor:
-        """Pools input with GeM"""
-        dims = len(x.size())
-        # Three dimensions: use 1D pooling
-        if dims == 3:
-            pooler = nn.functional.avg_pool1d
-            kernel_size = x.size(-1)
-        # Four dimensions: use 2D pooling
-        elif dims == 4:
-            pooler = nn.functional.avg_pool2d
-            kernel_size = (x.size(-2), x.size(-1))
-        else:
-            raise ValueError(f"GeM pooling expected either 3 or 4 dimensions, but got {dims}")
-        return pooler(x.clamp(min=self.eps).pow(self.p), kernel_size=kernel_size).pow(1. / self.p)
+__all__ = ["DisentangleNet"]
 
 
 class Concept(nn.Module):

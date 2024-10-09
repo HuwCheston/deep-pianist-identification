@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 
 from deep_pianist_identification import utils
-from deep_pianist_identification.encoders import GeM, IBN
+from deep_pianist_identification.encoders.shared import GeM, IBN
 
 __all__ = ["ResNet50", "Bottleneck"]
 
@@ -217,8 +217,8 @@ if __name__ == "__main__":
         shuffle=True,
     )
     model = ResNet50(
-        pool_type='gem',
-        norm_type='ibn'
+        pool_type='avg',
+        norm_type='bn'
     ).to(utils.DEVICE)
     print(sum(p.numel() for p in model.parameters()))
     for feat, _, __ in loader:

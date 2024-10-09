@@ -7,39 +7,34 @@ import torch
 import torch.nn as nn
 
 from deep_pianist_identification.encoders import CNNet
+from deep_pianist_identification.encoders.shared import GRU, GeM
 
-__all__ = ["CRNNet", "GRU"]
-
-
-class GRU(nn.Module):
-    def __init__(self, input_size: int, hidden_size: int = 256, num_layers: int = 2):
-        super().__init__()
-        self.gru = nn.GRU(
-            input_size=input_size,
-            hidden_size=hidden_size,
-            num_layers=num_layers,
-            bidirectional=True,
-            batch_first=True
-        )
-
-    def forward(self, a) -> torch.tensor:
-        # (batch_size, 512, height, width)
-        batch, features, height, width = a.size()
-        # (batch_size, width, 512, height)
-        a = a.permute(0, 3, 1, 2).contiguous().view(batch, width, features * height)
-        # (batch_size, sequence_length, features)
-        a, _ = self.gru(a)
-        # (batch_size, features, sequence_length)
-        a = a.permute(0, 2, 1).contiguous()
-        return a
+__all__ = ["CRNNet"]
 
 
 class CRNNet(CNNet):
-    def __init__(self, use_ibn: bool = False, classify_dataset: bool = False):
-        super().__init__(use_ibn=use_ibn, classify_dataset=classify_dataset)
+    def __init__(
+            self,
+            classify_dataset: bool = False,
+            pool_type: str = "max",
+            norm_type: str = "bn"
+    ):
+        super().__init__(classify_dataset=classify_dataset, pool_type=pool_type, norm_type=norm_type)
         # Bidirectional GRU, operates on features * height dimension
         self.gru = GRU(512 * 11)  # final_output * (input_height / num_layers)
-        self.maxpool = nn.AdaptiveMaxPool2d((512, 1))
+
+    @staticmethod
+    def get_pooling_module(pool_type: str) -> nn.Module:
+        """Returns the correct final pooling module"""
+        accept = ["gem", "avg", "max"]
+        assert pool_type in accept, "Module `pool_type` must be one of" + ", ".join(accept)
+        # NB this is different to the parent class
+        if pool_type == "avg":
+            return nn.AdaptiveAvgPool2d((512, 1))
+        elif pool_type == "max":
+            return nn.AdaptiveMaxPool2d((512, 1))
+        else:
+            return GeM()
 
     def forward(self, x) -> torch.tensor:
         # (batch_size, channels, height, width)
@@ -54,7 +49,7 @@ class CRNNet(CNNet):
         # (batch_size, features, width)
         x = self.gru(x)
         # (batch_size, features)
-        x = self.maxpool(x)
+        x = self.pooling(x)
         x = x.squeeze(2)  # squeeze to remove singleton dimension
         # (batch_size, n_classes)
         x = self.fc1(x)
@@ -75,7 +70,10 @@ if __name__ == "__main__":
         batch_size=size,
         shuffle=True,
     )
-    model = CRNNet(use_ibn=True).to(utils.DEVICE)
+    model = CRNNet(
+        norm_type="bn",
+        pool_type="max"
+    ).to(utils.DEVICE)
     print(utils.total_parameters(model))
     for feat, _, __ in loader:
         embeds = model(feat.to(utils.DEVICE))
