@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 
 from deep_pianist_identification import utils
-from deep_pianist_identification.encoders import GeM
+from deep_pianist_identification.encoders import GeM, IBN
 
 __all__ = ["ResNet50", "Bottleneck"]
 
@@ -51,11 +51,12 @@ class Bottleneck(nn.Module):
         width = int(planes * (base_width / 64.0)) * groups
         # Both self.conv2 and self.downsample layers downsample the input when stride != 1
         self.conv1 = _conv1x1(inplanes, width)
+        # With ResNet50-IBN, only replace the first norm in each block with IBN
         self.bn1 = norm_layer(width)
         self.conv2 = _conv3x3(width, width, stride, groups, dilation)
-        self.bn2 = norm_layer(width)
+        self.bn2 = nn.BatchNorm2d(width)
         self.conv3 = _conv1x1(width, planes * self.expansion)
-        self.bn3 = norm_layer(planes * self.expansion)
+        self.bn3 = nn.BatchNorm2d(planes * self.expansion)
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
@@ -88,7 +89,8 @@ class ResNet50(nn.Module):
             self,
             layers=None,
             classify_dataset: bool = False,
-            pool_type: str = "avg"
+            pool_type: str = "avg",
+            norm_type: str = "bn"
     ):
         super(ResNet50, self).__init__()
         # Use ResNet50 by default
@@ -100,23 +102,43 @@ class ResNet50(nn.Module):
         self.dilation = 1
         self.groups = 1
         self.base_width = 64
+        self.norm_layer = self.get_norm_module(norm_type)
         self.conv1 = nn.Conv2d(1, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.layer1 = self._make_layer(Bottleneck, 64, layers[0])
-        self.layer2 = self._make_layer(Bottleneck, 128, layers[1], stride=2, dilate=False)
-        self.layer3 = self._make_layer(Bottleneck, 256, layers[2], stride=2, dilate=False)
-        self.layer4 = self._make_layer(Bottleneck, 512, layers[3], stride=2, dilate=False)
+        self.layer1 = self._make_layer(
+            Bottleneck, 64, layers[0], norm_layer=self.norm_layer
+        )
+        self.layer2 = self._make_layer(
+            Bottleneck, 128, layers[1], stride=2, dilate=False, norm_layer=self.norm_layer
+        )
+        self.layer3 = self._make_layer(
+            Bottleneck, 256, layers[2], stride=2, dilate=False, norm_layer=self.norm_layer
+        )
+        # In a ResNet50-IBN, the last layer always uses BN rather than IBN
+        self.layer4 = self._make_layer(
+            Bottleneck, 512, layers[3], stride=2, dilate=False, norm_layer=nn.BatchNorm2d
+        )
         self.pooling = self.get_pooling_module(pool_type)
         self.fc = nn.Linear(512 * Bottleneck.expansion, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
-            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm, nn.InstanceNorm2d)):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
+
+    @staticmethod
+    def get_norm_module(norm_type: str) -> nn.Module:
+        """Returns the correct normalization module"""
+        accept = ["bn", "ibn"]
+        assert norm_type in accept, "Module `norm_type` must be one of" + ", ".join(accept)
+        if norm_type == "bn":
+            return nn.BatchNorm2d
+        else:
+            return IBN
 
     @staticmethod
     def get_pooling_module(pool_type: str) -> nn.Module:
@@ -128,7 +150,7 @@ class ResNet50(nn.Module):
         else:
             return GeM()
 
-    def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
+    def _make_layer(self, block, planes, blocks, stride=1, dilate=False, norm_layer=nn.BatchNorm2d):
         downsample = None
         previous_dilation = self.dilation
         if dilate:
@@ -137,7 +159,7 @@ class ResNet50(nn.Module):
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
                 _conv1x1(self.inplanes, planes * block.expansion, stride),
-                nn.BatchNorm2d(planes * block.expansion),
+                norm_layer(planes * block.expansion),
             )
         layers = [block(
             self.inplanes,
@@ -147,7 +169,7 @@ class ResNet50(nn.Module):
             self.groups,
             self.base_width,
             previous_dilation,
-            nn.BatchNorm2d,
+            norm_layer,
         )]
         self.inplanes = planes * block.expansion
         for _ in range(1, blocks):
@@ -158,7 +180,7 @@ class ResNet50(nn.Module):
                     groups=self.groups,
                     base_width=self.base_width,
                     dilation=self.dilation,
-                    norm_layer=nn.BatchNorm2d,
+                    norm_layer=norm_layer,
                 )
             )
         return nn.Sequential(*layers)
@@ -194,7 +216,10 @@ if __name__ == "__main__":
         batch_size=size,
         shuffle=True,
     )
-    model = ResNet50(pool_type='gem').to(utils.DEVICE)
+    model = ResNet50(
+        pool_type='gem',
+        norm_type='ibn'
+    ).to(utils.DEVICE)
     print(sum(p.numel() for p in model.parameters()))
     for feat, _, __ in loader:
         embeds = model(feat.to(utils.DEVICE))
