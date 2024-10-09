@@ -23,7 +23,7 @@ from deep_pianist_identification.dataloader import MIDILoader, remove_bad_clips_
 from deep_pianist_identification.encoders import CRNNet, CNNet, DisentangleNet, ResNet50
 from deep_pianist_identification.utils import DEVICE, N_CLASSES, seed_everything, get_project_root, SEED
 
-__all__ = ["groupby_tracks", "get_model", "TrainModule", "parse_config_yaml", "DEFAULT_CONFIG"]
+__all__ = ["groupby_tracks", "get_model", "TrainModule", "parse_config_yaml", "DEFAULT_CONFIG", "NoOpScheduler"]
 
 # Any key-value pairs we don't define in our custom config will be overwritten using these
 DEFAULT_CONFIG = yaml.safe_load(open(os.path.join(get_project_root(), 'config', 'debug_local.yaml')))
@@ -77,6 +77,17 @@ def parse_config_yaml(arg_parser, raise_on_not_found: bool = False) -> None:
     else:
         for key, val in cfg.items():
             arg_parser[key] = val
+
+
+class NoOpScheduler(torch.optim.lr_scheduler.LRScheduler):
+    """A LR scheduler that does not modify anything but has the same API as all other schedulers."""
+
+    def __init__(self, optimizer, last_epoch=-1):
+        super(NoOpScheduler, self).__init__(optimizer, last_epoch)
+
+    def get_lr(self):
+        """Just returns the current learning rates without modification"""
+        return [group['lr'] for group in self.optimizer.param_groups]
 
 
 class TrainModule:
@@ -141,20 +152,40 @@ class TrainModule:
         logger.debug(f'Initialising optimiser {optim_type} with parameters {optim_cfg}...')
         self.optimizer = self.get_optimizer(optim_type)(self.model.parameters(), **optim_cfg)
         # SCHEDULER
-        # TODO: implement
+        sched_type = kwargs.get("sched_type", None)
+        sched_cfg = kwargs.get("sched_cfg", dict())
+        logger.debug(f'Initialising LR scheduler {sched_type} with parameters {sched_cfg}...')
+        self.scheduler = self.get_scheduler(sched_type)(self.optimizer, **sched_cfg)
         # CHECKPOINTS
         if self.checkpoint_cfg["load_checkpoints"]:
             self.load_checkpoint()
 
     @staticmethod
     def get_optimizer(optim_type: str):
-        """Given a string, returns the correct encoder module"""
+        """Given a string, returns the correct optimizer"""
         optims = ["adam", "sgd"]
-        assert optim_type in optims, "`encoder_module` must be one of" + ", ".join(optims)
+        assert optim_type in optims, "`optim_type` must be one of " + ", ".join(optims)
         if optim_type == "adam":
             return torch.optim.Adam
         elif optim_type == "sgd":
             return torch.optim.SGD
+
+    @staticmethod
+    def get_scheduler(sched_type: str | None):
+        """Given a string, returns the correct optimizer"""
+        schs = ["plateau", "cosine", "step", "linear", None]
+        assert sched_type in schs, "`sched_type` must be one of " + ", ".join(schs)
+        # This scheduler won't modify anything, but provides the same API for simplicity
+        if sched_type is None:
+            return NoOpScheduler
+        elif sched_type == "reduce":
+            return torch.optim.lr_scheduler.ReduceLROnPlateau
+        elif sched_type == "cosine":
+            return torch.optim.lr_scheduler.CosineAnnealingLR
+        elif sched_type == "step":
+            return torch.optim.lr_scheduler.StepLR
+        elif sched_type == "linear":
+            return torch.optim.lr_scheduler.LinearLR
 
     def step(self, features: torch.tensor, targets: torch.tensor) -> tuple:
         # Set device correctly for both features and targets
@@ -294,8 +325,15 @@ class TrainModule:
         # Set state dictionary for all torch objects
         self.model.load_state_dict(loaded["model_state_dict"], strict=True)
         self.optimizer.load_state_dict(loaded["optimizer_state_dict"])
+        # For backwards compatibility with no LR scheduler runs: don't worry if we can't load the LR scheduler dict
+        try:
+            self.scheduler.load_state_dict(loaded['scheduler_state_dict'])
+        except KeyError:
+            logger.warning("Could not find scheduler state dictionary in checkpoint, scheduler will be restarted!")
+            pass
         # Increment epoch by 1
         self.current_epoch = loaded["epoch"] + 1
+        self.scheduler.last_epoch = self.current_epoch
         logger.debug(f'Loaded the checkpoint at {checkpoint_path}!')
 
     def save_checkpoint(self, metrics) -> None:
@@ -313,6 +351,7 @@ class TrainModule:
                     **metrics,
                     model_state_dict=self.model.state_dict(),
                     optimizer_state_dict=self.optimizer.state_dict(),
+                    scheduler_state_dict=self.scheduler.state_dict(),
                     epoch=self.current_epoch
                 ),
                 os.path.join(checkpoint_folder, f'checkpoint_{str(self.current_epoch).zfill(3)}.pth'),
@@ -354,6 +393,7 @@ class TrainModule:
                 test_loss=test_loss,
                 test_acc=test_acc_clip,
                 test_acc_track=test_acc_track,
+                lr=self.scheduler.get_lr()
             )
             # Checkpoint the run, if we need to
             if self.checkpoint_cfg["save_checkpoints"]:
@@ -361,6 +401,9 @@ class TrainModule:
             # Report results to MLFlow, if we're using this
             if self.mlflow_cfg["use"]:
                 mlflow.log_metrics(metrics, step=epoch)
+            # Step forward in the LR scheduler
+            self.scheduler.step()
+            logger.debug(f'LR for epoch {epoch + 1} will be {", ".join(self.scheduler.get_lr())}!')
 
 
 if __name__ == "__main__":

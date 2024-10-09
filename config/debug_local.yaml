@@ -16,6 +16,7 @@ model_cfg:
 optim_type: adam
 optim_cfg:
   lr: 1.0e-3
+sched_type: null
 checkpoint_cfg:
   save_checkpoints: False
   load_checkpoints: False
