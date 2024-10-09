@@ -136,11 +136,25 @@ class TrainModule:
                 normalize='true'
             ).to(DEVICE)
         # OPTIMISER
-        logger.debug(f'Initialising optimiser with learning rate {self.learning_rate}')
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+        optim_type = kwargs.get("optim_type", "adam")
+        optim_cfg = kwargs.get("optim_cfg", dict(learning_rate=0.0001))
+        logger.debug(f'Initialising optimiser {optim_type} with parameters {optim_cfg}...')
+        self.optimizer = self.get_optimizer(optim_type)(self.model.parameters(), **optim_cfg)
+        # SCHEDULER
+        # TODO: implement
         # CHECKPOINTS
         if self.checkpoint_cfg["load_checkpoints"]:
             self.load_checkpoint()
+
+    @staticmethod
+    def get_optimizer(optim_type: str):
+        """Given a string, returns the correct encoder module"""
+        optims = ["adam", "sgd"]
+        assert optim_type in optims, "`encoder_module` must be one of" + ", ".join(optims)
+        if optim_type == "adam":
+            return torch.optim.Adam
+        elif optim_type == "sgd":
+            return torch.optim.SGD
 
     def step(self, features: torch.tensor, targets: torch.tensor) -> tuple:
         # Set device correctly for both features and targets

@@ -1,10 +1,8 @@
 experiment: default
 run: debug_local
-learning_rate: 1.0e-3
 batch_size: 1
 epochs: 100
 classify_dataset: False
-# We just use a small toy dataset for debug purposes
 train_dataset_cfg:
   n_clips: 1
   normalize_velocity: False
@@ -13,11 +11,14 @@ test_dataset_cfg:
   normalize_velocity: False
 encoder_module: cnn
 model_cfg:
-  use_ibn: False
+  pool_type: max
+  norm_type: bn
+optim_type: adam
+optim_cfg:
+  lr: 1.0e-3
 checkpoint_cfg:
   save_checkpoints: False
   load_checkpoints: False
   checkpoint_after_n_epochs: 10
 mlflow_cfg:
   use: False
-  tracking_uri: http://127.0.0.1:8080
