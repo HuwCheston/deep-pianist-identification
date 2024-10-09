@@ -393,7 +393,7 @@ class TrainModule:
                 test_loss=test_loss,
                 test_acc=test_acc_clip,
                 test_acc_track=test_acc_track,
-                lr=self.scheduler.get_lr()
+                # lr=self.scheduler.get_lr()
             )
             # Checkpoint the run, if we need to
             if self.checkpoint_cfg["save_checkpoints"]:
