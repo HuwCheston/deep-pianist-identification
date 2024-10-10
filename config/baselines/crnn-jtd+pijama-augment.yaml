@@ -1,20 +1,23 @@
 experiment: baselines
-run: cnn-jtd+pijama
-batch_size: 12
+run: crnn-jtd+pijama-augment
+batch_size: 5
 epochs: 100
+data_split_dir: 20class_80min
+classify_dataset: False
 train_dataset_cfg:
   n_clips: null
   normalize_velocity: True
   multichannel: False
-  jitter_start: False
-  data_augmentation: False
+  data_augmentation: True
+  augmentation_probability: 0.5
+  jitter_start: True
 test_dataset_cfg:
   n_clips: null
   normalize_velocity: True
   multichannel: False
-  jitter_start: False
   data_augmentation: False
-encoder_module: cnn
+  jitter_start: False
+encoder_module: crnn
 model_cfg:
   pool_type: max
   norm_type: bn
@@ -27,4 +30,4 @@ checkpoint_cfg:
   checkpoint_after_n_epochs: 10
 mlflow_cfg:
   use: True
-  tracking_uri: http://127.0.0.1:8080
+  tracking_uri: http://127.0.0.1:5000

@@ -2,6 +2,7 @@ experiment: baselines
 run: resnet50-jtd+pijama
 batch_size: 5
 epochs: 100
+data_split_dir: 20class_80min
 classify_dataset: False
 train_dataset_cfg:
   n_clips: null
