@@ -1,5 +1,5 @@
 experiment: disentangle-architecture
-run: disentangle-jtd+pijama-4conv2pool-mask30concept3-augment50-4heads-avgpool
+run: disentangle-jtd+pijama-4conv3pool_alt-mask30concept3-augment50-noattention-avgpool
 batch_size: 2
 epochs: 100
 data_split_dir: 20class_80min
@@ -21,15 +21,14 @@ encoder_module: disentangle
 model_cfg:
   use_gru: True
   use_masking: True
-  use_attention: True
+  use_attention: False
   mask_probability: 0.3
   max_masked_concepts: 3
-  num_attention_heads: 4
   layers: [
     { in_channels: 1, out_channels: 64, conv_kernel_size: 3, has_pool: False },
     { in_channels: 64, out_channels: 128, conv_kernel_size: 3, has_pool: True, pool_kernel_size: 2 },
-    { in_channels: 128, out_channels: 256, conv_kernel_size: 3, has_pool: False },
-    { in_channels: 256, out_channels: 512, conv_kernel_size: 3, has_pool: True, pool_kernel_size: 4 }
+    { in_channels: 128, out_channels: 256, conv_kernel_size: 3, has_pool: True, pool_kernel_size: 2 },
+    { in_channels: 256, out_channels: 512, conv_kernel_size: 3, has_pool: True, pool_kernel_size: 2 }
   ]
   pool_type: avg
 optim_type: adam
