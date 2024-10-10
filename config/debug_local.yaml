@@ -3,6 +3,7 @@ run: debug_local
 batch_size: 1
 epochs: 100
 classify_dataset: False
+data_split_dir: 25class_0min
 train_dataset_cfg:
   n_clips: 1
   normalize_velocity: False
