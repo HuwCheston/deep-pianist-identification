@@ -29,38 +29,6 @@ HOP_SIZE = 30
 CLIP_PADDING = 30  # Added to the end of each clip to facilitate random cropping/time dilation
 
 
-# Converts class indices into string names
-CLASS_MAPPING = {
-    0: 'Abdullah Ibrahim',
-    1: 'Ahmad Jamal',
-    2: 'Benny Green',
-    3: 'Bill Evans',
-    4: 'Bobby Timmons',
-    5: 'Brad Mehldau',
-    6: 'Cedar Walton',
-    7: 'Chick Corea',
-    8: 'Gene Harris',
-    9: 'Geoffrey Keezer',
-    10: 'Geri Allen',
-    11: 'Hank Jones',
-    12: 'John Hicks',
-    13: 'Junior Mance',
-    14: 'Keith Jarrett',
-    15: 'Kenny Barron',
-    16: 'Kenny Drew',
-    17: 'Lennie Tristano',
-    18: 'McCoy Tyner',
-    19: 'Oscar Peterson',
-    20: 'Red Garland',
-    21: 'Stanley Cowell',
-    22: 'Teddy Wilson',
-    23: 'Thelonious Monk',
-    24: 'Tommy Flanagan'
-}
-PIANIST_MAPPING = {v: k for k, v in CLASS_MAPPING.items()}  # Inverted, maps string names to class indexes
-N_CLASSES = 25
-
-
 def seed_everything(seed: int = SEED) -> None:
     """Sets all random seeds for reproducible results."""
     torch.manual_seed(seed)
