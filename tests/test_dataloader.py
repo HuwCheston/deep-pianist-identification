@@ -21,8 +21,9 @@ class DataloaderTest(unittest.TestCase):
         loader = DataLoader(
             MIDILoader(
                 'train',
-                multichannel=False,
                 normalize_velocity=True,
+                multichannel=False,
+                data_split_dir="25class_0min"
             ),
             batch_size=self.batch_size,
             shuffle=True,
@@ -38,8 +39,9 @@ class DataloaderTest(unittest.TestCase):
         loader = DataLoader(
             MIDILoader(
                 'train',
-                multichannel=True,
                 normalize_velocity=True,
+                multichannel=True,
+                data_split_dir="25class_0min"
             ),
             batch_size=self.batch_size,
             shuffle=True,
@@ -55,9 +57,10 @@ class DataloaderTest(unittest.TestCase):
         loader = DataLoader(
             MIDILoader(
                 'train',
-                multichannel=True,
                 normalize_velocity=True,
-                use_concepts=[0, 1, 3]
+                multichannel=True,
+                use_concepts=[0, 1, 3],
+                data_split_dir="25class_0min"
             ),
             batch_size=self.batch_size,
             shuffle=True,
@@ -77,8 +80,9 @@ class DataloaderTest(unittest.TestCase):
         loader = DataLoader(
             MIDILoader(
                 'train',
-                multichannel=True,
                 normalize_velocity=False,
+                multichannel=True,
+                data_split_dir="25class_0min"
             ),
             batch_size=self.batch_size,
             shuffle=True,
@@ -89,11 +93,7 @@ class DataloaderTest(unittest.TestCase):
         self.assertTrue(roll[0, 0, :, :].max() >= 1)
         # With normalization
         loader = DataLoader(
-            MIDILoader(
-                'train',
-                multichannel=True,
-                normalize_velocity=True,
-            ),
+            MIDILoader('train', normalize_velocity=True, multichannel=True),
             batch_size=self.batch_size,
             shuffle=True,
             collate_fn=remove_bad_clips_from_batch,
@@ -105,8 +105,9 @@ class DataloaderTest(unittest.TestCase):
     def test_skip_bad_clip(self):
         loader = MIDILoader(
             'train',
-            multichannel=True,
             normalize_velocity=False,
+            multichannel=True,
+            data_split_dir="25class_0min"
         )
         # Keith Jarrett doesn't play anything in this clip
         bad_clip_idx = [idx for idx, clip in enumerate(loader.clips)
@@ -122,14 +123,27 @@ class DataloaderTest(unittest.TestCase):
     def test_binary_classification(self):
         loader = iter(MIDILoader(
             'train',
-            multichannel=True,
             normalize_velocity=False,
-            classify_dataset=True
+            multichannel=True,
+            classify_dataset=True,
+            data_split_dir="25class_0min"
         ))
         # Setting `classify_dataset == True` should result in a binary output for the target class
         for i in range(50):
             _, target, ___ = next(loader)
             self.assertTrue(target == 0 or target == 1)
+
+    def test_bad_split(self):
+        self.assertRaises(
+            FileNotFoundError,
+            lambda: MIDILoader(
+                'train',
+                normalize_velocity=False,
+                multichannel=True,
+                classify_dataset=True,
+                data_split_dir="i_dont_exist"
+            )
+        )
 
 
 if __name__ == '__main__':
