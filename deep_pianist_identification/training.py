@@ -436,6 +436,19 @@ class TrainModule:
             logger.debug(f'LR for epoch {epoch + 1} will be {self.get_scheduler_lr()}')
 
 
+def get_tracking_uri(port: str = "5000") -> str:
+    """Attempts to get the MLflow tracking URI on given port based on system hostname"""
+    import socket
+
+    hostname = socket.gethostname().lower()
+    # Job is running locally or on the department server
+    if "desktop" in hostname or "musix" in hostname:
+        return f"http://127.0.0.1:{port}"
+    # Job is running on HPC
+    else:
+        return f"http://musix.mus.cam.ac.uk:{port}"
+
+
 if __name__ == "__main__":
     import yaml
     import argparse
@@ -458,7 +471,10 @@ if __name__ == "__main__":
 
     # Running training with logging on MLFlow
     if args["mlflow_cfg"]["use"]:
-        mlflow.set_tracking_uri(uri=args["mlflow_cfg"]["tracking_uri"])
+        # Get the tracking URI based on the hostname of the device running the job
+        uri = get_tracking_uri()
+        logger.debug(f'Attempting to connect to MLFlow server at {uri}...')
+        mlflow.set_tracking_uri(uri=get_tracking_uri())
         try:
             mlflow.set_experiment(args["experiment"])
         # If we're unable to reach the MLFlow server somehow
