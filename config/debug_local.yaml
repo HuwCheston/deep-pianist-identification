@@ -11,9 +11,7 @@ test_dataset_cfg:
   n_clips: 1
   normalize_velocity: False
 encoder_module: cnn
-model_cfg:
-  pool_type: max
-  norm_type: bn
+model_cfg: { }
 optim_type: adam
 optim_cfg:
   lr: 1.0e-3
