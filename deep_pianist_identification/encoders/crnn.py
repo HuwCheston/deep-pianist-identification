@@ -15,11 +15,11 @@ __all__ = ["CRNNet"]
 class CRNNet(CNNet):
     def __init__(
             self,
-            classify_dataset: bool = False,
+            num_classes: int,
             pool_type: str = "max",
             norm_type: str = "bn"
     ):
-        super().__init__(classify_dataset=classify_dataset, pool_type=pool_type, norm_type=norm_type)
+        super().__init__(num_classes=num_classes, pool_type=pool_type, norm_type=norm_type)
         # Bidirectional GRU, operates on features * height dimension
         self.gru = GRU(512 * 11)  # final_output * (input_height / num_layers)
 
@@ -66,11 +66,16 @@ if __name__ == "__main__":
     n_batches = 10
     times = []
     loader = DataLoader(
-        MIDILoader('train', n_clips=2),
+        MIDILoader(
+            'train',
+            n_clips=2,
+            data_split_dir="25class_0min"
+        ),
         batch_size=size,
         shuffle=True,
     )
     model = CRNNet(
+        num_classes=25,
         norm_type="bn",
         pool_type="max"
     ).to(utils.DEVICE)

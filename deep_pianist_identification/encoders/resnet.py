@@ -87,8 +87,8 @@ class Bottleneck(nn.Module):
 class ResNet50(nn.Module):
     def __init__(
             self,
+            num_classes: int,
             layers=None,
-            classify_dataset: bool = False,
             pool_type: str = "avg",
             norm_type: str = "bn"
     ):
@@ -97,7 +97,6 @@ class ResNet50(nn.Module):
         if layers is None:
             layers = [3, 4, 6, 3]
 
-        num_classes = 2 if classify_dataset else utils.N_CLASSES
         self.inplanes = 64
         self.dilation = 1
         self.groups = 1
@@ -211,12 +210,14 @@ if __name__ == "__main__":
         MIDILoader(
             split='train',
             n_clips=size * n_batches,
-            multichannel=False
+            multichannel=False,
+            data_split_dir="25class_0min"
         ),
         batch_size=size,
         shuffle=True,
     )
     model = ResNet50(
+        num_classes=25,
         pool_type='avg',
         norm_type='bn'
     ).to(utils.DEVICE)

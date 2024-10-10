@@ -7,7 +7,6 @@ import torch
 import torch.nn as nn
 
 from deep_pianist_identification.encoders.shared import GeM, ConvLayer, LinearLayer, IBN
-from deep_pianist_identification.utils import N_CLASSES
 
 __all__ = ["CNNet"]
 
@@ -15,7 +14,7 @@ __all__ = ["CNNet"]
 class CNNet(nn.Module):
     def __init__(
             self,
-            classify_dataset: bool = False,
+            num_classes: int,
             pool_type: str = "max",
             norm_type: str = "bn"
     ):
@@ -36,7 +35,7 @@ class CNNet(nn.Module):
         self.pooling = self.get_pooling_module(pool_type)
         # Linear layers output size: [128, n_classes]
         self.fc1 = LinearLayer(512, 128)
-        self.fc2 = LinearLayer(128, 2 if classify_dataset else N_CLASSES)
+        self.fc2 = LinearLayer(128, num_classes)
 
     @staticmethod
     def get_norm_module(norm_type: str) -> nn.Module:
@@ -88,11 +87,16 @@ if __name__ == "__main__":
     n_batches = 10
     times = []
     loader = DataLoader(
-        MIDILoader('train', n_clips=2),
+        MIDILoader(
+            'train',
+            n_clips=2,
+            data_split_dir="25class_0min"
+        ),
         batch_size=size,
         shuffle=True,
     )
     model = CNNet(
+        num_classes=25,
         norm_type="bn",
         pool_type="max"
     ).to(DEVICE)

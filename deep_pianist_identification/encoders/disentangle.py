@@ -71,6 +71,7 @@ class Concept(nn.Module):
 class DisentangleNet(nn.Module):
     def __init__(
             self,
+            num_classes: int,
             use_gru: bool = True,
             use_masking: bool = False,
             use_attention: bool = True,
@@ -79,7 +80,6 @@ class DisentangleNet(nn.Module):
             mask_probability: float = 0.3,
             max_masked_concepts: int = 3,
             pool_type: str = "avg",
-            classify_dataset: bool = False
     ):
         super(DisentangleNet, self).__init__()
         # Whether to randomly mask individual channels after processing
@@ -118,7 +118,7 @@ class DisentangleNet(nn.Module):
         )
         self.fc2 = LinearLayer(
             in_channels=self.concept_channels // 4,  # i.e., fc1 out_channels
-            out_channels=2 if classify_dataset else utils.N_CLASSES,  # either binary or multiclass
+            out_channels=num_classes,  # either binary or multiclass
             p=0.5
         )
 
@@ -229,14 +229,16 @@ if __name__ == '__main__':
     loader = DataLoader(
         MIDILoader(
             'train',
+            data_split_dir="25class_0min",
             n_clips=10,
-            multichannel=True,
+            multichannel=True
         ),
         batch_size=size,
         shuffle=True,
         collate_fn=remove_bad_clips_from_batch
     )
     model = DisentangleNet(
+        num_classes=25,
         use_attention=False,
         use_masking=True,
         use_gru=True,
