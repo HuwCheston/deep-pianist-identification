@@ -116,6 +116,5 @@ target/
 *.onnx
 
 # Keep data split CSV files
-!/references/data_splits/test_split.csv
-!/references/data_splits/train_split.csv
-!/references/data_splits/validation_split.csv
+!references/data_splits/20class_80min/*.csv
+!references/data_splits/25class_0min/*.csv
