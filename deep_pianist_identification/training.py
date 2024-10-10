@@ -366,6 +366,14 @@ class TrainModule:
                 mlflow.log_param(key, val)
             logger.debug("Logged all run parameters to MLFlow dashboard!")
 
+    def get_scheduler_lr(self) -> float:
+        """Tries to return current LR from scheduler. Returns 0. on error, for safety with MLFlow logging"""
+        try:
+            return self.scheduler.get_last_lr()[0]
+        except (IndexError, AttributeError, RuntimeError) as sched_e:
+            logger.warning(f"Failed to get LR from scheduler! Returning 0.0... {sched_e}")
+            return 0.
+
     def run_training(self) -> None:
         self.log_run_params_to_mlflow()
         # Start training
@@ -393,7 +401,7 @@ class TrainModule:
                 test_loss=test_loss,
                 test_acc=test_acc_clip,
                 test_acc_track=test_acc_track,
-                # lr=self.scheduler.get_lr()
+                lr=self.get_scheduler_lr()
             )
             # Checkpoint the run, if we need to
             if self.checkpoint_cfg["save_checkpoints"]:
@@ -403,7 +411,7 @@ class TrainModule:
                 mlflow.log_metrics(metrics, step=epoch)
             # Step forward in the LR scheduler
             self.scheduler.step()
-            logger.debug(f'LR for epoch {epoch + 1} will be {self.scheduler.get_lr()}')
+            logger.debug(f'LR for epoch {epoch + 1} will be {self.get_scheduler_lr()}')
 
 
 if __name__ == "__main__":
