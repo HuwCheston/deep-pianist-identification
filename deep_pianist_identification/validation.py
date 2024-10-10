@@ -20,7 +20,7 @@ from tqdm import tqdm
 import deep_pianist_identification.plotting as plotting
 from deep_pianist_identification.dataloader import MIDILoader, remove_bad_clips_from_batch
 from deep_pianist_identification.training import parse_config_yaml, DEFAULT_CONFIG, get_model, groupby_tracks
-from deep_pianist_identification.utils import seed_everything, SEED, DEVICE, N_CLASSES, get_project_root, CLASS_MAPPING
+from deep_pianist_identification.utils import seed_everything, SEED, DEVICE, get_project_root
 
 MASKS = ["melody", "harmony", "rhythm", "dynamics"]
 MASK_COMBINATIONS = []
@@ -35,11 +35,16 @@ class ValidateModule:
         self.params = kwargs
         for key, val in self.params.items():
             setattr(self, key, val)
-        # TODO: enable classification of performers or datasets here
+        # CLASSIFICATION PROBLEM
+        self.classify_dataset = kwargs.get("classify_dataset", False)
+        # CLASS MAPPING AND NUMBER OF CLASSES
+        self.class_mapping = self.get_class_mapping()
+        self.num_classes = len(self.class_mapping.keys())
+        logger.debug(f"Model will be evaluated on {self.num_classes} classes!")
         # MODEL
         logger.debug('Initialising model...')
         logger.debug(f"Using encoder {self.encoder_module} with parameters {self.model_cfg}")
-        self.model = get_model(self.encoder_module)(**self.model_cfg).to(DEVICE)
+        self.model = get_model(self.encoder_module)(num_classes=self.num_classes, **self.model_cfg).to(DEVICE)
         n_params = sum(p.numel() for p in self.model.parameters())
         logger.debug(f'Model parameters: {n_params}')
         # Create the validation dataset loader
@@ -47,10 +52,7 @@ class ValidateModule:
         logger.debug(f'Initialising validation dataloader with batch size {self.batch_size} '
                      f'and parameters {self.test_dataset_cfg}')
         self.validation_dataloader = DataLoader(
-            MIDILoader(
-                'test',
-                **self.test_dataset_cfg  # Use the test dataset config here again
-            ),
+            MIDILoader('test', **self.test_dataset_cfg),
             batch_size=self.batch_size,
             shuffle=True,
             drop_last=False,
@@ -62,15 +64,31 @@ class ValidateModule:
             self.validation_fn = self.validate_multichannel
         else:
             self.validation_fn = self.validate_singlechannel
-        self.acc_fn = Accuracy(task="multiclass", num_classes=N_CLASSES).to(DEVICE)
-        self.confusion_matrix_fn = ConfusionMatrix(
-            task="multiclass",
-            num_classes=N_CLASSES,
-            normalize='true'
-        ).to(DEVICE)
+        if self.classify_dataset:
+            self.acc_fn = Accuracy(task="binary", num_classes=self.num_classes).to(DEVICE)
+            self.confusion_matrix_fn = ConfusionMatrix(
+                task="binary", num_classes=self.num_classes, normalize="true"
+            ).to(DEVICE)
+        else:
+            self.acc_fn = Accuracy(task="multiclass", num_classes=self.num_classes).to(DEVICE)
+            self.confusion_matrix_fn = ConfusionMatrix(
+                task="multiclass",
+                num_classes=self.num_classes,
+                normalize='true'
+            ).to(DEVICE)
         # CHECKPOINTS
         self.checkpoint_folder = os.path.join(get_project_root(), 'checkpoints', self.experiment, self.run)
         self.load_checkpoint()  # Will raise errors when checkpoints cannot be found!
+
+    def get_class_mapping(self) -> dict:
+        if self.classify_dataset:
+            return {0: "jtd", 1: "pijama"}
+        else:
+            csv_loc = os.path.join(
+                get_project_root(), 'references/data_splits', self.data_split_dir, 'pianist_mapping.csv'
+            )
+            pianist_mapping = pd.read_csv(csv_loc, index_col=1)
+            return {i: row.iloc[0] for i, row in pianist_mapping.iterrows()}
 
     def load_checkpoint(self) -> None:
         """Load the latest checkpoint for the current experiment and run. Raises errors when no checkpoints found"""
@@ -122,7 +140,7 @@ class ValidateModule:
         # Convert to a numpy array
         mat = mat.cpu().numpy()
         # Create the plot
-        cm = plotting.HeatmapConfusionMatrix(mat)
+        cm = plotting.HeatmapConfusionMatrix(mat, pianist_mapping=self.class_mapping)
         cm.create_plot()
         # Set the title to the concepts we've used, nicely formatted
         cm.ax.set_title(', '.join(sorted([i.title() for i in concept.split('+')])))
@@ -183,7 +201,7 @@ class ValidateModule:
             # Calculate per-class accuracy: create the normalized confusion matrix, then take the diagonal
             perclass_acc = self.confusion_matrix_fn(p, t).diag().cpu().numpy()
             for class_idx, class_acc in enumerate(perclass_acc):
-                class_name = CLASS_MAPPING[class_idx]
+                class_name = self.class_mapping[class_idx]
                 perclass_accuracies.append(dict(model=self.run, concepts=mask, pianist=class_name, class_acc=class_acc))
             # Create the confusion matrix for this combination of parameters
             self.create_confusion_matrix(p, t, mask)

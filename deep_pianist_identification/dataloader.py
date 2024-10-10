@@ -34,6 +34,7 @@ class MIDILoader(Dataset):
     def __init__(
             self,
             split: str,
+            data_split_dir: str = "25class_0min",
             n_clips: int = None,
             data_augmentation: bool = True,
             augmentation_probability: float = 0.5,
@@ -42,7 +43,7 @@ class MIDILoader(Dataset):
             multichannel: bool = False,
             use_concepts: str = None,
             extractor_cfg: dict = None,
-            classify_dataset: bool = False
+            classify_dataset: bool = False,
     ):
         super().__init__()
         # Unpack provided arguments as attributes
@@ -64,8 +65,10 @@ class MIDILoader(Dataset):
         # This is the function we'll use to create the piano roll from the raw MIDI input: single or multichannel
         self.creator_func = self.get_multichannel_piano_roll if self.multichannel else self.get_singlechannel_piano_roll
         # Load in the CSV and get all the clips into a list
-        csv_path = os.path.join(get_project_root(), 'references/data_splits', f'{split}_split.csv')
-        self.clips = list(self.get_clips_for_split(csv_path))
+        full_csv_path = os.path.join(get_project_root(), 'references/data_splits', data_split_dir, f'{split}_split.csv')
+        if not os.path.exists(full_csv_path):
+            raise FileNotFoundError(f"Can't find {split}_split.csv inside {data_split_dir}: have you created splits?")
+        self.clips = list(self.get_clips_for_split(full_csv_path))
         # Truncate the number of clips if we've passed in this argument
         if n_clips is not None:
             self.clips = self.clips[:n_clips]
@@ -175,14 +178,8 @@ if __name__ == "__main__":
     batch_size = 12
     times = []
     loader = DataLoader(
-        MIDILoader(
-            'train',
-            multichannel=True,
-            normalize_velocity=True,
-            data_augmentation=True,
-            augmentation_probability=1.0,
-            jitter_start=True
-        ),
+        MIDILoader('train', data_augmentation=True, augmentation_probability=1.0, jitter_start=True,
+                   normalize_velocity=True, multichannel=True),
         batch_size=batch_size,
         shuffle=True,
         collate_fn=remove_bad_clips_from_batch,

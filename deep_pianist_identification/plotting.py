@@ -9,8 +9,6 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-import deep_pianist_identification.utils as utils
-
 # Define constants
 WIDTH = 18.8  # This is a full page width: half page plots will need to use 18.8 / 2
 FONTSIZE = 18
@@ -84,9 +82,11 @@ class BasePlot:
 
 
 class HeatmapConfusionMatrix(BasePlot):
-    def __init__(self, confusion_mat: np.ndarray, **kwargs):
+    def __init__(self, confusion_mat: np.ndarray, pianist_mapping: dict, **kwargs):
         super().__init__(**kwargs)
         self.mat = confusion_mat
+        self.pianist_mapping = pianist_mapping
+        self.num_classes = len(self.pianist_mapping.keys())
         self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH))
 
     def _create_plot(self) -> None:
@@ -101,11 +101,11 @@ class HeatmapConfusionMatrix(BasePlot):
     def _format_ax(self):
         self.ax.set(
             xlabel="Predicted pianist", ylabel="Actual pianist",
-            xticks=range(utils.N_CLASSES), yticks=range(utils.N_CLASSES)
+            xticks=range(self.num_classes), yticks=range(self.num_classes)
         )
         # Set axis ticks correctly
-        self.ax.set_xticks([i + 0.5 for i in self.ax.get_xticks()], utils.PIANIST_MAPPING.keys(), rotation=90)
-        self.ax.set_yticks([i + 0.5 for i in self.ax.get_yticks()], utils.PIANIST_MAPPING.keys(), rotation=0)
+        self.ax.set_xticks([i + 0.5 for i in self.ax.get_xticks()], self.pianist_mapping.values(), rotation=90)
+        self.ax.set_yticks([i + 0.5 for i in self.ax.get_yticks()], self.pianist_mapping.values(), rotation=0)
         # Make all spines visible on both axis and colorbar
         for ax in [self.ax, self.ax.figure.axes[-1]]:
             for spine in ax.spines.values():

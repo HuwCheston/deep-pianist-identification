@@ -21,7 +21,7 @@ from tqdm import tqdm
 import deep_pianist_identification.plotting as plotting
 from deep_pianist_identification.dataloader import MIDILoader, remove_bad_clips_from_batch
 from deep_pianist_identification.encoders import CRNNet, CNNet, DisentangleNet, ResNet50
-from deep_pianist_identification.utils import DEVICE, N_CLASSES, seed_everything, get_project_root, SEED
+from deep_pianist_identification.utils import DEVICE, seed_everything, get_project_root, SEED
 
 __all__ = ["groupby_tracks", "get_model", "TrainModule", "parse_config_yaml", "DEFAULT_CONFIG", "NoOpScheduler"]
 
@@ -99,20 +99,29 @@ class TrainModule:
         self.current_epoch = 0
         # CLASSIFICATION PROBLEM
         self.classify_dataset = kwargs.get("classify_dataset", False)
-        logger.debug(f"Model will be trained to classify {'dataset' if self.classify_dataset else 'performer'}s!")
+        # CLASS MAPPING AND NUMBER OF CLASSES
+        self.class_mapping = self.get_class_mapping()
+        self.num_classes = len(self.class_mapping.keys())
+        logger.debug(f"Model will be trained with {self.num_classes} classes!")
         # MODEL
         logger.debug('Initialising model...')
         logger.debug(f"Using encoder {self.encoder_module} with parameters {self.model_cfg}")
-        self.model = get_model(self.encoder_module)(classify_dataset=self.classify_dataset, **self.model_cfg).to(DEVICE)
+        model_cls = get_model(self.encoder_module)
+        self.model = model_cls(
+            num_classes=self.num_classes,
+            **self.model_cfg
+        ).to(DEVICE)
         n_params = sum(p.numel() for p in self.model.parameters())
         logger.debug(f'Model parameters: {n_params}')
         # DATALOADERS
+        logger.debug(f'Loading data splits from `references/data_splits/{self.data_split_dir}`')
         logger.debug(f'Initialising training dataloader with batch size {self.batch_size} '
                      f'and parameters {self.train_dataset_cfg}')
         self.train_loader = DataLoader(
             MIDILoader(
                 'train',
                 classify_dataset=self.classify_dataset,
+                data_split_dir=self.data_split_dir,
                 **self.train_dataset_cfg
             ),
             batch_size=self.batch_size,
@@ -126,6 +135,7 @@ class TrainModule:
             MIDILoader(
                 'test',
                 classify_dataset=self.classify_dataset,
+                data_split_dir=self.data_split_dir,
                 **self.test_dataset_cfg
             ),
             batch_size=self.batch_size,
@@ -137,13 +147,15 @@ class TrainModule:
         logger.debug('Initialising loss and metrics...')
         self.loss_fn = nn.CrossEntropyLoss(reduction='mean').to(DEVICE)
         if self.classify_dataset:
-            self.acc_fn = Accuracy(task="binary", num_classes=2).to(DEVICE)
-            self.confusion_matrix_fn = ConfusionMatrix(task="binary", num_classes=2, normalize="true").to(DEVICE)
+            self.acc_fn = Accuracy(task="binary", num_classes=self.num_classes).to(DEVICE)
+            self.confusion_matrix_fn = ConfusionMatrix(
+                task="binary", num_classes=self.num_classes, normalize="true"
+            ).to(DEVICE)
         else:
-            self.acc_fn = Accuracy(task="multiclass", num_classes=N_CLASSES).to(DEVICE)
+            self.acc_fn = Accuracy(task="multiclass", num_classes=self.num_classes).to(DEVICE)
             self.confusion_matrix_fn = ConfusionMatrix(
                 task="multiclass",
-                num_classes=N_CLASSES,
+                num_classes=self.num_classes,
                 normalize='true'
             ).to(DEVICE)
         # OPTIMISER
@@ -159,6 +171,16 @@ class TrainModule:
         # CHECKPOINTS
         if self.checkpoint_cfg["load_checkpoints"]:
             self.load_checkpoint()
+
+    def get_class_mapping(self) -> dict:
+        if self.classify_dataset:
+            return {0: "jtd", 1: "pijama"}
+        else:
+            csv_loc = os.path.join(
+                get_project_root(), 'references/data_splits', self.data_split_dir, 'pianist_mapping.csv'
+            )
+            pianist_mapping = pd.read_csv(csv_loc, index_col=1)
+            return {i: row.iloc[0] for i, row in pianist_mapping.iterrows()}
 
     @staticmethod
     def get_optimizer(optim_type: str):
@@ -263,7 +285,7 @@ class TrainModule:
         # Convert to a numpy array
         mat = mat.cpu().numpy()
         # Create the plot
-        cm = plotting.HeatmapConfusionMatrix(mat)
+        cm = plotting.HeatmapConfusionMatrix(mat, pianist_mapping=self.class_mapping)
         cm.create_plot()
         # Save the figure, either on MLflow or locally (depending on our configuration)
         self.save_figure(cm.fig, f"epoch_{str(self.current_epoch).zfill(3)}_confusionmatrix.png")
