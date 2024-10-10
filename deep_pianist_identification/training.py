@@ -474,7 +474,7 @@ if __name__ == "__main__":
         # Get the tracking URI based on the hostname of the device running the job
         uri = get_tracking_uri()
         logger.debug(f'Attempting to connect to MLFlow server at {uri}...')
-        mlflow.set_tracking_uri(uri=get_tracking_uri())
+        mlflow.set_tracking_uri(uri=uri)
         try:
             mlflow.set_experiment(args["experiment"])
         # If we're unable to reach the MLFlow server somehow
