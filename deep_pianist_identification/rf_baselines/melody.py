@@ -15,7 +15,7 @@ from deep_pianist_identification import utils
 from deep_pianist_identification.extractors import MelodyExtractor, ExtractorError
 
 NGRAMS = [3, 4]
-VALID_NGRAMS = 20
+VALID_NGRAMS = 10
 
 
 def extract_fn(roll: PrettyMIDI, ngrams: list[int]):
@@ -64,7 +64,7 @@ def extract_melody_ngrams(tpath: str, nclips: int, pianist: str, ngrams: list = 
 def rf_melody(dataset: str, n_iter: int, valid_ngrams_count: int, ngrams: list[int]) -> None:
     """Create and optimize random forest melody classifier using provided command line arguemnts"""
     logger.info("Creating baseline random forest classifier using melody data!")
-    # Get clips from both datasets
+    # Get clips from all splits of the dataset
     logger.info(f"Getting tracks from all splits for dataset {dataset}...")
     train_clips = list(rf_utils.get_split_clips("train", dataset))
     test_clips = list(rf_utils.get_split_clips("test", dataset))
@@ -89,7 +89,6 @@ def rf_melody(dataset: str, n_iter: int, valid_ngrams_count: int, ngrams: list[i
     test_x = rf_utils.drop_invalid_ngrams(test_x, valid_ngs)
     valid_x = rf_utils.drop_invalid_ngrams(valid_x, valid_ngs)
     # Convert both training and testing features into numpy arrays with the same dimensionality
-    # TODO: we can add the validation split into this
     train_x_arr, test_x_arr, valid_x_arr = rf_utils.format_features(train_x, test_x, valid_x)
     # Load the optimized parameter settings (or recreate them, if they don't exist)
     logger.info(f"Beginning parameter optimization with {n_iter} iterations...")
@@ -118,20 +117,35 @@ if __name__ == "__main__":
     # Parsing arguments from the command line interface
     parser = argparse.ArgumentParser(description='Create baseline random forest classifier for melody')
     parser.add_argument(
-        "-d", "--dataset", default="20class_80min", type=str,
+        "-d", "--dataset",
+        default="20class_80min",
+        type=str,
         help="Name of dataset inside `references/data_split`"
     )
     parser.add_argument(
-        "-i", "--n-iter", default=rf_utils.N_ITER, type=int, help="Number of optimization iterations"
+        "-i", "--n-iter",
+        default=rf_utils.N_ITER,
+        type=int,
+        help="Number of optimization iterations"
     )
     parser.add_argument(
-        "-v", "--valid-ngrams-count", default=VALID_NGRAMS, type=int,
+        "-v", "--valid-ngrams-count",
+        default=VALID_NGRAMS,
+        type=int,
         help="Valid n-grams appear in this many tracks"
     )
-    parser.add_argument('-l', '--ngrams', nargs='+', type=int, help="Extract these n-grams", default=NGRAMS)
+    parser.add_argument(
+        '-l', '--ngrams',
+        nargs='+',
+        type=int,
+        help="Extract these n-grams",
+        default=NGRAMS
+    )
     # Parse all arguments and create the forest
     args = vars(parser.parse_args())
     rf_melody(
-        dataset=args['dataset'], n_iter=args["n_iter"], ngrams=args["ngrams"],
+        dataset=args['dataset'],
+        n_iter=args["n_iter"],
+        ngrams=args["ngrams"],
         valid_ngrams_count=args["valid_ngrams_count"]
     )
