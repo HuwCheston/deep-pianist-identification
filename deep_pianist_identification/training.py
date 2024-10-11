@@ -272,7 +272,7 @@ class TrainModule:
             figure.savefig(os.path.join(figures_folder, filename), **save_kwargs)
             logger.debug(f'Saved figure {filename} in {figures_folder}')
 
-    def plot_confusion_matrix(self, predictions: torch.tensor, targets: torch.tensor) -> None:
+    def plot_confusion_matrix(self, predictions: torch.tensor, targets: torch.tensor, ext: str = '') -> None:
         """Plots a confusion matrix between `predictions` and `targets`"""
         # Create the confusion matrix as a tensor, expressed in percentages
         # This will raise weird errors about NaNs being present, but the output is fine, so ignore
@@ -288,7 +288,7 @@ class TrainModule:
         cm = plotting.HeatmapConfusionMatrix(mat, pianist_mapping=self.class_mapping)
         cm.create_plot()
         # Save the figure, either on MLflow or locally (depending on our configuration)
-        self.save_figure(cm.fig, f"epoch_{str(self.current_epoch).zfill(3)}_confusionmatrix.png")
+        self.save_figure(cm.fig, f"epoch_{str(self.current_epoch).zfill(3)}_confusionmatrix{ext}.png")
         # Close the figure in matplotlib
         cm.close()
 
@@ -397,6 +397,7 @@ class TrainModule:
             return 0.
 
     def run_training(self) -> None:
+        training_start = time()
         self.log_run_params_to_mlflow()
         # Start training
         for epoch in range(self.current_epoch, self.epochs):
@@ -434,6 +435,72 @@ class TrainModule:
             # Step forward in the LR scheduler
             self.scheduler.step()
             logger.debug(f'LR for epoch {epoch + 1} will be {self.get_scheduler_lr()}')
+        logger.info('Training complete! Beginning validation...')
+        self.validation()
+        logger.info(f'Finished in {round(time() - training_start)} seconds!')
+
+    def validation(self) -> None:
+        # Try and create the validation dataloader
+        try:
+            validation_loader = DataLoader(
+                MIDILoader(
+                    'validation',
+                    classify_dataset=self.classify_dataset,
+                    data_split_dir=self.data_split_dir,
+                    # We can just use the test dataset configuration here
+                    **self.test_dataset_cfg
+                ),
+                batch_size=self.batch_size,
+                shuffle=True,
+                drop_last=False,
+                collate_fn=remove_bad_clips_from_batch
+            )
+        # Skip if we don't have a validation split created for this dataset
+        except FileNotFoundError as e:
+            logger.error(f'Could not find validation split for dataset {self.data_split_dir}, skipping validation! {e}')
+            return
+        # Lists to track metrics across all batches
+        clip_loss, clip_accs = [], []
+        track_names, track_preds, track_targets = [], [], []
+        # Set model mode correctly
+        self.model.eval()
+        # Iterate through all batches, with a nice TQDM counter
+        with torch.no_grad():
+            for features, targets, batch_names in tqdm(
+                    validation_loader,
+                    total=len(validation_loader),
+                    desc=f'Validating...'
+            ):
+                # Forwards pass
+                loss, acc, preds = self.step(features, targets)
+                # No backwards pass, just append all clip-level metrics from this batch
+                clip_loss.append(loss.item())
+                clip_accs.append(acc.item())
+                # Append the names of the tracks and the corresponding predictions for track-level metrics
+                track_names.extend(batch_names)  # Single list of strings
+                track_preds.append(preds)  # List of tensors, one tensor per clip, containing class logits
+                track_targets.append(targets)  # List of tensors, one tensor per batch, containing target classes
+        # Compute clip-level accuracy and loss
+        clip_acc, clip_loss = np.mean(clip_accs), np.mean(clip_loss)
+        # Group by tracks, average probabilities, and get predicted and target classes
+        predictions, targets = groupby_tracks(track_names, track_preds, track_targets)
+        # Compute track-level accuracy
+        track_acc = self.acc_fn(predictions, targets).item()
+        # Report all validation metrics to the console
+        logger.info(f'Validation finished: '
+                    f'loss {clip_loss:.3f}, '
+                    f'accuracy (clip) {clip_acc:.3f}, '
+                    f'accuracy (track) {track_acc:.3f}')
+        # Create the confusion matrix and log to mlflow if we're using it
+        self.plot_confusion_matrix(predictions, targets, ext='_validation')
+        # Report results to MLFlow, if we're using this
+        if self.mlflow_cfg["use"]:
+            metrics = dict(
+                validation_loss=clip_loss,
+                validation_acc=clip_acc,
+                validation_acc_track=track_acc
+            )
+            mlflow.log_metrics(metrics)  # Don't need to log the step
 
 
 def get_tracking_uri(port: str = "5000") -> str:
