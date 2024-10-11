@@ -385,7 +385,11 @@ class TrainModule:
         if self.mlflow_cfg["use"]:
             # TODO: we should expand individual dictionaries here and account for duplicate keys somehow
             for key, val in self.params.items():
-                mlflow.log_param(key, val)
+                try:
+                    mlflow.log_param(key, val)
+                except mlflow.exceptions.MlflowException:
+                    logger.warning(f'Unable to log param {key} with value {val} to dashboard: '
+                                   f'has it already been logged (if this run is resumed from a checkpoint)?')
             logger.debug("Logged all run parameters to MLFlow dashboard!")
 
     def get_scheduler_lr(self) -> float:
