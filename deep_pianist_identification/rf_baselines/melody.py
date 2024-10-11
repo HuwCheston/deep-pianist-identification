@@ -61,19 +61,24 @@ def extract_melody_ngrams(tpath: str, nclips: int, pianist: str, ngrams: list = 
     return {k: v for d in ngram_res for k, v in d.items()}, pianist
 
 
-def rf_melody(n_iter: int, valid_ngrams_count: int, ngrams: list[int]) -> None:
+def rf_melody(dataset: str, n_iter: int, valid_ngrams_count: int, ngrams: list[int]) -> None:
     """Create and optimize random forest melody classifier using provided command line arguemnts"""
     logger.info("Creating baseline random forest classifier using melody data!")
     # Get clips from both datasets
-    logger.info("Getting tracks from all data splits...")
-    train_clips = list(rf_utils.get_split_clips("train"))
-    test_clips = list(rf_utils.get_split_clips("test"))
-    logger.info(f"... found {len(train_clips)} training tracks and {len(test_clips)} testing tracks!")
+    logger.info(f"Getting tracks from all splits for dataset {dataset}...")
+    train_clips = list(rf_utils.get_split_clips("train", dataset))
+    test_clips = list(rf_utils.get_split_clips("test", dataset))
+    validation_clips = list(rf_utils.get_split_clips("validation", dataset))
+    logger.info(f"... found {len(train_clips)} train tracks, "
+                f"{len(test_clips)} test tracks, "
+                f"{len(validation_clips)} validation tracks!")
     # Get n-grams from both datasets
     logger.info("Extracting n-grams from training tracks..")
     temp_x, train_y = rf_utils.extract_ngrams_from_clips(train_clips, extract_melody_ngrams, ngrams)
     logger.info("Extracting n-grams from testing tracks...")
     test_x, test_y = rf_utils.extract_ngrams_from_clips(test_clips, extract_melody_ngrams, ngrams)
+    logger.info("Extracting n-grams from validation tracks...")
+    valid_x, valid_y = rf_utils.extract_ngrams_from_clips(validation_clips, extract_melody_ngrams, ngrams)
     # Get those n-grams that appear in at least N tracks in the training dataset
     logger.info(f"Extracting n-grams which appear in at least {valid_ngrams_count} training tracks...")
     valid_ngs = rf_utils.get_valid_ngrams(temp_x, valid_count=valid_ngrams_count)
@@ -82,22 +87,28 @@ def rf_melody(n_iter: int, valid_ngrams_count: int, ngrams: list[int]) -> None:
     logger.info("Formatting features...")
     train_x = rf_utils.drop_invalid_ngrams(temp_x, valid_ngs)
     test_x = rf_utils.drop_invalid_ngrams(test_x, valid_ngs)
+    valid_x = rf_utils.drop_invalid_ngrams(valid_x, valid_ngs)
     # Convert both training and testing features into numpy arrays with the same dimensionality
     # TODO: we can add the validation split into this
-    train_x_arr, test_x_arr = rf_utils.format_features(train_x, test_x)
+    train_x_arr, test_x_arr, valid_x_arr = rf_utils.format_features(train_x, test_x, valid_x)
     # Load the optimized parameter settings (or recreate them, if they don't exist)
     logger.info(f"Beginning parameter optimization with {n_iter} iterations...")
-    csvpath = os.path.join(utils.get_project_root(), 'references/rf_baselines', 'melody.csv')
+    csvpath = os.path.join(utils.get_project_root(), 'references/rf_baselines', f'{dataset}_melody.csv')
     logger.info(f"... optimization results will be saved in {csvpath}")
     optimized_params = rf_utils.optimize_classifier(train_x_arr, train_y, test_x_arr, test_y, csvpath, n_iter=n_iter)
     # Create the optimized random forest model
+    logger.info("Optimization finished, fitting optimized model to test and validation set...")
     clf_opt = RandomForestClassifier(**optimized_params, random_state=utils.SEED)
     clf_opt.fit(train_x_arr, train_y)
     # Get the optimized test accuracy
     test_y_pred = clf_opt.predict(test_x_arr)
     test_acc = accuracy_score(test_y, test_y_pred)
-    logger.info(f"Test accuracy for melody: {test_acc:.2f}")
-    # TODO: compute validation accuracy using optimized settings
+    logger.info(f"... test accuracy for melody: {test_acc:.2f}")
+    # Get the optimized validation accuracy
+    valid_y_pred = clf_opt.predict(valid_x_arr)
+    valid_acc = accuracy_score(valid_y, valid_y_pred)
+    logger.info(f"... validation accuracy for melody: {valid_acc:.2f}")
+    logger.info('Done!')
 
 
 if __name__ == "__main__":
@@ -106,6 +117,10 @@ if __name__ == "__main__":
     utils.seed_everything(utils.SEED)
     # Parsing arguments from the command line interface
     parser = argparse.ArgumentParser(description='Create baseline random forest classifier for melody')
+    parser.add_argument(
+        "-d", "--dataset", default="20class_80min", type=str,
+        help="Name of dataset inside `references/data_split`"
+    )
     parser.add_argument(
         "-i", "--n-iter", default=rf_utils.N_ITER, type=int, help="Number of optimization iterations"
     )
@@ -116,4 +131,7 @@ if __name__ == "__main__":
     parser.add_argument('-l', '--ngrams', nargs='+', type=int, help="Extract these n-grams", default=NGRAMS)
     # Parse all arguments and create the forest
     args = vars(parser.parse_args())
-    rf_melody(n_iter=args["n_iter"], ngrams=args["ngrams"], valid_ngrams_count=args["valid_ngrams_count"])
+    rf_melody(
+        dataset=args['dataset'], n_iter=args["n_iter"], ngrams=args["ngrams"],
+        valid_ngrams_count=args["valid_ngrams_count"]
+    )

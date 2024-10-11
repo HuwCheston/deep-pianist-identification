@@ -107,12 +107,12 @@ def threadsafe_save_csv(obj: list | dict, fpath: str) -> None:
     replacer()
 
 
-def get_split_clips(split_name: str) -> tuple[str, int, str]:
-    """For a given CSV, yields tuples of track path, N track clips, track target"""
+def get_split_clips(split_name: str, dataset: str = "20class_80min") -> tuple[str, int, str]:
+    """For a given CSV and dataset, yields tuples of track path, N track clips, track target"""
     # Quick check to make sure the split name is valid
     assert split_name in ["test", "train", "validation"], "`split_name` must be one of 'test', 'train', or 'validation"
     # Load the dataframe
-    split_path = os.path.join(utils.get_project_root(), 'references/data_splits', f'{split_name}_split.csv')
+    split_path = os.path.join(utils.get_project_root(), 'references/data_splits', dataset, f'{split_name}_split.csv')
     test_clips = pd.read_csv(split_path, index_col=0, delimiter=',')
     # Iterate through rows (= tracks)
     for idx, track in test_clips.iterrows():
