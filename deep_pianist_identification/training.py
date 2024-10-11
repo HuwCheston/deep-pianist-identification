@@ -538,6 +538,8 @@ if __name__ == "__main__":
 
     # Running training with logging on MLFlow
     if args["mlflow_cfg"]["use"]:
+        # Get the run ID from our config. Fall back to None if not provided
+        run_id = args["mlflow_cfg"].get("run_id", None)
         # Get the tracking URI based on the hostname of the device running the job
         uri = get_tracking_uri()
         logger.debug(f'Attempting to connect to MLFlow server at {uri}...')
@@ -553,7 +555,7 @@ if __name__ == "__main__":
         else:
             # Otherwise, start training with the arguments we've passed in
             tm = TrainModule(**args)
-            with mlflow.start_run(run_name=args["run"]):
+            with mlflow.start_run(run_name=args["run"], run_id=run_id):
                 tm.run_training()
 
     # Running training locally

@@ -1,6 +1,6 @@
 experiment: baselines
 run: crnn-jtd+pijama-augment
-batch_size: 5
+batch_size: 20
 epochs: 100
 data_split_dir: 20class_80min
 classify_dataset: False
@@ -30,4 +30,5 @@ checkpoint_cfg:
   checkpoint_after_n_epochs: 10
 mlflow_cfg:
   use: True
+  run_id: af0ff46a3162469ab7ab772daacbcbb9
   tracking_uri: http://127.0.0.1:5000

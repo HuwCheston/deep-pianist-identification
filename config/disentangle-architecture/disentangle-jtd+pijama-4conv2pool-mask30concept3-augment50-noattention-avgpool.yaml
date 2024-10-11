@@ -1,6 +1,6 @@
 experiment: disentangle-architecture
 run: disentangle-jtd+pijama-4conv2pool-mask30concept3-augment50-noattention-avgpool
-batch_size: 2
+batch_size: 20
 epochs: 100
 data_split_dir: 20class_80min
 classify_dataset: False
@@ -40,4 +40,5 @@ checkpoint_cfg:
   checkpoint_after_n_epochs: 10
 mlflow_cfg:
   use: True
+  run_id: 025dcf997ec64295b0ba0c60bcad33b7
   tracking_uri: http://127.0.0.1:5000
