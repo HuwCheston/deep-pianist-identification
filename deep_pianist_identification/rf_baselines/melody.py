@@ -102,11 +102,11 @@ def rf_melody(dataset: str, n_iter: int, valid_ngrams_count: int, ngrams: list[i
     # Get the optimized test accuracy
     test_y_pred = clf_opt.predict(test_x_arr)
     test_acc = accuracy_score(test_y, test_y_pred)
-    logger.info(f"... test accuracy for melody: {test_acc:.2f}")
+    logger.info(f"... test accuracy for melody: {test_acc:.3f}")
     # Get the optimized validation accuracy
     valid_y_pred = clf_opt.predict(valid_x_arr)
     valid_acc = accuracy_score(valid_y, valid_y_pred)
-    logger.info(f"... validation accuracy for melody: {valid_acc:.2f}")
+    logger.info(f"... validation accuracy for melody: {valid_acc:.3f}")
     logger.info('Done!')
 
 

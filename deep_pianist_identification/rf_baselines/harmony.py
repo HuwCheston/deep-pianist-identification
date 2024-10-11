@@ -16,7 +16,7 @@ import deep_pianist_identification.rf_baselines.rf_utils as rf_utils
 from deep_pianist_identification import utils
 from deep_pianist_identification.extractors import HarmonyExtractor, ExtractorError
 
-VALID_CHORDS = 20
+VALID_CHORDS = 10
 
 
 def extract_fn(roll: PrettyMIDI, transpose: bool = True):
@@ -45,8 +45,8 @@ def extract_chords(tpath, nclips, pianist, remove_highest_pitch: bool):
 
 
 def rf_harmony(dataset: str, n_iter: int, valid_chords_count: int, remove_highest_pitch: bool):
-    """Create and optimize random forest melody classifier using provided command line arguemnts"""
-    logger.info("Creating baseline random forest classifier using melody data!")
+    """Create and optimize random forest harmony classifier using provided command line arguemnts"""
+    logger.info("Creating baseline random forest classifier using harmony data!")
     # Get clips from all splits of the dataset
     logger.info(f"Getting tracks from all splits for dataset {dataset}...")
     train_clips = list(rf_utils.get_split_clips("train", dataset))
@@ -84,11 +84,11 @@ def rf_harmony(dataset: str, n_iter: int, valid_chords_count: int, remove_highes
     # Get the optimized test accuracy
     test_y_pred = clf_opt.predict(test_x_arr)
     test_acc = accuracy_score(test_y, test_y_pred)
-    logger.info(f"... test accuracy for harmony: {test_acc:.2f}")
+    logger.info(f"... test accuracy for harmony: {test_acc:.3f}")
     # Get the optimized validation accuracy
     valid_y_pred = clf_opt.predict(valid_x_arr)
     valid_acc = accuracy_score(valid_y, valid_y_pred)
-    logger.info(f"... validation accuracy for harmony: {valid_acc:.2f}")
+    logger.info(f"... validation accuracy for harmony: {valid_acc:.3f}")
     logger.info('Done!')
 
 
