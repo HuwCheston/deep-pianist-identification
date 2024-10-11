@@ -159,6 +159,80 @@ class TrainTest(unittest.TestCase):
         actual_acc = accuracy(actual_preds, actual_targets, task="multiclass", num_classes=3)
         self.assertEqual(expected_acc, actual_acc)
 
+    def test_classification_head_size(self):
+        # Iterate through all the encoder modules we want to train
+        for encoder in ['cnn', 'crnn', 'disentangle']:
+            for dataset, n_classes in zip(['25class_0min', '20class_80min'], [25, 20]):
+                # Set the encoder module and datset correctly in our configuration dictionary
+                cfg = DEFAULT_CONFIG.copy()
+                cfg['data_split_dir'] = dataset
+                cfg['encoder_module'] = encoder
+                # Create the train module and assert that the classification head output size is correct
+                tm = TrainModule(**cfg)
+                self.assertEqual(tm.num_classes, n_classes)
+                self.assertEqual(tm.model.fc2.fc.out_features, n_classes)
+                # Testing binary classification with the same dataset
+                cfg = DEFAULT_CONFIG.copy()
+                cfg['data_split_dir'] = dataset
+                cfg['encoder_module'] = encoder
+                cfg['classify_dataset'] = True
+                # Create the train module and assert that the classification head output size is correct
+                tm = TrainModule(**cfg)
+                self.assertEqual(tm.num_classes, 2)
+                self.assertEqual(tm.model.fc2.fc.out_features, 2)
+
+    def test_targets_range(self):
+        for encoder in ['cnn', 'crnn', 'disentangle']:
+            for dataset, n_classes in zip(['25class_0min', '20class_80min'], [25, 20]):
+                # Set the encoder module and datset correctly in our configuration dictionary
+                cfg = DEFAULT_CONFIG.copy()
+                cfg['data_split_dir'] = dataset
+                cfg['encoder_module'] = encoder
+                # Set batch size and number of clips to process correctly
+                cfg['batch_size'] = 5
+                cfg['train_dataset_cfg']['n_clips'] = 50
+                cfg['test_dataset_cfg']['n_clips'] = 50
+                # Create the train module
+                tm = TrainModule(**cfg)
+                # Iterate through a few batches in the training and test loader
+                n_batches = 0
+                for loader in [tm.train_loader, tm.test_loader]:
+                    for batch, targets, _ in loader:
+                        # Range of target values should be within range supplied
+                        self.assertTrue(all([i in range(n_classes) for i in targets.tolist()]))
+                        self.assertFalse(any([i not in range(n_classes) for i in targets.tolist()]))
+                        # Break out once we've checked ten batches
+                        n_batches += 1
+                        if n_batches > 10:
+                            break
+
+    def test_target_mapping(self):
+        # IDXs for first and last pianist in the dataset
+        test_mapping = [
+            {0: "Abdullah Ibrahim", 24: "Tommy Flanagan"},
+            {0: "Abdullah Ibrahim", 19: "Tommy Flanagan"},
+        ]
+        for dataset, mapper in zip(['25class_0min', '20class_80min'], test_mapping):
+            # Set the encoder module and datset correctly in our configuration dictionary
+            cfg = DEFAULT_CONFIG.copy()
+            cfg['data_split_dir'] = dataset
+            # Set the batch size
+            cfg['batch_size'] = 5
+            cfg['train_dataset_cfg']['n_clips'] = None
+            cfg['test_dataset_cfg']['n_clips'] = None
+            # Create the train module
+            tm = TrainModule(**cfg)
+            for loader in [tm.train_loader, tm.test_loader]:
+                for batch, targets, tracks in loader:
+                    targets = targets.tolist()
+                    # If we have any of our two test pianists in the batch
+                    if any([i in targets for i in list(mapper.keys())]):
+                        # Check that the surname of the pianist is in any one of our returned track names
+                        surnames = [i.lower().split(' ')[1] for i in mapper.values()]
+                        self.assertTrue(any([any([s_ in t for t in tracks]) for s_ in surnames]))
+                        # Break out to test the next part of the loop
+                        break
+
 
 if __name__ == '__main__':
     seed_everything(SEED)
