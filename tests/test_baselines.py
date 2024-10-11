@@ -1,15 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Test suite for random forest baselines in deep_pianist_identification/rf_baselines/***.py."""
+"""Test suite for baselines (random forest and C(R)NN/resnet)"""
 
 import unittest
 
 import numpy as np
+import torch
 from pretty_midi import PrettyMIDI, Instrument, Note
 
 import deep_pianist_identification.rf_baselines.rf_utils as rf_utils
 import deep_pianist_identification.utils as utils
+from deep_pianist_identification.encoders import CNNet, CRNNet, ResNet50
+from deep_pianist_identification.encoders.shared import IBN
 
 
 class ForestTest(unittest.TestCase):
@@ -113,6 +116,59 @@ class ForestTest(unittest.TestCase):
         expected_chords_notranspose = [[25, 30, 35, 40], [45, 55, 65]]
         actual_chords_notranspose = list(extract_fn(midi, transpose=False))
         self.assertEqual(expected_chords_notranspose, actual_chords_notranspose)
+
+
+class BaselineNNTest(unittest.TestCase):
+    def test_cnn(self):
+        # Test max pool and BN
+        cn = CNNet(num_classes=15, pool_type="max", norm_type="bn")
+        self.assertEqual(cn.fc2.fc.out_features, 15)
+        self.assertTrue(cn.layer4.has_pool)
+        self.assertFalse(cn.layer8.has_pool)
+        self.assertIsInstance(cn.layer2.norm, torch.nn.BatchNorm2d)
+        self.assertIsInstance(cn.pooling, torch.nn.AdaptiveMaxPool2d)
+        # Test avg pool and IBN
+        cn = CNNet(num_classes=15, pool_type="avg", norm_type="ibn")
+        self.assertIsInstance(cn.layer2.norm, IBN)
+        self.assertIsInstance(cn.pooling, torch.nn.AdaptiveAvgPool2d)
+        # Test forward
+        x = torch.rand(4, 1, 88, 3000)
+        expected = (4, 15)
+        actual = cn(x)
+        self.assertEqual(actual.size(), expected)
+
+    def test_crnn(self):
+        # Test default parameters
+        crn = CRNNet(num_classes=15)
+        self.assertEqual(crn.fc2.fc.out_features, 15)
+        self.assertTrue(crn.layer4.has_pool)
+        self.assertFalse(crn.layer8.has_pool)
+        self.assertIsInstance(crn.layer2.norm, torch.nn.BatchNorm2d)
+        self.assertIsInstance(crn.pooling, torch.nn.AdaptiveMaxPool2d)
+        # Test avg pooling
+        crn = CRNNet(num_classes=15, pool_type="avg")
+        self.assertIsInstance(crn.pooling, torch.nn.AdaptiveAvgPool2d)
+        # Test forward
+        x = torch.rand(4, 1, 88, 3000)
+        expected = (4, 15)
+        actual = crn(x)
+        self.assertEqual(actual.size(), expected)
+        # Test GRU
+        x_after_conv = torch.rand(4, 512, 11, 375)
+        expected_gru_size = (4, 512, 375)
+        actual_gru_size = crn.gru(x_after_conv).size()
+        self.assertEqual(actual_gru_size, expected_gru_size)
+
+    def test_resnet(self):
+        rn = ResNet50(num_classes=15)
+        self.assertEqual(rn.fc.out_features, 15)
+        self.assertIsInstance(rn.layer1[0].bn1, torch.nn.BatchNorm2d)
+        # self.assertIsInstance(rn.pooling.__module__, torch.nn.AdaptiveMaxPool2d)
+        # Test forward
+        x = torch.rand(4, 1, 88, 3000)
+        expected = (4, 15)
+        actual = rn(x)
+        self.assertEqual(actual.size(), expected)
 
 
 if __name__ == '__main__':
