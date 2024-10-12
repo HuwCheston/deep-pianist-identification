@@ -261,8 +261,12 @@ class TrainModule:
         save_kwargs = dict(format='png', facecolor=plotting.WHITE)
         # If we're using mlflow, log directly using their API
         if self.mlflow_cfg["use"]:
-            mlflow.log_figure(figure, filename, save_kwargs=save_kwargs)
-            logger.debug(f'Saved figure {filename} on MLFlow as an artifact for {self.experiment}/{self.run}')
+            try:
+                mlflow.log_figure(figure, filename, save_kwargs=save_kwargs)
+            except mlflow.exceptions.MlflowException:
+                logger.warning(f'Could not log figure with filename {filename}: does it already exist?')
+            else:
+                logger.debug(f'Saved figure {filename} on MLFlow as an artifact for {self.experiment}/{self.run}')
         # Otherwise, create the figure locally in the checkpoints directory for this run
         else:
             figures_folder = os.path.join(get_project_root(), 'checkpoints', self.experiment, self.run, 'figures')
@@ -559,6 +563,12 @@ if __name__ == "__main__":
         else:
             # Otherwise, start training with the arguments we've passed in
             tm = TrainModule(**args)
+            # Log if the run is being resumed or not
+            if run_id is not None:
+                logger.debug(f'Resuming run with name {args["run"]}, ID {run_id}!')
+            else:
+                logger.debug(f'Starting new run with name {args["run"]}!')
+            # Start the run!
             with mlflow.start_run(run_name=args["run"], run_id=run_id):
                 tm.run_training()
 
