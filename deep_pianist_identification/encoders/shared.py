@@ -182,7 +182,7 @@ class LinearLayer(nn.Module):
 class TripletMarginLoss(nn.Module):
     """Simple implementation of triplet loss with a margin for negative mining and optional L2-normalization"""
 
-    def __init__(self, margin: float, similarity: str):
+    def __init__(self, margin: float = 0.3, similarity: str = "cosine"):
         super().__init__()
         self.margin = margin
         assert similarity in ["dot", "cosine"], "similarity must be either 'dot' or 'cosine'"

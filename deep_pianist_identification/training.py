@@ -19,8 +19,8 @@ from torchmetrics.classification import Accuracy, ConfusionMatrix
 from tqdm import tqdm
 
 import deep_pianist_identification.plotting as plotting
-from deep_pianist_identification.dataloader import MIDILoader, remove_bad_clips_from_batch
-from deep_pianist_identification.encoders import CRNNet, CNNet, DisentangleNet, ResNet50
+from deep_pianist_identification.dataloader import MIDILoader, MIDITripletLoader, remove_bad_clips_from_batch
+from deep_pianist_identification.encoders import CRNNet, CNNet, DisentangleNet, ResNet50, TripletMarginLoss
 from deep_pianist_identification.utils import DEVICE, seed_everything, get_project_root, SEED
 
 __all__ = ["groupby_tracks", "get_model", "TrainModule", "parse_config_yaml", "DEFAULT_CONFIG", "NoOpScheduler"]
@@ -113,12 +113,16 @@ class TrainModule:
         ).to(DEVICE)
         n_params = sum(p.numel() for p in self.model.parameters())
         logger.debug(f'Model parameters: {n_params}')
+        # LOSS
+        logger.debug(f'Initialising {self.loss_type} loss function with parameters {self.loss_cfg}...')
+        self.loss_fn = self.get_loss_fn(self.loss_type, self.loss_cfg).to(DEVICE)
+        dataloader_cls = MIDITripletLoader if self.loss_type == "triplet" else MIDILoader
         # DATALOADERS
         logger.debug(f'Loading data splits from `references/data_splits/{self.data_split_dir}`')
         logger.debug(f'Initialising training dataloader with batch size {self.batch_size} '
                      f'and parameters {self.train_dataset_cfg}')
         self.train_loader = DataLoader(
-            MIDILoader(
+            dataloader_cls(
                 'train',
                 classify_dataset=self.classify_dataset,
                 data_split_dir=self.data_split_dir,
@@ -132,7 +136,7 @@ class TrainModule:
         logger.debug(f'Initialising test dataloader with batch size {self.batch_size} '
                      f'and parameters {self.test_dataset_cfg}')
         self.test_loader = DataLoader(
-            MIDILoader(
+            dataloader_cls(
                 'test',
                 classify_dataset=self.classify_dataset,
                 data_split_dir=self.data_split_dir,
@@ -144,8 +148,7 @@ class TrainModule:
             collate_fn=remove_bad_clips_from_batch
         )
         # LOSS AND METRICS
-        logger.debug('Initialising loss and metrics...')
-        self.loss_fn = nn.CrossEntropyLoss(reduction='mean').to(DEVICE)
+        logger.debug('Initialising metrics...')
         if self.classify_dataset:
             self.acc_fn = Accuracy(task="binary", num_classes=self.num_classes).to(DEVICE)
             self.confusion_matrix_fn = ConfusionMatrix(
@@ -171,6 +174,17 @@ class TrainModule:
         # CHECKPOINTS
         if self.checkpoint_cfg["load_checkpoints"]:
             self.load_checkpoint()
+
+    @staticmethod
+    def get_loss_fn(loss_fn: str, loss_cfg: dict):
+        """Return the correct loss function initialised with all keyword arguments"""
+        losses = ["triplet", "cce"]
+        assert loss_fn in losses, "`loss_fn` must be one of " + ", ".join(losses)
+        # Return the correct loss function with all of our kwargs
+        if loss_fn == "triplet":
+            return TripletMarginLoss(**loss_cfg)
+        else:
+            return nn.CrossEntropyLoss(reduction='mean', **loss_cfg)
 
     def get_class_mapping(self) -> dict:
         if self.classify_dataset:
@@ -209,13 +223,27 @@ class TrainModule:
         elif sched_type == "linear":
             return torch.optim.lr_scheduler.LinearLR
 
-    def step(self, features: torch.tensor, targets: torch.tensor) -> tuple:
+    def step(self, features: torch.tensor, targets: torch.tensor, positives: torch.tensor = None) -> tuple:
         # Set device correctly for both features and targets
         features = features.to(DEVICE)
         targets = targets.to(DEVICE)
-        logits = self.model(features)
-        # No need to softmax beforehand, `nn.CrossEntropyLoss` does this automatically
-        loss = self.loss_fn(logits, targets)
+        if self.loss_type == "cce":
+            logits = self.model(features)
+            # No need to softmax beforehand, `nn.CrossEntropyLoss` does this automatically
+            loss = self.loss_fn(logits, targets)
+        else:
+            # Positive roll to current device
+            positives = positives.to(DEVICE)
+            # Compute embeddings for both features(/anchors) and positives seperately
+            feature_embeds = self.model.forward_features(features)
+            positive_embeds = self.model.forward_features(positives)
+            # Compute the similarity matrix between features and positives (negatives are other elements in batch)
+            similarity_matrix = self.loss_fn.compute_similarity_matrix(feature_embeds, positive_embeds)
+            # Compute the margin loss (will set distance to other clips from same target == 0)
+            logits = self.loss_fn.compute_loss(similarity_matrix, targets)
+            # Compute the final loss as the mean of the similarity matrix
+            loss = logits.mean()
+        # Apply softmax and argmax to get predicted class
         softmaxed = nn.functional.softmax(logits, dim=1)
         predictions = torch.argmax(softmaxed, dim=1)
         # Compute clip level metrics
@@ -229,13 +257,19 @@ class TrainModule:
         # Set model mode correctly
         self.model.train()
         # Iterate through all batches, with a nice TQDM counter
-        for features, targets, batch_names in tqdm(
+        for batch in tqdm(
                 self.train_loader,
                 total=len(self.train_loader),
                 desc=f'Training, epoch {epoch_num} / {self.epochs}...'
         ):
+            # Unpack the batch: either three elements (CCE loss) or four (triplet loss)
+            if len(batch) == 3:
+                features, targets, batch_names = batch
+                positives = None  # Will be ignored inside .step
+            else:
+                features, targets, batch_names, positives = batch
             # Forwards pass
-            loss, acc, preds = self.step(features, targets)
+            loss, acc, preds = self.step(features, targets, positives)
             # Backwards pass
             self.optimizer.zero_grad()
             loss.backward()
