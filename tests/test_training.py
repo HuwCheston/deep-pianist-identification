@@ -13,7 +13,8 @@ from torchmetrics.classification import (
 )
 from torchmetrics.functional import accuracy
 
-from deep_pianist_identification.encoders import DisentangleNet
+from deep_pianist_identification.dataloader import MIDILoader, MIDITripletLoader
+from deep_pianist_identification.encoders import DisentangleNet, TripletMarginLoss
 from deep_pianist_identification.training import (
     TrainModule, DEFAULT_CONFIG, groupby_tracks, parse_config_yaml, NoOpScheduler
 )
@@ -297,6 +298,26 @@ class TrainTest(unittest.TestCase):
         # Check the optimizer
         self.assertIsInstance(trainer.optimizer, torch.optim.Adam)
         self.assertIsInstance(trainer.scheduler, NoOpScheduler)
+
+    def test_loss_fn_parsing(self):
+        # Test with a triplet loss
+        cfg = DEFAULT_CONFIG.copy()
+        cfg["loss_type"] = "triplet"
+        trip_tm = TrainModule(**cfg)
+        self.assertIsInstance(trip_tm.train_loader.dataset, MIDITripletLoader)
+        self.assertIsInstance(trip_tm.test_loader.dataset, MIDITripletLoader)
+        self.assertIsInstance(trip_tm.loss_fn, TripletMarginLoss)
+        batch = next(iter(trip_tm.train_loader))  # anchor piano roll, target class, track name, positive piano roll
+        self.assertEqual(len(batch), 4)
+        # Test with a cross-entropy loss
+        cfg = DEFAULT_CONFIG.copy()
+        cfg["loss_type"] = "cce"
+        trip_tm = TrainModule(**cfg)
+        self.assertIsInstance(trip_tm.train_loader.dataset, MIDILoader)
+        self.assertIsInstance(trip_tm.test_loader.dataset, MIDILoader)
+        self.assertIsInstance(trip_tm.loss_fn, torch.nn.CrossEntropyLoss)
+        batch = next(iter(trip_tm.train_loader))  # piano roll, target class, track name
+        self.assertEqual(len(batch), 3)
 
 
 if __name__ == '__main__':

@@ -116,13 +116,13 @@ class TrainModule:
         # LOSS
         logger.debug(f'Initialising {self.loss_type} loss function with parameters {self.loss_cfg}...')
         self.loss_fn = self.get_loss_fn(self.loss_type, self.loss_cfg).to(DEVICE)
-        dataloader_cls = MIDITripletLoader if self.loss_type == "triplet" else MIDILoader
+        self.dataloader_cls = MIDITripletLoader if self.loss_type == "triplet" else MIDILoader
         # DATALOADERS
         logger.debug(f'Loading data splits from `references/data_splits/{self.data_split_dir}`')
         logger.debug(f'Initialising training dataloader with batch size {self.batch_size} '
                      f'and parameters {self.train_dataset_cfg}')
         self.train_loader = DataLoader(
-            dataloader_cls(
+            self.dataloader_cls(
                 'train',
                 classify_dataset=self.classify_dataset,
                 data_split_dir=self.data_split_dir,
@@ -136,7 +136,7 @@ class TrainModule:
         logger.debug(f'Initialising test dataloader with batch size {self.batch_size} '
                      f'and parameters {self.test_dataset_cfg}')
         self.test_loader = DataLoader(
-            dataloader_cls(
+            self.dataloader_cls(
                 'test',
                 classify_dataset=self.classify_dataset,
                 data_split_dir=self.data_split_dir,
@@ -338,13 +338,20 @@ class TrainModule:
         self.model.eval()
         # Iterate through all batches, with a nice TQDM counter
         with torch.no_grad():
-            for features, targets, batch_names in tqdm(
+            # Iterate through all batches, with a nice TQDM counter
+            for batch in tqdm(
                     self.test_loader,
                     total=len(self.test_loader),
-                    desc=f'Testing, epoch {epoch_num} / {self.epochs}...'
+                    desc=f'Training, epoch {epoch_num} / {self.epochs}...'
             ):
+                # Unpack the batch: either three elements (CCE loss) or four (triplet loss)
+                if len(batch) == 3:
+                    features, targets, batch_names = batch
+                    positives = None  # Will be ignored inside .step
+                else:
+                    features, targets, batch_names, positives = batch
                 # Forwards pass
-                loss, acc, preds = self.step(features, targets)
+                loss, acc, preds = self.step(features, targets, positives)
                 # No backwards pass, just append all clip-level metrics from this batch
                 clip_losses.append(loss.item())
                 clip_accs.append(acc.item())
@@ -505,7 +512,7 @@ class TrainModule:
         # Try and create the validation dataloader
         try:
             validation_loader = DataLoader(
-                MIDILoader(
+                self.dataloader_cls(
                     'validation',
                     classify_dataset=self.classify_dataset,
                     data_split_dir=self.data_split_dir,
@@ -528,13 +535,19 @@ class TrainModule:
         self.model.eval()
         # Iterate through all batches, with a nice TQDM counter
         with torch.no_grad():
-            for features, targets, batch_names in tqdm(
+            for batch in tqdm(
                     validation_loader,
                     total=len(validation_loader),
                     desc=f'Validating...'
             ):
+                # Unpack the batch: either three elements (CCE loss) or four (triplet loss)
+                if len(batch) == 3:
+                    features, targets, batch_names = batch
+                    positives = None  # Will be ignored inside .step
+                else:
+                    features, targets, batch_names, positives = batch
                 # Forwards pass
-                loss, acc, preds = self.step(features, targets)
+                loss, acc, preds = self.step(features, targets, positives)
                 # No backwards pass, just append all clip-level metrics from this batch
                 clip_loss.append(loss.item())
                 clip_accs.append(acc.item())
