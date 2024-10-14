@@ -6,7 +6,9 @@
 import torch
 import torch.nn as nn
 
-__all__ = ["MaskedAvgPool", "LinearFlatten", "Conv1x1", "GeM", "IBN", "ConvLayer", "LinearLayer", "GRU"]
+__all__ = [
+    "MaskedAvgPool", "LinearFlatten", "Conv1x1", "GeM", "IBN", "ConvLayer", "LinearLayer", "GRU", "TripletMarginLoss"
+]
 
 
 class MaskedAvgPool(nn.Module):
@@ -175,3 +177,38 @@ class LinearLayer(nn.Module):
         a = self.fc(a)
         a = self.drop(a)
         return a
+
+
+class TripletMarginLoss(nn.Module):
+    """Simple implementation of triplet loss with a margin for negative mining and optional L2-normalization"""
+
+    def __init__(self, margin: float, similarity: str):
+        super().__init__()
+        self.margin = margin
+        assert similarity in ["dot", "cosine"], "similarity must be either 'dot' or 'cosine'"
+        # Cosine similarity == dot product of L2-normalized vectors
+        self.normalize = True if similarity == "cosine" else False
+
+    def compute_similarity_matrix(self, anchors: torch.tensor, positives: torch.tensor) -> torch.tensor:
+        # If we're applying L2 normalization
+        if self.normalize:
+            anchors = torch.nn.functional.normalize(anchors, p=2, dim=-1)
+            positives = torch.nn.functional.normalize(positives, p=2, dim=-1)
+        # Compute dot product
+        return torch.matmul(anchors, positives.permute(1, 0))
+
+    def compute_loss(self, similarity_matrix: torch.tensor):
+        # Triplet loss: normalized, cross entropy is not normalized
+        positive_sims = similarity_matrix.diagonal().unsqueeze(1)
+        negative_sims = similarity_matrix.clone()
+        # Calculate the loss: relu has function of the max(0, sim) operation
+        loss = torch.nn.functional.relu(negative_sims - positive_sims + self.margin)
+        # Set the diagonals (positive similarity) to 0
+        return loss * ~torch.eye(*loss.size(), device=similarity_matrix.device).bool()
+
+    def forward(self, anchors: torch.tensor, positives: torch.tensor) -> torch.tensor:
+        # Compute (potentially normalized) similarity matrix
+        similarity_matrix = self.compute_similarity_matrix(anchors, positives)
+        # Compute the loss from the similarity matrix and return the mean
+        loss = self.compute_loss(similarity_matrix)
+        return loss.mean()

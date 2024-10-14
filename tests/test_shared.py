@@ -79,6 +79,26 @@ class SharedTest(unittest.TestCase):
         expected = (1, 25)
         self.assertEqual(actual.size(), expected)
 
+    def test_tripletmarginloss(self):
+        # Set the batch size and margin
+        batch_size = 4
+        margin = 0.01
+        # Compute random anchor and positive vectors
+        anc = torch.rand(batch_size, 512)
+        pos = torch.rand(batch_size, 512)
+        loss = TripletMarginLoss(margin=margin, similarity="cosine")
+        # Compute the similarity matrix
+        actual = loss.compute_similarity_matrix(anc, pos)
+        self.assertEqual(actual.size()[0], batch_size)  # Size should just be the batch size
+        self.assertTrue(all([-1. <= i <= 1. for i in actual.flatten()]))  # All values should be between -1 and 1
+        # Compute the loss matrix
+        loss_matrix = loss.compute_loss(actual)
+        self.assertTrue(all([i == 0. for i in loss_matrix.diagonal().unsqueeze(1)]))  # All diagonals should be 0
+        # Set one of the values so it falls outside the margin and recompute matrix
+        actual[0, 1] = actual[0, 0] - (margin * 2)
+        loss_matrix = loss.compute_loss(actual)
+        self.assertEqual(loss_matrix[0, 1].item(), 0)  # this value should now be set to 0
+
 
 if __name__ == '__main__':
     seed_everything(SEED)
