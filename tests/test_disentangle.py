@@ -12,7 +12,9 @@ from torch.utils.data import DataLoader
 from deep_pianist_identification.dataloader import MIDILoader, remove_bad_clips_from_batch
 from deep_pianist_identification.encoders import DisentangleNet, Concept
 from deep_pianist_identification.encoders.shared import MaskedAvgPool, LinearFlatten, Conv1x1
-from deep_pianist_identification.utils import DEVICE, seed_everything, SEED, PIANO_KEYS, FPS, CLIP_LENGTH
+from deep_pianist_identification.utils import (
+    DEVICE, seed_everything, SEED, PIANO_KEYS, FPS, CLIP_LENGTH
+)
 
 
 class DisentangledTest(unittest.TestCase):
@@ -191,6 +193,42 @@ class DisentangledTest(unittest.TestCase):
             dict(in_channels=256, out_channels=512, has_pool=False),
         ]
         self.assertRaises(AssertionError, Concept, layers=badlayers)
+
+    def test_masking(self):
+        # Test with no masking being applied
+        nomask = DisentangleNet(num_classes=20, use_masking=False, mask_probability=0.0)
+        self.assertFalse(nomask.use_masking and nomask.training)
+        # We should never apply masking
+        nomask_embeddings = nomask.mask([torch.rand(2, 1, 512) for _ in range(4)])
+        self.assertTrue(all((torch.count_nonzero(emb) > 0).item() for emb in nomask_embeddings))
+
+        # Test with masking always being applied
+        yesmask = DisentangleNet(num_classes=20, use_masking=True, mask_probability=1.0)
+        masked_embeddings = yesmask.mask([torch.rand(2, 1, 512) for _ in range(4)])
+        # At least one embedding should be replaced with all zeros
+        self.assertTrue(any((torch.count_nonzero(emb) == 0).item() for emb in masked_embeddings))
+        self.assertTrue((torch.count_nonzero(yesmask.dropper(torch.rand(2, 1, 512))) == 0).item())
+
+        # Test with masking being applied usually, but we're testing
+        testmask = DisentangleNet(num_classes=20, use_masking=True, mask_probability=1.0)
+        testmask.eval()
+        test_embeddings = testmask.mask([torch.rand(2, 1, 512) for _ in range(4)])
+        # No tensors should be masked
+        self.assertTrue(all((torch.count_nonzero(emb) > 0).item() for emb in test_embeddings))
+        self.assertFalse((torch.count_nonzero(testmask.dropper(torch.rand(2, 1, 512))) == 0).item())
+
+    def test_max_masked_concepts(self):
+        # Test with masking being applied to only one embedding
+        onemask = DisentangleNet(num_classes=20, use_masking=True, mask_probability=1.0, max_masked_concepts=1)
+        onemask_embeddings = onemask.mask([torch.rand(2, 1, 512) for _ in range(4)])
+        ismasked = [(torch.count_nonzero(emb) == 0).item() for emb in onemask_embeddings]
+        self.assertEqual(len([i for i in ismasked if i]), 1)
+
+        # Test with masking being applied to up to three embeddings
+        threemask = DisentangleNet(num_classes=20, use_masking=True, mask_probability=1.0, max_masked_concepts=3)
+        threemask_embeddings = threemask.mask([torch.rand(2, 1, 512) for _ in range(4)])
+        ismasked = [(torch.count_nonzero(emb) == 0).item() for emb in threemask_embeddings]
+        self.assertGreaterEqual(len([i for i in ismasked if i]), 1)
 
 
 if __name__ == '__main__':

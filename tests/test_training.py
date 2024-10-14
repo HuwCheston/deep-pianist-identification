@@ -3,16 +3,21 @@
 
 """Test suite for modules in deep_pianist_identification/training.py"""
 
+import os
 import unittest
 
 import torch
+import yaml
 from torchmetrics.classification import (
     BinaryAccuracy, MulticlassAccuracy, BinaryConfusionMatrix, MulticlassConfusionMatrix
 )
 from torchmetrics.functional import accuracy
 
-from deep_pianist_identification.training import NoOpScheduler, TrainModule, DEFAULT_CONFIG, groupby_tracks
-from deep_pianist_identification.utils import seed_everything, SEED, DEVICE
+from deep_pianist_identification.encoders import DisentangleNet
+from deep_pianist_identification.training import (
+    TrainModule, DEFAULT_CONFIG, groupby_tracks, parse_config_yaml, NoOpScheduler
+)
+from deep_pianist_identification.utils import seed_everything, SEED, DEVICE, get_project_root
 
 
 class TrainTest(unittest.TestCase):
@@ -232,6 +237,61 @@ class TrainTest(unittest.TestCase):
                         self.assertTrue(any([any([s_ in t for t in tracks]) for s_ in surnames]))
                         # Break out to test the next part of the loop
                         break
+
+    def test_arguments_parsing(self):
+        # Load up a YAML file: no masking, 4 conv layers, 3 pool layers, no attention, average pooling
+        cfg_path = "disentangle-jtd+pijama-4conv3pool-nomask-augment50-noattention-avgpool.yaml"
+        tester = yaml.safe_load(os.path.join(get_project_root(), 'config', 'disentangle-mask', cfg_path))
+        parsed = dict(config=tester)
+        parse_config_yaml(parsed)
+        # Pass the config through into the training module
+        trainer = TrainModule(**parsed)
+
+        # Check the training dataloader
+        train_loader = trainer.train_loader.dataset
+        # Should be using data augmentation with 50% probability
+        self.assertTrue(train_loader.data_augmentation)
+        self.assertEqual(train_loader.augmentation_probability, 0.5)
+        # Should be using jitter
+        self.assertTrue(train_loader.jitter_start)
+        # Should be using multichannel piano rolls
+        self.assertTrue(train_loader.multichannel)
+        self.assertEqual(train_loader.creator_func, train_loader.get_multichannel_piano_roll)
+        # Should not be classifying dataset
+        self.assertFalse(train_loader.classify_dataset)
+
+        # Check the training dataloader
+        test_loader = trainer.test_loader.dataset
+        # Should not be using data augmentation
+        self.assertFalse(test_loader.data_augmentation)
+        # Should not be using jitter
+        self.assertFalse(test_loader.jitter_start)
+        # Should be using multichannel piano rolls
+        self.assertTrue(test_loader.multichannel)
+        self.assertEqual(test_loader.creator_func, test_loader.get_multichannel_piano_roll)
+        # Should not be classifying dataset
+        self.assertFalse(test_loader.classify_dataset)
+
+        # Check the model
+        model = trainer.model
+        # Should be a disentangled encoder
+        self.assertIsInstance(model, DisentangleNet)
+        # Should not use masking
+        self.assertFalse(model.use_masking)
+        # Should have four convolution layers
+        self.assertEqual(len(model.melody_concept.layers), 4)
+        # Should have three pooling layers
+        pools = [i for i in model.melody_concept.layers if hasattr(i, "avgpool")]
+        self.assertEqual(len(pools), 3)
+        # Should not use attention
+        self.assertFalse(hasattr(model, "self_attention"))
+        self.assertFalse(model.use_attention)
+        # Should use global AVERAGE pooling
+        self.assertIsInstance(model.pooling, torch.nn.AdaptiveAvgPool1d)
+
+        # Check the optimizer
+        self.assertIsInstance(trainer.optimizer, torch.optim.Adam)
+        self.assertIsInstance(trainer.scheduler, NoOpScheduler)
 
 
 if __name__ == '__main__':
