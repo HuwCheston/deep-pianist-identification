@@ -241,8 +241,13 @@ class TrainTest(unittest.TestCase):
     def test_arguments_parsing(self):
         # Load up a YAML file: no masking, 4 conv layers, 3 pool layers, no attention, average pooling
         cfg_path = "disentangle-jtd+pijama-4conv3pool-nomask-augment50-noattention-avgpool.yaml"
+        parsed = dict()
+        # Add in the default arguments in case any have been omitted
+        for k, v in DEFAULT_CONFIG.items():
+            parsed[k] = v
+        # Add the rest of the arguments in from the YAML file
         tester = yaml.safe_load(os.path.join(get_project_root(), 'config', 'disentangle-mask', cfg_path))
-        parsed = dict(config=tester)
+        parsed["config"] = tester
         parse_config_yaml(parsed)
         # Pass the config through into the training module
         trainer = TrainModule(**parsed)
