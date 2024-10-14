@@ -248,6 +248,10 @@ class TrainModule:
         predictions = torch.argmax(softmaxed, dim=1)
         # Compute clip level metrics
         acc = self.acc_fn(predictions, targets)
+        # TODO: for CCE loss, softmaxed is the probability of the clip per class in the dataset.
+        #  For triplet, softmaxed is just the similarity with the other elements in the batch
+        #  So they're different which means we can't really compute track-level accuracy with only triplet loss
+        #  As we don't have probabilities for every class in the same way as for CCE
         return loss, acc, softmaxed
 
     def training(self, epoch_num: int) -> tuple[float, float, float]:
@@ -283,9 +287,14 @@ class TrainModule:
             track_preds.append(preds)  # List of tensors, one tensor per clip, containing class logits
             track_targets.append(targets)  # List of tensors, one tensor per batch, containing target classes
         # Group by tracks, average probabilities, and get predicted and target classes
-        predictions, targets = groupby_tracks(track_names, track_preds, track_targets)
-        # Compute track-level accuracy
-        track_acc = self.acc_fn(predictions, targets).item()
+        # TODO: we want to skip this for triplet loss?
+        try:
+            predictions, targets = groupby_tracks(track_names, track_preds, track_targets)
+        except RuntimeError:
+            track_acc = 0.
+        else:
+            # Compute track-level accuracy
+            track_acc = self.acc_fn(predictions, targets).item()
         # Return clip loss + accuracy, track accuracy
         return np.mean(clip_losses), np.mean(clip_accs), track_acc
 
