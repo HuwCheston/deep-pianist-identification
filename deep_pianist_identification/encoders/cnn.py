@@ -59,7 +59,8 @@ class CNNet(nn.Module):
         else:
             return GeM()
 
-    def forward(self, x) -> torch.tensor:
+    def forward_features(self, x: torch.tensor) -> torch.tensor:
+        """Returns feature embeddings prior to final linear projection layer(s)"""
         # (batch_size, channels, height, width)
         x = self.layer1(x)
         x = self.layer2(x)
@@ -72,8 +73,14 @@ class CNNet(nn.Module):
         # (batch_size, features)
         x = self.pooling(x)
         x = x.squeeze(2).squeeze(2)  # squeeze to remove singleton dimension
-        # (batch_size, n_classes)
+        return x
+
+    def forward(self, x) -> torch.tensor:
+        # (batch_size, 512)
+        x = self.forward_features(x)
+        # (batch_size, 128)
         x = self.fc1(x)
+        # (batch_size, n_classes)
         x = self.fc2(x)
         return x
 

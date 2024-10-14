@@ -170,6 +170,15 @@ class BaselineNNTest(unittest.TestCase):
         actual = rn(x)
         self.assertEqual(actual.size(), expected)
 
+    def test_forward_features(self):
+        models = [ResNet50, CRNNet, CNNet]
+        sizes = [2048, 512, 512]  # ResNet has 2048-dim embeddings, all others have 512-dim
+        x = torch.rand(4, 1, 88, 3000)
+        for mod, expected in zip(models, sizes):
+            mod = mod(num_classes=20)
+            actual = mod.forward_features(x).size()
+            self.assertEqual(actual, (4, expected))
+
 
 if __name__ == '__main__':
     utils.seed_everything(utils.SEED)

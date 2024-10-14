@@ -36,7 +36,8 @@ class CRNNet(CNNet):
         else:
             return GeM()
 
-    def forward(self, x) -> torch.tensor:
+    def forward_features(self, x: torch.tensor) -> torch.tensor:
+        """Returns feature embeddings prior to final linear projection layer(s)"""
         # (batch_size, channels, height, width)
         x = self.layer1(x)
         x = self.layer2(x)
@@ -51,9 +52,6 @@ class CRNNet(CNNet):
         # (batch_size, features)
         x = self.pooling(x)
         x = x.squeeze(2)  # squeeze to remove singleton dimension
-        # (batch_size, n_classes)
-        x = self.fc1(x)
-        x = self.fc2(x)
         return x
 
 

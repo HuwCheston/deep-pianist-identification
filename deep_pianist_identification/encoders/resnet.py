@@ -184,7 +184,8 @@ class ResNet50(nn.Module):
             )
         return nn.Sequential(*layers)
 
-    def forward(self, x):
+    def forward_features(self, x: torch.tensor) -> torch.tensor:
+        """Returns feature embeddings prior to final linear projection layer(s)"""
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -195,6 +196,10 @@ class ResNet50(nn.Module):
         x = self.layer4(x)
         x = self.pooling(x)
         x = torch.flatten(x, 1)
+        return x
+
+    def forward(self, x: torch.tensor) -> torch.tensor:
+        x = self.forward_features(x)
         x = self.fc(x)
         return x
 
