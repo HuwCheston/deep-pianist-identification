@@ -247,6 +247,8 @@ class TrainModule:
         softmaxed = nn.functional.softmax(logits, dim=1)
         predictions = torch.argmax(softmaxed, dim=1)
         # Compute clip level metrics
+        # TODO: this is probably inaccurate for triplet loss only! Only tells us if item was the most similar in batch
+        #  i.e., it can't be compared directly with the CCE loss
         acc = self.acc_fn(predictions, targets)
         # TODO: for CCE loss, softmaxed is the probability of the clip per class in the dataset.
         #  For triplet, softmaxed is just the similarity with the other elements in the batch
@@ -369,13 +371,17 @@ class TrainModule:
                 track_preds.append(preds)  # List of tensors, one tensor per clip, containing class logits
                 track_targets.append(targets)  # List of tensors, one tensor per batch, containing target classes
         # Group by tracks, average probabilities, and get predicted and target classes
-        predictions, targets = groupby_tracks(track_names, track_preds, track_targets)
-        # Compute track-level accuracy
-        track_acc = self.acc_fn(predictions, targets).item()
-        # Save a confusion matrix for test set predictions if we're using checkpoints
-        # TODO: implement confusion matrixes for binary (accompanied/unaccopanied) classification
-        if self.current_epoch % plotting.PLOT_AFTER_N_EPOCHS == 0 and not self.classify_dataset:
-            self.plot_confusion_matrix(predictions, targets)
+        try:
+            predictions, targets = groupby_tracks(track_names, track_preds, track_targets)
+        except RuntimeError:
+            track_acc = 0.
+        else:
+            # Compute track-level accuracy
+            track_acc = self.acc_fn(predictions, targets).item()
+            # Save a confusion matrix for test set predictions if we're using checkpoints
+            # TODO: implement confusion matrixes for binary (accompanied/unaccopanied) classification
+            if self.current_epoch % plotting.PLOT_AFTER_N_EPOCHS == 0 and not self.classify_dataset:
+                self.plot_confusion_matrix(predictions, targets)
         # Return clip loss + accuracy, track accuracy
         return np.mean(clip_losses), np.mean(clip_accs), track_acc
 
@@ -514,7 +520,8 @@ class TrainModule:
             self.scheduler.step()
             logger.debug(f'LR for epoch {epoch + 1} will be {self.get_scheduler_lr()}')
         logger.info('Training complete! Beginning validation...')
-        self.validation()
+        if self.loss_type != "triplet":
+            self.validation()
         logger.info(f'Finished in {round(time() - training_start)} seconds!')
 
     def validation(self) -> None:
