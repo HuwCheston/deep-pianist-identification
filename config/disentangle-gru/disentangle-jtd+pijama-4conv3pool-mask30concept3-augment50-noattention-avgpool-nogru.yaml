@@ -1,7 +1,9 @@
-experiment: disentangle-withattention
-run: disentangle-jtd+pijama-mask30concept1-augment50-2heads-avgpool
-batch_size: 5
+experiment: disentangle-gru
+run: disentangle-jtd+pijama-4conv3pool-mask30concept3-augment50-noattention-avgpool-nogru
+batch_size: 20
 epochs: 100
+data_split_dir: 20class_80min
+classify_dataset: False
 train_dataset_cfg:
   n_clips: null
   normalize_velocity: True
@@ -17,12 +19,11 @@ test_dataset_cfg:
   jitter_start: False
 encoder_module: disentangle
 model_cfg:
-  use_gru: True
+  use_gru: False
   use_masking: True
-  use_attention: True
+  use_attention: False
   mask_probability: 0.3
-  max_masked_concepts: 1
-  num_attention_heads: 2
+  max_masked_concepts: 3
   layers: [
     { in_channels: 1, out_channels: 64, conv_kernel_size: 3, has_pool: True, pool_kernel_size: 2 },
     { in_channels: 64, out_channels: 128, conv_kernel_size: 3, has_pool: True, pool_kernel_size: 2 },
@@ -39,4 +40,5 @@ checkpoint_cfg:
   checkpoint_after_n_epochs: 10
 mlflow_cfg:
   use: True
-  tracking_uri: http://127.0.0.1:8000
+  run_id: 41704d44dae1438ba5f52d02c5d6821c
+  tracking_uri: http://127.0.0.1:5000

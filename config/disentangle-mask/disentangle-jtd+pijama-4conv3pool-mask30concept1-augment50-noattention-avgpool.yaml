@@ -1,7 +1,9 @@
-experiment: disentangle-withattention
-run: disentangle-jtd+pijama-4conv2pool-mask30concept3-augment50-4heads-avgpool
-batch_size: 5
+experiment: disentangle-mask
+run: disentangle-jtd+pijama-4conv3pool-mask30concept1-augment50-noattention-avgpool
+batch_size: 20
 epochs: 100
+data_split_dir: 20class_80min
+classify_dataset: False
 train_dataset_cfg:
   n_clips: null
   normalize_velocity: True
@@ -19,15 +21,14 @@ encoder_module: disentangle
 model_cfg:
   use_gru: True
   use_masking: True
-  use_attention: True
   mask_probability: 0.3
-  max_masked_concepts: 3
-  num_attention_heads: 4
+  max_masked_concepts: 1
+  use_attention: False
   layers: [
-    { in_channels: 1, out_channels: 64, conv_kernel_size: 3, has_pool: False },
+    { in_channels: 1, out_channels: 64, conv_kernel_size: 3, has_pool: True, pool_kernel_size: 2 },
     { in_channels: 64, out_channels: 128, conv_kernel_size: 3, has_pool: True, pool_kernel_size: 2 },
-    { in_channels: 128, out_channels: 256, conv_kernel_size: 3, has_pool: False },
-    { in_channels: 256, out_channels: 512, conv_kernel_size: 3, has_pool: True, pool_kernel_size: 4 }
+    { in_channels: 128, out_channels: 256, conv_kernel_size: 3, has_pool: True, pool_kernel_size: 2 },
+    { in_channels: 256, out_channels: 512, conv_kernel_size: 3, has_pool: False }
   ]
   pool_type: avg
 optim_type: adam
@@ -39,4 +40,5 @@ checkpoint_cfg:
   checkpoint_after_n_epochs: 10
 mlflow_cfg:
   use: True
-  tracking_uri: http://127.0.0.1:8000
+  run_id: 0cc584c195754397a98780340f7268bd
+  tracking_uri: http://127.0.0.1:5000

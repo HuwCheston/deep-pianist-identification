@@ -1,5 +1,5 @@
-experiment: disentangle-architecture
-run: disentangle-jtd+pijama-4conv3pool-mask30concept3-augment50-noattention-avgpool
+experiment: disentangle-lr
+run: disentangle-jtd+pijama-4conv3pool-mask30concept3-augment50-noattention-avgpool-linear
 batch_size: 20
 epochs: 100
 data_split_dir: 20class_80min
@@ -20,8 +20,8 @@ test_dataset_cfg:
 encoder_module: disentangle
 model_cfg:
   use_gru: True
-  use_masking: False
-  use_attention: True
+  use_masking: True
+  use_attention: False
   mask_probability: 0.3
   max_masked_concepts: 3
   layers: [
@@ -34,11 +34,16 @@ model_cfg:
 optim_type: adam
 optim_cfg:
   lr: 1.0e-4
+sched_type: linear
+sched_cfg:
+  start_factor: 1.0
+  end_factor: 0.5
+  total_iters: 100
 checkpoint_cfg:
   save_checkpoints: True
   load_checkpoints: True
   checkpoint_after_n_epochs: 10
 mlflow_cfg:
   use: True
-  run_id: 0a6be386bcfc4883b3fd1a8c442d2c72
+  run_id: 805ef4a18e524204bde043cebfa0cd33
   tracking_uri: http://127.0.0.1:5000
