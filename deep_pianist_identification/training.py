@@ -359,6 +359,7 @@ class TrainModule:
             pass
         # Increment epoch by 1
         self.current_epoch = loaded["epoch"] + 1
+        # TODO: do we need to do a step here? we don't seem to be starting at quite the right epoch
         self.scheduler.last_epoch = self.current_epoch
         logger.debug(f'Loaded the checkpoint at {checkpoint_path}!')
 
@@ -516,8 +517,11 @@ def get_tracking_uri(port: str = "5000") -> str:
     import socket
 
     hostname = socket.gethostname().lower()
-    # Job is running locally or on the department server
-    if "desktop" in hostname or "musix" in hostname:
+    # Job is running locally: don't use mlflow
+    if "desktop" in hostname:
+        return None
+    # Job is running on the department server
+    elif "musix" in hostname:
         return f"http://127.0.0.1:{port}"
     # Job is running on HPC
     else:
@@ -550,27 +554,33 @@ if __name__ == "__main__":
         run_id = args["mlflow_cfg"].get("run_id", None)
         # Get the tracking URI based on the hostname of the device running the job
         uri = get_tracking_uri()
-        logger.debug(f'Attempting to connect to MLFlow server at {uri}...')
-        mlflow.set_tracking_uri(uri=uri)
-        try:
-            mlflow.set_experiment(args["experiment"])
-        # If we're unable to reach the MLFlow server somehow
-        except mlflow.exceptions.MlflowException as err:
-            logger.warning(f'Could not connect to MLFlow, falling back to running locally! {err}')
+        if uri is None:
             # This will mean we break out of the current IF statement, and activate the next IF NOT statement
             # in order to train locally, without using MLFlow
+            logger.warning(f'Could not connect to MLFlow, falling back to running locally!')
             args["mlflow_cfg"]["use"] = False
         else:
-            # Otherwise, start training with the arguments we've passed in
-            tm = TrainModule(**args)
-            # Log if the run is being resumed or not
-            if run_id is not None:
-                logger.debug(f'Resuming run with name {args["run"]}, ID {run_id}!')
+            logger.debug(f'Attempting to connect to MLFlow server at {uri}...')
+            mlflow.set_tracking_uri(uri=uri)
+            try:
+                mlflow.set_experiment(args["experiment"])
+            # If we're unable to reach the MLFlow server somehow
+            except mlflow.exceptions.MlflowException as err:
+                logger.warning(f'Could not connect to MLFlow, falling back to running locally! {err}')
+                # This will mean we break out of the current IF statement, and activate the next IF NOT statement
+                # in order to train locally, without using MLFlow
+                args["mlflow_cfg"]["use"] = False
             else:
-                logger.debug(f'Starting new run with name {args["run"]}!')
-            # Start the run!
-            with mlflow.start_run(run_name=args["run"], run_id=run_id):
-                tm.run_training()
+                # Otherwise, start training with the arguments we've passed in
+                tm = TrainModule(**args)
+                # Log if the run is being resumed or not
+                if run_id is not None:
+                    logger.debug(f'Resuming run with name {args["run"]}, ID {run_id}!')
+                else:
+                    logger.debug(f'Starting new run with name {args["run"]}!')
+                # Start the run!
+                with mlflow.start_run(run_name=args["run"], run_id=run_id):
+                    tm.run_training()
 
     # Running training locally
     if not args["mlflow_cfg"]["use"]:
