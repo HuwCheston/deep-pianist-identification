@@ -331,21 +331,23 @@ class TrainModule:
 
     def load_checkpoint(self) -> None:
         """Load the latest checkpoint for the current experiment and run"""
-        checkpoint_folder = os.path.join(get_project_root(), 'checkpoints', self.experiment, self.run)
+        # Either use a custom checkpoint directory or the root directory of the project (default)
+        checkpoint_dir = self.checkpoint_cfg.get("checkpoint_dir", os.path.join(get_project_root(), 'checkpoints'))
+        run_dir = os.path.join(checkpoint_dir, self.experiment, self.run)
         # If we haven't created a checkpoint for this run, skip loading and train from scratch
-        if not os.path.exists(checkpoint_folder):
+        if not os.path.exists(run_dir):
             logger.warning('Checkpoint folder does not exist for this experiment/run, skipping load!')
             return
 
         # Get all the checkpoints for the current experiment/run combination
-        checkpoints = [i for i in os.listdir(checkpoint_folder) if i.endswith(".pth")]
+        checkpoints = [i for i in os.listdir(run_dir) if i.endswith(".pth")]
         if len(checkpoints) == 0:
             logger.warning('No checkpoints have been created yet for this experiment/run, skipping load!')
             return
 
         # Sort the checkpoints and load the latest one
         latest_checkpoint = sorted(checkpoints)[-1]
-        checkpoint_path = os.path.join(checkpoint_folder, latest_checkpoint)
+        checkpoint_path = os.path.join(run_dir, latest_checkpoint)
         # This will raise a warning about possible ACE exploits, but we don't care
         loaded = torch.load(checkpoint_path, map_location=DEVICE, weights_only=False)
         # Set state dictionary for all torch objects
@@ -359,19 +361,25 @@ class TrainModule:
             pass
         # Increment epoch by 1
         self.current_epoch = loaded["epoch"] + 1
-        # TODO: do we need to do a step here? we don't seem to be starting at quite the right epoch
         self.scheduler.last_epoch = self.current_epoch
+        # For some reason, we need to do a step in the scheduler here so that we have the correct LR
+        self.scheduler.step()
         logger.debug(f'Loaded the checkpoint at {checkpoint_path}!')
 
     def save_checkpoint(self, metrics) -> None:
         """Save the model checkpoint at the current epoch"""
-        checkpoint_after = self.checkpoint_cfg.get("checkpoint_after_n_epochs", 1)
+        # How many epochs before we need to checkpoint (10 by default)
+        checkpoint_after = self.checkpoint_cfg.get("checkpoint_after_n_epochs", 10)
+        # The name of the checkpoint and where it'll be saved
+        new_check_name = f'checkpoint_{str(self.current_epoch).zfill(3)}.pth'
+        # Either use a custom checkpoint directory or the root directory of the project (default)
+        checkpoint_dir = self.checkpoint_cfg.get("checkpoint_dir", os.path.join(get_project_root(), 'checkpoints'))
+        run_folder = os.path.join(checkpoint_dir, self.experiment, self.run)
         # We always want to checkpoint on the final epoch!
         if (self.current_epoch % checkpoint_after == 0) or (self.current_epoch + 1 == self.epochs):
             # Get the folder of checkpoints for the current experiment/run, and create if it doesn't exist
-            checkpoint_folder = os.path.join(get_project_root(), 'checkpoints', self.experiment, self.run)
-            if not os.path.exists(checkpoint_folder):
-                os.makedirs(checkpoint_folder, exist_ok=True)
+            if not os.path.exists(run_folder):
+                os.makedirs(run_folder, exist_ok=True)
             # Save everything, including the metrics, state dictionaries, and current epoch
             torch.save(
                 dict(
@@ -381,9 +389,20 @@ class TrainModule:
                     scheduler_state_dict=self.scheduler.state_dict(),
                     epoch=self.current_epoch
                 ),
-                os.path.join(checkpoint_folder, f'checkpoint_{str(self.current_epoch).zfill(3)}.pth'),
+                os.path.join(run_folder, new_check_name),
             )
-            logger.debug(f'Saved a checkpoint to {checkpoint_folder}')
+            logger.debug(f'Saved a checkpoint to {run_folder}')
+        # If we want to remove old checkpoints after saving a new one
+        if self.checkpoint_cfg.get("delete_old_checkpoints", False):
+            logger.debug('Deleting old checkpoints...')
+            # Iterate through all the checkpoints in our folder
+            for old_checkpoint in os.listdir(run_folder):
+                # If the checkpoint is different to the most recent one and is a valid checkpoint
+                if old_checkpoint != new_check_name and old_checkpoint.endswith('.pth'):
+                    # Remove the old checkpoint
+                    old_path = os.path.join(run_folder, old_checkpoint)
+                    os.remove(old_path)
+                    logger.info(f'... deleted {old_path}')
 
     def log_run_params_to_mlflow(self):
         """If we're using MLFlow, log all run parameters to the dashboard"""
