@@ -1,14 +1,14 @@
 experiment: default
 run: debug_local
-batch_size: 1
+batch_size: 4
 epochs: 100
 classify_dataset: False
 data_split_dir: 25class_0min
 train_dataset_cfg:
-  n_clips: 1
+  n_clips: 100
   normalize_velocity: False
 test_dataset_cfg:
-  n_clips: 1
+  n_clips: 100
   normalize_velocity: False
 encoder_module: cnn
 model_cfg: { }
@@ -16,6 +16,8 @@ optim_type: adam
 optim_cfg:
   lr: 1.0e-3
 sched_type: null
+loss_type: cce
+loss_cfg: { }
 checkpoint_cfg:
   save_checkpoints: False
   load_checkpoints: False
