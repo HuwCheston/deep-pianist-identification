@@ -197,18 +197,24 @@ class TripletMarginLoss(nn.Module):
         # Compute dot product
         return torch.matmul(anchors, positives.permute(1, 0))
 
-    def compute_loss(self, similarity_matrix: torch.tensor):
+    def compute_loss(self, similarity_matrix: torch.tensor, class_idxs: torch.tensor = None):
         # Triplet loss: normalized, cross entropy is not normalized
         positive_sims = similarity_matrix.diagonal().unsqueeze(1)
         negative_sims = similarity_matrix.clone()
         # Calculate the loss: relu has function of the max(0, sim) operation
         loss = torch.nn.functional.relu(negative_sims - positive_sims + self.margin)
-        # Set the diagonals (positive similarity) to 0
-        return loss * ~torch.eye(*loss.size(), device=similarity_matrix.device).bool()
+        # Set the diagonals and OTHER CLIPS BY THE SAME ARTIST to 0.
+        if class_idxs is not None:
+            class_idxs = class_idxs.unsqueeze(0).repeat(class_idxs.size(0), 1)
+            mask = (class_idxs != class_idxs.t()).bool()
+        # Just set the diagonals (positive similarity) to 0.
+        else:
+            mask = ~torch.eye(*loss.size(), device=similarity_matrix.device).bool()
+        return loss * mask
 
-    def forward(self, anchors: torch.tensor, positives: torch.tensor) -> torch.tensor:
+    def forward(self, anchors: torch.tensor, positives: torch.tensor, class_idxs: torch.tensor = None) -> torch.tensor:
         # Compute (potentially normalized) similarity matrix
         similarity_matrix = self.compute_similarity_matrix(anchors, positives)
         # Compute the loss from the similarity matrix and return the mean
-        loss = self.compute_loss(similarity_matrix)
+        loss = self.compute_loss(similarity_matrix, class_idxs)
         return loss.mean()

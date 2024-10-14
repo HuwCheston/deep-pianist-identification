@@ -79,6 +79,8 @@ class SharedTest(unittest.TestCase):
         expected = (1, 25)
         self.assertEqual(actual.size(), expected)
 
+
+class TripletLossTest(unittest.TestCase):
     def test_tripletmarginloss(self):
         # Set the batch size and margin
         batch_size = 4
@@ -98,6 +100,24 @@ class SharedTest(unittest.TestCase):
         actual[0, 1] = actual[0, 0] - (margin * 2)
         loss_matrix = loss.compute_loss(actual)
         self.assertEqual(loss_matrix[0, 1].item(), 0)  # this value should now be set to 0
+
+    def test_tripletmarginloss_classidxs(self):
+        # Set the batch size and margin
+        batch_size = 4
+        margin = 0.01
+        # Compute random anchor and positive vectors
+        anc = torch.rand(batch_size, 512)
+        pos = torch.rand(batch_size, 512)
+        # Compute similarity matrix
+        loss = TripletMarginLoss(margin=margin, similarity="cosine")
+        actual = loss.compute_similarity_matrix(anc, pos)
+        # Test passing in class IDXs
+        class_idxs = torch.tensor([0, 1, 2, 1])  # Assuming that clip 2 and 4 are by the same artist here
+        class_idx_loss_matrix = loss.compute_loss(actual, class_idxs)
+        self.assertEqual(class_idx_loss_matrix[1, 3].item(), 0)  # These should always be set to 0
+        self.assertEqual(class_idx_loss_matrix[3, 1].item(), 0)
+        # Diagonal elements should also be set to 0 as well
+        self.assertTrue(all([i == 0. for i in class_idx_loss_matrix.diagonal().unsqueeze(1)]))
 
 
 if __name__ == '__main__':
