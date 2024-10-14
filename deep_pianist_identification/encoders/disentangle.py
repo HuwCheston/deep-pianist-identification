@@ -179,7 +179,7 @@ class DisentangleNet(nn.Module):
             embeddings[idx] = self.dropper(embeddings[idx])
         return embeddings
 
-    def forward_features(self, x: torch.tensor) -> tuple[torch.tensor]:
+    def extract_concepts(self, x: torch.tensor) -> tuple[torch.tensor]:
         """Processes inputs in shape (batch, channels, height, width) to lists of (batch, 1, features)"""
         # Split multi-dimensional piano roll into each concept
         melody, harmony, rhythm, dynamics = torch.split(x, 1, 1)
@@ -191,8 +191,15 @@ class DisentangleNet(nn.Module):
         # Combine all embeddings into a single list
         return [melody, harmony, rhythm, dynamics]
 
-    def forward_pooled(self, x: torch.tensor) -> torch.tensor:
-        """Pools a (possibly masked) input in shape (batch, channels, features), to (batch, classes)"""
+    def forward_features(self, x: torch.tensor) -> torch.tensor:
+        """Returns feature embeddings prior to final linear projection layer(s)"""
+        # (batch, channels, height, width) -> list of (batch, 1, features) for each concept
+        x = self.extract_concepts(x)
+        # If required, apply random masking to concept embeddings during training
+        if self.use_masking and self.training:
+            x = self.mask(x)
+        # Combine list to (batch, channels, features), where channels = 4
+        x = torch.cat(x, dim=1)
         # Self-attention across channels
         if self.use_attention:
             x, _ = self.self_attention(x, x, x)
@@ -202,22 +209,16 @@ class DisentangleNet(nn.Module):
         x = self.pooling(x)
         # Remove singleton dimension
         x = x.squeeze(2)
-        # Project onto final output
-        x = self.fc1(x)
-        x = self.fc2(x)
         return x
 
     def forward(self, x: torch.tensor) -> torch.tensor:
         """Model forward pass. Processes single embedding per concept, masks, pools, and projects to class logits."""
-        # (batch, channels, height, width) -> list of (batch, 1, features) for each concept
+        # (batch, 512)
         x = self.forward_features(x)
-        # If required, apply random masking to concept embeddings during training
-        if self.use_masking and self.training:
-            x = self.mask(x)
-        # Combine list to (batch, channels, features), where channels = 4
-        x = torch.cat(x, dim=1)
-        # Pool output to (batch, classes)
-        x = self.forward_pooled(x)
+        # (batch, 128)
+        x = self.fc1(x)
+        # (batch, num_classes)
+        x = self.fc2(x)
         return x
 
 

@@ -178,14 +178,15 @@ class ValidateModule:
                 track_names.extend(tracks)
                 track_targets.append(targets)
                 # Compute the individual embeddings
-                embeddings = self.model.forward_features(roll)
+                # TODO: the DisentangleNet api has changed since this was written. Check to make sure this still works!
+                embeddings = self.model.extract_concepts(roll)
                 # Iterate through all indexes to mask: i.e., [0, 1, 2, 3], [0, 1, 2], [1, 2, 3]...
                 for mask_idxs in MASK_COMBINATIONS:
                     # Mask the required embeddings for this combination
                     new_embeddings = list(apply_masks(deepcopy(embeddings), mask_idxs))
                     # Stack into a tensor, calculate logits, and softmax
                     stacked = torch.cat(new_embeddings, dim=1)
-                    logits = self.model.forward_pooled(stacked)
+                    logits = self.model.forward_features(stacked)
                     softmaxed = torch.nn.functional.softmax(logits, dim=1)
                     # Get clip level accuracy
                     combo_preds = torch.argmax(softmaxed, dim=1)

@@ -88,18 +88,27 @@ class DisentangledTest(unittest.TestCase):
         # We'd expect to convolve along the channels dimension
         expected = (4, 512, 1)
         actual = x.size()
-        # Nb., we'll remove the singleton channel in DisentangleNet.forward_pooled
+        # Nb., we'll remove the singleton channel in DisentangleNet.forward_features
         self.assertTrue(expected == actual)
+
+    def test_forward_concepts(self):
+        model = DisentangleNet(num_classes=self.NUM_CLASSES).to(DEVICE)
+        roll, _, __ = next(iter(self.LOADER))
+        roll = roll.to(DEVICE)
+        features = model.extract_concepts(roll)
+        self.assertTrue(len(features) == 4)
+        self.assertTrue(features[0].size() == (1, 1, 512))
 
     def test_forward_features(self):
         model = DisentangleNet(num_classes=self.NUM_CLASSES).to(DEVICE)
         roll, _, __ = next(iter(self.LOADER))
         roll = roll.to(DEVICE)
         features = model.forward_features(roll)
-        self.assertTrue(len(features) == 4)
-        self.assertTrue(features[0].size() == (1, 1, 512))
+        expected = (1, 512)
+        actual = features.size()
+        self.assertTrue(expected == actual)
 
-    def test_forward_pooled(self):
+    def test_forward(self):
         model = DisentangleNet(num_classes=self.NUM_CLASSES).to(DEVICE)
         roll, _, __ = next(iter(self.LOADER))
         roll = roll.to(DEVICE)
