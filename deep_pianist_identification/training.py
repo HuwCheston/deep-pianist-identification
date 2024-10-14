@@ -528,6 +528,23 @@ def get_tracking_uri(port: str = "5000") -> str:
         return f"http://musix.mus.cam.ac.uk:{port}"
 
 
+def add_run_id_to_config_yaml(config_fname: str, mlflow_run_id: str) -> None:
+    """Append an automatically-created mlflow run ID to a config `.yaml` file at the start of a new run"""
+    # This is the directory where our config file is
+    yamlpath = os.path.join(get_project_root(), 'config', config_fname)
+    # Load the config file
+    with open(yamlpath, 'r') as yamlfile:
+        cur_yaml = yaml.safe_load(yamlfile)
+        # Create a new mlflow dictionary, if for whatever reason we don't have this
+        if 'mlflow_cfg' not in cur_yaml.keys():
+            cur_yaml['mlflow_cfg'] = {}
+        # Add the run ID into our config file
+        cur_yaml['mlflow_cfg']['run_id'] = mlflow_run_id
+    # Overwrite the config file, without sorting the keys
+    with open(yamlpath, 'w') as yamlfile:
+        yaml.safe_dump(cur_yaml, yamlfile, sort_keys=False)
+
+
 if __name__ == "__main__":
     import yaml
     import argparse
@@ -573,13 +590,19 @@ if __name__ == "__main__":
             else:
                 # Otherwise, start training with the arguments we've passed in
                 tm = TrainModule(**args)
-                # Log if the run is being resumed or not
+                # Either run is being resumed with a run ID passed in with our config file
                 if run_id is not None:
                     logger.debug(f'Resuming run with name {args["run"]}, ID {run_id}!')
+                # Or this is a new run
                 else:
                     logger.debug(f'Starting new run with name {args["run"]}!')
                 # Start the run!
                 with mlflow.start_run(run_name=args["run"], run_id=run_id):
+                    # If this is a new run, append the newly-created run ID to our yaml config file (if we passed this)
+                    if args['config'] is not None:
+                        new_run_id = mlflow.active_run().info.run_id
+                        add_run_id_to_config_yaml(args["config"], new_run_id)
+                        logger.debug(f'Added run id {new_run_id} to {args["config"]}!')
                     tm.run_training()
 
     # Running training locally
