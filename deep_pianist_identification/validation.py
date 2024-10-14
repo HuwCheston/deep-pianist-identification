@@ -48,16 +48,24 @@ class ValidateModule:
         n_params = sum(p.numel() for p in self.model.parameters())
         logger.debug(f'Model parameters: {n_params}')
         # Create the validation dataset loader
-        # TODO: replace "split" with "validation" once we have this set
         logger.debug(f'Initialising validation dataloader with batch size {self.batch_size} '
                      f'and parameters {self.test_dataset_cfg}')
-        self.validation_dataloader = DataLoader(
-            MIDILoader('test', **self.test_dataset_cfg),
-            batch_size=self.batch_size,
-            shuffle=True,
-            drop_last=False,
-            collate_fn=remove_bad_clips_from_batch
-        )
+        try:
+            self.validation_dataloader = DataLoader(
+                MIDILoader(
+                    'validation',
+                    classify_dataset=self.classify_dataset,
+                    data_split_dir=self.data_split_dir,
+                    # We can just use the test dataset configuration here
+                    **self.test_dataset_cfg
+                ),
+                batch_size=self.batch_size,
+                shuffle=True,
+                drop_last=False,
+                collate_fn=remove_bad_clips_from_batch
+            )
+        except FileNotFoundError:
+            raise FileNotFoundError('Validation split not created for this dataset!')
         # LOSS AND VALIDATION METRICS
         logger.debug('Initialising validation metrics...')
         if self.test_dataset_cfg.get("multichannel", False):
