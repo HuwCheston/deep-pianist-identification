@@ -8,7 +8,7 @@ import unittest
 import torch
 from torch.utils.data import DataLoader
 
-from deep_pianist_identification.dataloader import MIDILoader, remove_bad_clips_from_batch
+from deep_pianist_identification.dataloader import MIDILoader, MIDITripletLoader, remove_bad_clips_from_batch
 from deep_pianist_identification.utils import seed_everything, PIANO_KEYS, CLIP_LENGTH, FPS
 
 
@@ -144,6 +144,29 @@ class DataloaderTest(unittest.TestCase):
                 data_split_dir="i_dont_exist"
             )
         )
+
+
+class TripletLoaderTest(unittest.TestCase):
+    batch_size = 10
+
+    def test_anchor_positive_clips(self):
+        loader = DataLoader(
+            MIDITripletLoader(
+                'train',
+                normalize_velocity=True,
+                multichannel=True,
+                data_split_dir="25class_0min"
+            ),
+            batch_size=self.batch_size,
+            shuffle=True,
+            collate_fn=remove_bad_clips_from_batch,
+        )
+        # Get the first batch from our dataloader
+        anch_roll, anch_class, anch_path, pos_roll = next(iter(loader))
+        # The positive and anchor clips should have different content
+        self.assertFalse(torch.equal(anch_roll, pos_roll))
+        # But they should be the same size
+        self.assertTrue(anch_roll.size() == pos_roll.size())
 
 
 if __name__ == '__main__':

@@ -4,6 +4,7 @@
 """MIDI DataLoader module"""
 
 import os
+import random
 
 import numpy as np
 import pandas as pd
@@ -19,7 +20,7 @@ from deep_pianist_identification.extractors import (
 )
 from deep_pianist_identification.utils import get_project_root, CLIP_LENGTH
 
-__all__ = ["MIDILoader", "remove_bad_clips_from_batch"]
+__all__ = ["MIDILoader", "MIDITripletLoader", "remove_bad_clips_from_batch"]
 
 MAX_RETRIES = 100
 
@@ -167,6 +168,77 @@ class MIDILoader(Dataset):
         # Otherwise, return the roll, target class (or dataset) index, and the raw name of the track
         else:
             return piano_roll, target, track_path.split(os.path.sep)[-1]
+
+
+class MIDITripletLoader(MIDILoader):
+    """A variant of the MIDILoader that returns both anchor and positive clips (i.e., two clips from one pianist)"""
+
+    def __init__(
+            self,
+            split: str,
+            data_split_dir: str = "25class_0min",
+            n_clips: int = None,
+            data_augmentation: bool = True,
+            augmentation_probability: float = 0.5,
+            jitter_start: bool = True,
+            normalize_velocity: bool = True,
+            multichannel: bool = False,
+            use_concepts: str = None,
+            extractor_cfg: dict = None,
+            classify_dataset: bool = False,
+    ):
+        # We could probably implement this fairly simply but needs testing
+        if classify_dataset is True:
+            raise NotImplementedError("`classify_dataset` must be False when using `MIDITripletLoader`")
+        # Initialise the main dataloader with all passed argu
+        super().__init__(
+            split, data_split_dir, n_clips, data_augmentation, augmentation_probability, jitter_start,
+            normalize_velocity, multichannel, use_concepts, extractor_cfg, classify_dataset
+        )
+
+    def get_positive_sample(self, anchor_class: int, anchor_idx: int):
+        # Create a list of indexes but skip over the index of the anchor clip
+        idxs = [i for i in range(len(self)) if i != anchor_idx]
+        # Randomly shuffle the idxs so that we don't always return the first clip for each pianist
+        random.shuffle(idxs)
+        # Get a positive sample: same target class, but a different clip
+        for newidx in idxs:
+            # Unpack the clip metadata
+            positive_track, positive_target, _, pos_idx = self.clips[newidx]
+            # If the pianist of the current clip is the same as our anchor pianist
+            if positive_target == anchor_class:
+                # Load the clip as a pretty MIDI object
+                positive_midi = PrettyMIDI(os.path.join(positive_track, f'clip_{str(pos_idx).zfill(3)}.mid'))
+                # Try to create the piano roll object
+                try:
+                    return self.creator_func(positive_midi)
+                # If we fail to create the roll for whatever reason, silently proceed to the next clip
+                except ExtractorError:
+                    continue
+
+    def __getitem__(self, idx: int) -> tuple:
+        # Unpack the clip to get the track path, the performer and dataset index, and the index of the clip
+        anchor_path, anchor_class, _, clip_idx = self.clips[idx]
+        # Load in the anchor clip as a PrettyMIDI object
+        pm = PrettyMIDI(os.path.join(anchor_path, f'clip_{str(clip_idx).zfill(3)}.mid'))
+        # Load the piano roll as either single channel (all valid MIDI notes) or multichannel (split into concepts)
+        try:
+            anchor_roll = self.creator_func(pm)
+        # If creating the piano roll fails for whatever reason, return None which will be caught in the collate_fn
+        # This will be retried MAX_RETRIES times in case it's just an issue with the random augmentation/jittering
+        except ExtractorError as e:
+            logger.error(f'Failed to create piano rolls for {anchor_path} (clip {clip_idx}) '
+                         f'after retrying {MAX_RETRIES} times. Skipping this clip! '
+                         f'Error message: {e}')
+            return None
+        # Otherwise, return the roll, target class (or dataset) index, the raw name of the track, AND the positive MIDI
+        else:
+            positive_roll = self.get_positive_sample(anchor_class, idx)
+            # If, somehow, we're not able to create another piano roll for this class
+            if positive_roll is None:
+                logger.error(f"Failed to create a positive piano roll for class {anchor_class}. This shouldn't happen!")
+                return None
+            return anchor_roll, anchor_class, anchor_path.split(os.path.sep)[-1], positive_roll
 
 
 if __name__ == "__main__":
