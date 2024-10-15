@@ -14,7 +14,7 @@ from torchmetrics.classification import (
 from torchmetrics.functional import accuracy
 
 from deep_pianist_identification.dataloader import MIDILoader, MIDITripletLoader
-from deep_pianist_identification.encoders import DisentangleNet, TripletMarginLoss
+from deep_pianist_identification.encoders import DisentangleNet
 from deep_pianist_identification.training import (
     TrainModule, DEFAULT_CONFIG, groupby_tracks, parse_config_yaml, NoOpScheduler
 )
@@ -102,25 +102,26 @@ class TrainTest(unittest.TestCase):
             if encoder == 'disentangle':
                 cfg['train_dataset_cfg']['multichannel'] = True
                 cfg['test_dataset_cfg']['multichannel'] = True
-            # Create the training module
-            tm = TrainModule(**cfg)
-            tm.model.train()
-            # Get model parameters
-            params = [np for np in tm.model.named_parameters() if np[1].requires_grad]
-            # Make a copy for later comparison
-            initial_params = [(name, p.clone()) for (name, p) in params]
-            # Take a batch from our dataloader and put on the correct device
-            features, targets, _ = next(iter(tm.train_loader))
-            features = features.to(DEVICE)
-            targets = targets.to(DEVICE)
-            # Forwards and backwards pass through the model
-            loss, _, __ = tm.step(features, targets)
-            tm.optimizer.zero_grad()
-            loss.backward()
-            tm.optimizer.step()
-            # Iterate through all the parameters in the model: they should have updated
-            for (_, p0), (name, p1) in zip(initial_params, params):
-                self.assertFalse(torch.equal(p0.to(DEVICE), p1.to(DEVICE)))
+            # Iterate through two different loss functions
+            for loss_fn in ["cce+triplet", "cce"]:
+                cfg["loss_type"] = loss_fn
+                # Create the training module
+                tm = TrainModule(**cfg)
+                tm.model.train()
+                # Get model parameters
+                params = [np for np in tm.model.named_parameters() if np[1].requires_grad]
+                # Make a copy for later comparison
+                initial_params = [(name, p.clone()) for (name, p) in params]
+                # Take a batch from our dataloader
+                batch = next(iter(tm.train_loader))
+                # Forwards and backwards pass through the model
+                loss, _, __ = tm.step(batch)
+                tm.optimizer.zero_grad()
+                loss.backward()
+                tm.optimizer.step()
+                # Iterate through all the parameters in the model: they should have updated
+                for (_, p0), (name, p1) in zip(initial_params, params):
+                    self.assertFalse(torch.equal(p0.to(DEVICE), p1.to(DEVICE)))
 
     def test_track_groupby(self):
         # Fake track names
@@ -300,22 +301,21 @@ class TrainTest(unittest.TestCase):
         self.assertIsInstance(trainer.scheduler, NoOpScheduler)
 
     def test_loss_fn_parsing(self):
-        # Test with a triplet loss
+        # Test with a triplet and cross entropy loss
         cfg = DEFAULT_CONFIG.copy()
-        cfg["loss_type"] = "triplet"
+        cfg["loss_type"] = "cce+triplet"
         trip_tm = TrainModule(**cfg)
         self.assertIsInstance(trip_tm.train_loader.dataset, MIDITripletLoader)
         self.assertIsInstance(trip_tm.test_loader.dataset, MIDITripletLoader)
-        self.assertIsInstance(trip_tm.loss_fn, TripletMarginLoss)
         batch = next(iter(trip_tm.train_loader))  # anchor piano roll, target class, track name, positive piano roll
         self.assertEqual(len(batch), 4)
+
         # Test with a cross-entropy loss
         cfg = DEFAULT_CONFIG.copy()
         cfg["loss_type"] = "cce"
         trip_tm = TrainModule(**cfg)
         self.assertIsInstance(trip_tm.train_loader.dataset, MIDILoader)
         self.assertIsInstance(trip_tm.test_loader.dataset, MIDILoader)
-        self.assertIsInstance(trip_tm.loss_fn, torch.nn.CrossEntropyLoss)
         batch = next(iter(trip_tm.train_loader))  # piano roll, target class, track name
         self.assertEqual(len(batch), 3)
 

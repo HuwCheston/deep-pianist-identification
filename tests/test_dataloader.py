@@ -5,6 +5,7 @@
 
 import unittest
 
+import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
@@ -30,8 +31,8 @@ class DataloaderTest(unittest.TestCase):
             collate_fn=remove_bad_clips_from_batch,
         )
         roll, _, __ = next(iter(loader))
-        # Shape should be (batch, 1, 88, 3000)
-        self.assertEqual((self.batch_size, 1, PIANO_KEYS, CLIP_LENGTH * FPS), roll.shape)
+        batch = roll.shape[0]  # Batch size can vary if clips return None
+        self.assertEqual((batch, 1, PIANO_KEYS, CLIP_LENGTH * FPS), roll.shape)
         # Array should contain values other than just zero
         self.assertTrue(roll.any())
 
@@ -48,8 +49,8 @@ class DataloaderTest(unittest.TestCase):
             collate_fn=remove_bad_clips_from_batch,
         )
         roll, _, __ = next(iter(loader))
-        # Test the size of the array
-        self.assertEqual((self.batch_size, 4, PIANO_KEYS, CLIP_LENGTH * FPS), roll.shape)
+        batch = roll.shape[0]  # Batch size can vary if clips return None
+        self.assertEqual((batch, 4, PIANO_KEYS, CLIP_LENGTH * FPS), roll.shape)
         # Array should contain values other than just zero
         self.assertTrue(roll.any())
 
@@ -68,7 +69,8 @@ class DataloaderTest(unittest.TestCase):
         )
         roll, _, __ = next(iter(loader))
         # Shape should be (batch, 3, 88, 3000)
-        self.assertEqual((self.batch_size, 3, PIANO_KEYS, CLIP_LENGTH * FPS), roll.shape)
+        batch = roll.shape[0]  # Batch size can vary if clips return None
+        self.assertEqual((batch, 3, PIANO_KEYS, CLIP_LENGTH * FPS), roll.shape)
         # Array should contain values other than just zero
         self.assertTrue(roll.any())
         # Velocity should be moved into our 3rd channel, from the fourth
@@ -167,6 +169,20 @@ class TripletLoaderTest(unittest.TestCase):
         self.assertFalse(torch.equal(anch_roll, pos_roll))
         # But they should be the same size
         self.assertTrue(anch_roll.size() == pos_roll.size())
+
+    def test_get_positive_samples(self):
+        loader = MIDITripletLoader(
+            'train',
+            normalize_velocity=True,
+            multichannel=True,
+            data_split_dir="25class_0min"
+        )
+        anc_index, anc_class = 50, 5
+        # Draw two random positive samples for the anchor index and class
+        positive_one = loader.get_positive_sample(anc_class, anc_index)
+        positive_two = loader.get_positive_sample(anc_class, anc_index)
+        # The two positive samples should be different from each other
+        self.assertFalse(np.array_equal(positive_one, positive_two))
 
 
 if __name__ == '__main__':
