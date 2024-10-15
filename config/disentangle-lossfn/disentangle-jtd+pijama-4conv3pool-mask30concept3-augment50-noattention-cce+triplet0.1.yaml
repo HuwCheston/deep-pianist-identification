@@ -1,5 +1,5 @@
 experiment: disentangle-lossfn
-run: disentangle-jtd+pijama-4conv3pool-mask30concept3-augment50-noattention-triplet0.1
+run: disentangle-jtd+pijama-4conv3pool-mask30concept3-augment50-noattention-cce+triplet0.1
 batch_size: 20
 epochs: 100
 data_split_dir: 20class_80min
@@ -31,7 +31,7 @@ model_cfg:
     { in_channels: 256, out_channels: 512, conv_kernel_size: 3, has_pool: False }
   ]
   pool_type: avg
-loss_type: triplet
+loss_type: cce+triplet
 loss_cfg:
   margin: 0.1
   similarity: cosine
