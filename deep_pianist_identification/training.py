@@ -97,12 +97,15 @@ class TrainModule:
         for key, val in self.params.items():
             setattr(self, key, val)
         self.current_epoch = 0
+
         # CLASSIFICATION PROBLEM
         self.classify_dataset = kwargs.get("classify_dataset", False)
+
         # CLASS MAPPING AND NUMBER OF CLASSES
         self.class_mapping = self.get_class_mapping()
         self.num_classes = len(self.class_mapping.keys())
         logger.debug(f"Model will be trained with {self.num_classes} classes!")
+
         # MODEL
         logger.debug('Initialising model...')
         logger.debug(f"Using encoder {self.encoder_module} with parameters {self.model_cfg}")
@@ -113,11 +116,16 @@ class TrainModule:
         ).to(DEVICE)
         n_params = sum(p.numel() for p in self.model.parameters())
         logger.debug(f'Model parameters: {n_params}')
+
         # LOSS
+        loss_fns = ["cce", "cce+triplet"]
+        assert self.loss_type in loss_fns, '`loss_type` must be one of ' + ', '.join(loss_fns)
         logger.debug(f'Initialising {self.loss_type} loss function with parameters {self.loss_cfg}...')
-        self.loss_fn = self.get_loss_fn(self.loss_type, self.loss_cfg).to(DEVICE)
-        self.dataloader_cls = MIDITripletLoader if self.loss_type == "triplet" else MIDILoader
+        self.triplet_loss_fn = TripletMarginLoss(**self.loss_cfg)  # Not used in CCE loss only runs
+        self.cce_loss_fn = nn.CrossEntropyLoss(reduction='mean').to(DEVICE)
+
         # DATALOADERS
+        self.dataloader_cls = MIDITripletLoader if self.loss_type == "cce+triplet" else MIDILoader
         logger.debug(f'Loading data splits from `references/data_splits/{self.data_split_dir}`')
         logger.debug(f'Initialising training dataloader with batch size {self.batch_size} '
                      f'and parameters {self.train_dataset_cfg}')
@@ -147,7 +155,8 @@ class TrainModule:
             drop_last=False,
             collate_fn=remove_bad_clips_from_batch
         )
-        # LOSS AND METRICS
+
+        # METRICS
         logger.debug('Initialising metrics...')
         if self.classify_dataset:
             self.acc_fn = Accuracy(task="binary", num_classes=self.num_classes).to(DEVICE)
@@ -161,30 +170,22 @@ class TrainModule:
                 num_classes=self.num_classes,
                 normalize='true'
             ).to(DEVICE)
+
         # OPTIMISER
         optim_type = kwargs.get("optim_type", "adam")
         optim_cfg = kwargs.get("optim_cfg", dict(learning_rate=0.0001))
         logger.debug(f'Initialising optimiser {optim_type} with parameters {optim_cfg}...')
         self.optimizer = self.get_optimizer(optim_type)(self.model.parameters(), **optim_cfg)
+
         # SCHEDULER
         sched_type = kwargs.get("sched_type", None)
         sched_cfg = kwargs.get("sched_cfg", dict())
         logger.debug(f'Initialising LR scheduler {sched_type} with parameters {sched_cfg}...')
         self.scheduler = self.get_scheduler(sched_type)(self.optimizer, **sched_cfg)
+
         # CHECKPOINTS
         if self.checkpoint_cfg["load_checkpoints"]:
             self.load_checkpoint()
-
-    @staticmethod
-    def get_loss_fn(loss_fn: str, loss_cfg: dict):
-        """Return the correct loss function initialised with all keyword arguments"""
-        losses = ["triplet", "cce"]
-        assert loss_fn in losses, "`loss_fn` must be one of " + ", ".join(losses)
-        # Return the correct loss function with all of our kwargs
-        if loss_fn == "triplet":
-            return TripletMarginLoss(**loss_cfg)
-        else:
-            return nn.CrossEntropyLoss(reduction='mean', **loss_cfg)
 
     def get_class_mapping(self) -> dict:
         if self.classify_dataset:
@@ -223,38 +224,53 @@ class TrainModule:
         elif sched_type == "linear":
             return torch.optim.lr_scheduler.LinearLR
 
-    def step(self, features: torch.tensor, targets: torch.tensor, positives: torch.tensor = None) -> tuple:
-        # Set device correctly for both features and targets
-        features = features.to(DEVICE)
-        targets = targets.to(DEVICE)
-        if self.loss_type == "cce":
-            logits = self.model(features)
-            # No need to softmax beforehand, `nn.CrossEntropyLoss` does this automatically
-            loss = self.loss_fn(logits, targets)
-        else:
-            # Positive roll to current device
-            positives = positives.to(DEVICE)
-            # Compute embeddings for both features(/anchors) and positives seperately
-            feature_embeds = self.model.forward_features(features)
-            positive_embeds = self.model.forward_features(positives)
-            # Compute the similarity matrix between features and positives (negatives are other elements in batch)
-            similarity_matrix = self.loss_fn.compute_similarity_matrix(feature_embeds, positive_embeds)
-            # Compute the margin loss (will set distance to other clips from same target == 0)
-            logits = self.loss_fn.compute_loss(similarity_matrix, targets)
-            # Compute the final loss as the mean of the similarity matrix
-            loss = logits.mean()
+    def step_triplet(self, anchors: torch.tensor, positives: torch.tensor, anchor_cls: torch.tensor) -> torch.tensor:
+        """Triplet loss step, taking in anchors, positives, and anchor class indexes"""
+        # Set positive tensor to correct device
+        positives = positives.to(DEVICE)
+        # Compute embeddings for both anchors and positives separately
+        anchor_embeds = self.model.forward_features(anchors)
+        positive_embeds = self.model.forward_features(positives)
+        # Compute the triplet margin loss between anchors and positives (with negatives as batch-hard positives)
+        # Note that loss will = 0 for negatives from the same class as the anchor
+        loss = self.triplet_loss_fn(anchor_embeds, positive_embeds, anchor_cls)
+        return loss
+
+    def step_cce(self, features: torch.tensor, targets: torch.tensor) -> tuple:
+        """Categorical loss step, taking in features and targets and returning accuracy and predictions"""
+        # Compute logits through forward pass in model
+        logits = self.model(features)
+        # No need to softmax beforehand, `nn.CrossEntropyLoss` does this automatically
+        loss = self.cce_loss_fn(logits, targets)
         # Apply softmax and argmax to get predicted class
         softmaxed = nn.functional.softmax(logits, dim=1)
         predictions = torch.argmax(softmaxed, dim=1)
         # Compute clip level metrics
-        # TODO: this is probably inaccurate for triplet loss only! Only tells us if item was the most similar in batch
-        #  i.e., it can't be compared directly with the CCE loss
         acc = self.acc_fn(predictions, targets)
-        # TODO: for CCE loss, softmaxed is the probability of the clip per class in the dataset.
-        #  For triplet, softmaxed is just the similarity with the other elements in the batch
-        #  So they're different which means we can't really compute track-level accuracy with only triplet loss
-        #  As we don't have probabilities for every class in the same way as for CCE
         return loss, acc, softmaxed
+
+    def step(self, batch: tuple) -> tuple:
+        """Model step, combines both CCE and triplet loss as required"""
+        # Unpack the batch: either three elements (CCE loss) or four (triplet loss)
+        if len(batch) == 3:
+            features, targets, batch_names = batch
+            positives = None  # Will be ignored inside .step
+        else:
+            features, targets, batch_names, positives = batch
+        # Set device correctly
+        features = features.to(DEVICE)
+        targets = targets.to(DEVICE)
+        # Forwards pass with CCE loss
+        cce_loss, acc, preds = self.step_cce(features, targets)
+        # Forwards pass with triplet loss (if required)
+        if self.loss_type == "cce+triplet":
+            trip_loss = self.step_triplet(features, positives, targets)
+            # Sum both losses together
+            loss = trip_loss + cce_loss
+        # Otherwise, just set loss to CCE loss only
+        else:
+            loss = cce_loss
+        return loss, acc, preds
 
     def training(self, epoch_num: int) -> tuple[float, float, float]:
         # Lists to track metrics across all batches
@@ -268,14 +284,8 @@ class TrainModule:
                 total=len(self.train_loader),
                 desc=f'Training, epoch {epoch_num} / {self.epochs}...'
         ):
-            # Unpack the batch: either three elements (CCE loss) or four (triplet loss)
-            if len(batch) == 3:
-                features, targets, batch_names = batch
-                positives = None  # Will be ignored inside .step
-            else:
-                features, targets, batch_names, positives = batch
-            # Forwards pass
-            loss, acc, preds = self.step(features, targets, positives)
+            # Forwards pass, combining multiple losses as required
+            loss, acc, preds = self.step(batch)
             # Backwards pass
             self.optimizer.zero_grad()
             loss.backward()
@@ -285,18 +295,12 @@ class TrainModule:
             clip_losses.append(loss.item())
             clip_accs.append(acc.item())
             # Append the names of the tracks and the corresponding predictions for track-level metrics
-            track_names.extend(batch_names)  # Single list of strings
+            track_names.extend(batch[2])  # Single list of strings
             track_preds.append(preds)  # List of tensors, one tensor per clip, containing class logits
-            track_targets.append(targets)  # List of tensors, one tensor per batch, containing target classes
+            track_targets.append(batch[1])  # List of tensors, one tensor per batch, containing target classes
         # Group by tracks, average probabilities, and get predicted and target classes
-        # TODO: we want to skip this for triplet loss?
-        try:
-            predictions, targets = groupby_tracks(track_names, track_preds, track_targets)
-        except RuntimeError:
-            track_acc = 0.
-        else:
-            # Compute track-level accuracy
-            track_acc = self.acc_fn(predictions, targets).item()
+        predictions, targets = groupby_tracks(track_names, track_preds, track_targets)
+        track_acc = self.acc_fn(predictions, targets).item()
         # Return clip loss + accuracy, track accuracy
         return np.mean(clip_losses), np.mean(clip_accs), track_acc
 
@@ -353,35 +357,25 @@ class TrainModule:
             for batch in tqdm(
                     self.test_loader,
                     total=len(self.test_loader),
-                    desc=f'Training, epoch {epoch_num} / {self.epochs}...'
+                    desc=f'Testing, epoch {epoch_num} / {self.epochs}...'
             ):
-                # Unpack the batch: either three elements (CCE loss) or four (triplet loss)
-                if len(batch) == 3:
-                    features, targets, batch_names = batch
-                    positives = None  # Will be ignored inside .step
-                else:
-                    features, targets, batch_names, positives = batch
                 # Forwards pass
-                loss, acc, preds = self.step(features, targets, positives)
+                loss, acc, preds = self.step(batch)
                 # No backwards pass, just append all clip-level metrics from this batch
                 clip_losses.append(loss.item())
                 clip_accs.append(acc.item())
                 # Append the names of the tracks and the corresponding predictions for track-level metrics
-                track_names.extend(batch_names)  # Single list of strings
+                track_names.extend(batch[2])  # Single list of strings
                 track_preds.append(preds)  # List of tensors, one tensor per clip, containing class logits
-                track_targets.append(targets)  # List of tensors, one tensor per batch, containing target classes
+                track_targets.append(batch[1])  # List of tensors, one tensor per batch, containing target classes
         # Group by tracks, average probabilities, and get predicted and target classes
-        try:
-            predictions, targets = groupby_tracks(track_names, track_preds, track_targets)
-        except RuntimeError:
-            track_acc = 0.
-        else:
-            # Compute track-level accuracy
-            track_acc = self.acc_fn(predictions, targets).item()
-            # Save a confusion matrix for test set predictions if we're using checkpoints
-            # TODO: implement confusion matrixes for binary (accompanied/unaccopanied) classification
-            if self.current_epoch % plotting.PLOT_AFTER_N_EPOCHS == 0 and not self.classify_dataset:
-                self.plot_confusion_matrix(predictions, targets)
+        predictions, targets = groupby_tracks(track_names, track_preds, track_targets)
+        # Compute track-level accuracy
+        track_acc = self.acc_fn(predictions, targets).item()
+        # Save a confusion matrix for test set predictions if we're using checkpoints
+        # TODO: implement confusion matrixes for binary (accompanied/unaccopanied) classification
+        if self.current_epoch % plotting.PLOT_AFTER_N_EPOCHS == 0 and not self.classify_dataset:
+            self.plot_confusion_matrix(predictions, targets)
         # Return clip loss + accuracy, track accuracy
         return np.mean(clip_losses), np.mean(clip_accs), track_acc
 
@@ -519,10 +513,10 @@ class TrainModule:
             # Step forward in the LR scheduler
             self.scheduler.step()
             logger.debug(f'LR for epoch {epoch + 1} will be {self.get_scheduler_lr()}')
+        # Run validation after training completes
         logger.info('Training complete! Beginning validation...')
-        if self.loss_type != "triplet":
-            self.validation()
-        logger.info(f'Finished in {round(time() - training_start)} seconds!')
+        self.validation()
+        logger.info(f'Finished in {(time() - training_start) // 60} minutes!')
 
     def validation(self) -> None:
         # Try and create the validation dataloader
@@ -556,21 +550,14 @@ class TrainModule:
                     total=len(validation_loader),
                     desc=f'Validating...'
             ):
-                # Unpack the batch: either three elements (CCE loss) or four (triplet loss)
-                if len(batch) == 3:
-                    features, targets, batch_names = batch
-                    positives = None  # Will be ignored inside .step
-                else:
-                    features, targets, batch_names, positives = batch
-                # Forwards pass
-                loss, acc, preds = self.step(features, targets, positives)
+                loss, acc, preds = self.step(batch)
                 # No backwards pass, just append all clip-level metrics from this batch
                 clip_loss.append(loss.item())
                 clip_accs.append(acc.item())
                 # Append the names of the tracks and the corresponding predictions for track-level metrics
-                track_names.extend(batch_names)  # Single list of strings
+                track_names.extend(batch[2])  # Single list of strings
                 track_preds.append(preds)  # List of tensors, one tensor per clip, containing class logits
-                track_targets.append(targets)  # List of tensors, one tensor per batch, containing target classes
+                track_targets.append(batch[1])  # List of tensors, one tensor per batch, containing target classes
         # Compute clip-level accuracy and loss
         clip_acc, clip_loss = np.mean(clip_accs), np.mean(clip_loss)
         # Group by tracks, average probabilities, and get predicted and target classes
@@ -681,7 +668,7 @@ if __name__ == "__main__":
                 # Start the run!
                 with mlflow.start_run(run_name=args["run"], run_id=run_id):
                     # If this is a new run, append the newly-created run ID to our yaml config file (if we passed this)
-                    if args['config'] is not None:
+                    if args['config'] is not None and 'run_id' not in args['mlflow_cfg'].keys():
                         new_run_id = mlflow.active_run().info.run_id
                         add_run_id_to_config_yaml(args["config"], new_run_id)
                         logger.debug(f'Added run id {new_run_id} to {args["config"]}!')
