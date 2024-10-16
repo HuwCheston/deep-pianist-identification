@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 
 from deep_pianist_identification.dataloader import MIDILoader, remove_bad_clips_from_batch
 from deep_pianist_identification.encoders import DisentangleNet, Concept
-from deep_pianist_identification.encoders.shared import MaskedAvgPool, LinearFlatten, Conv1x1
+from deep_pianist_identification.encoders.shared import MaskedAvgPool, LinearFlatten, Conv1x1, Identity
 from deep_pianist_identification.utils import (
     DEVICE, seed_everything, SEED, PIANO_KEYS, FPS, CLIP_LENGTH
 )
@@ -238,6 +238,27 @@ class DisentangledTest(unittest.TestCase):
         threemask_embeddings = threemask.mask([torch.rand(2, 1, 512) for _ in range(4)])
         ismasked = [(torch.count_nonzero(emb) == 0).item() for emb in threemask_embeddings]
         self.assertGreaterEqual(len([i for i in ismasked if i]), 1)
+
+    def test_resnet(self):
+        # Iterate over both resnet types and layer configurations
+        for resnet_cls, resnet_layers in zip(["resnet18", "resnet34"], [[2, 2, 2, 2], [3, 4, 6, 3]]):
+            # Create the DisentangleNet with this resnet type
+            rn = DisentangleNet(num_classes=20, _use_resnet=True, _resnet_cls=resnet_cls)
+            # Number of feature channels should always be 512
+            self.assertEqual(rn.concept_channels, 512)
+            # Iterate over all the concept types
+            for concept in ["melody", "harmony", "rhythm", "dynamics"]:
+                # Get the concept resnet
+                concept_rn = getattr(rn, f'{concept}_concept')
+                # We should replace the FC with an Identity block
+                self.assertIsInstance(concept_rn.fc, Identity)
+                # We should replace the default 3 channel input with 1 channel
+                self.assertEqual(concept_rn.conv1.in_channels, 1)
+                # Iterate over all the layers
+                for layer_num in range(1, 5):
+                    # We should have the expected number of blocks in each layer
+                    rn_layer = getattr(concept_rn, f'layer{layer_num}')
+                    self.assertEqual(len(rn_layer), resnet_layers[layer_num - 1])
 
 
 if __name__ == '__main__':

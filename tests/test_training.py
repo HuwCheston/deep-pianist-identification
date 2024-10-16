@@ -5,6 +5,8 @@
 
 import os
 import unittest
+from copy import deepcopy
+from typing import Iterator
 
 import torch
 import yaml
@@ -19,6 +21,28 @@ from deep_pianist_identification.training import (
     TrainModule, DEFAULT_CONFIG, groupby_tracks, parse_config_yaml, NoOpScheduler
 )
 from deep_pianist_identification.utils import seed_everything, SEED, DEVICE, get_project_root
+
+
+def vars_changer(cfg_: dict) -> Iterator[bool]:
+    """Takes in a config dictionary, runs a single forward/backward pass, returns a generator of if params change"""
+    # Create the training module
+    tm = TrainModule(**cfg_)
+    tm.model.train()
+    # Get model parameters
+    params = [np for np in tm.model.named_parameters() if np[1].requires_grad]
+    # Make a copy for later comparison
+    initial_params = [(name, p.clone()) for (name, p) in params]
+    # Take a batch from our dataloader
+    batch = next(iter(tm.train_loader))
+    # Forwards and backwards pass through the model
+    loss, _, __ = tm.step(batch)
+    tm.optimizer.zero_grad()
+    loss.backward()
+    tm.optimizer.step()
+    # Iterate through all the parameters in the model: they should have updated
+    for (_, p0), (name, p1) in zip(initial_params, params):
+        # If vars have changed, will return True; if not, will return False
+        yield not torch.equal(p0.to(DEVICE), p1.to(DEVICE))
 
 
 class TrainTest(unittest.TestCase):
@@ -57,7 +81,7 @@ class TrainTest(unittest.TestCase):
 
     def test_binary_parsing(self):
         # Default config classifies performers, not dataset, so change this
-        cfg = DEFAULT_CONFIG.copy()
+        cfg = deepcopy(DEFAULT_CONFIG)
         cfg["classify_dataset"] = True
         tm = TrainModule(**cfg)
         # Check that class attributes update correctly
@@ -73,7 +97,7 @@ class TrainTest(unittest.TestCase):
 
     def test_alt_split(self):
         # Change data split directory
-        cfg = DEFAULT_CONFIG.copy()
+        cfg = deepcopy(DEFAULT_CONFIG)
         cfg["data_split_dir"] = "20class_80min"
         tm = TrainModule(**cfg)
         # Check that class attributes update correctly
@@ -93,7 +117,7 @@ class TrainTest(unittest.TestCase):
         # Iterate through all the encoder modules we want to train
         for encoder in ['cnn', 'crnn', 'resnet50', 'disentangle']:
             # Set the encoder module correctly in our configuration dictionary
-            cfg = DEFAULT_CONFIG.copy()
+            cfg = deepcopy(DEFAULT_CONFIG)
             cfg['batch_size'] = 1
             cfg["encoder_module"] = encoder
             cfg['checkpoint_cfg']['load_checkpoints'] = False
@@ -105,23 +129,27 @@ class TrainTest(unittest.TestCase):
             # Iterate through two different loss functions
             for loss_fn in ["cce+triplet", "cce"]:
                 cfg["loss_type"] = loss_fn
-                # Create the training module
-                tm = TrainModule(**cfg)
-                tm.model.train()
-                # Get model parameters
-                params = [np for np in tm.model.named_parameters() if np[1].requires_grad]
-                # Make a copy for later comparison
-                initial_params = [(name, p.clone()) for (name, p) in params]
-                # Take a batch from our dataloader
-                batch = next(iter(tm.train_loader))
-                # Forwards and backwards pass through the model
-                loss, _, __ = tm.step(batch)
-                tm.optimizer.zero_grad()
-                loss.backward()
-                tm.optimizer.step()
-                # Iterate through all the parameters in the model: they should have updated
-                for (_, p0), (name, p1) in zip(initial_params, params):
-                    self.assertFalse(torch.equal(p0.to(DEVICE), p1.to(DEVICE)))
+                for have_vars_changed in vars_changer(cfg):
+                    self.assertTrue(have_vars_changed)
+
+    def test_disentangle_resnet_vars_change(self):
+        for resnet_cls in ["resnet18", "resnet34"]:
+            # Set the encoder module correctly in our configuration dictionary
+            cfg = deepcopy(DEFAULT_CONFIG)
+            cfg['batch_size'] = 1
+            cfg["encoder_module"] = "disentangle"
+            # Just for safety, don't load or save any checkpoints
+            cfg['checkpoint_cfg']['load_checkpoints'] = False
+            cfg['checkpoint_cfg']['save_checkpoints'] = False
+            # We need to be using multichannel inputs
+            cfg['train_dataset_cfg']['multichannel'] = True
+            cfg['test_dataset_cfg']['multichannel'] = True
+            # Set the model to use the desired resnet class
+            cfg["model_cfg"]["_use_resnet"] = True
+            cfg["model_cfg"]["_resnet_cls"] = resnet_cls
+            # Create the training module
+            for have_vars_changed in vars_changer(cfg):
+                self.assertTrue(have_vars_changed)
 
     def test_track_groupby(self):
         # Fake track names
@@ -171,7 +199,7 @@ class TrainTest(unittest.TestCase):
         for encoder in ['cnn', 'crnn', 'disentangle']:
             for dataset, n_classes in zip(['25class_0min', '20class_80min'], [25, 20]):
                 # Set the encoder module and datset correctly in our configuration dictionary
-                cfg = DEFAULT_CONFIG.copy()
+                cfg = deepcopy(DEFAULT_CONFIG)
                 cfg['data_split_dir'] = dataset
                 cfg['encoder_module'] = encoder
                 # Create the train module and assert that the classification head output size is correct
@@ -179,7 +207,7 @@ class TrainTest(unittest.TestCase):
                 self.assertEqual(tm.num_classes, n_classes)
                 self.assertEqual(tm.model.fc2.fc.out_features, n_classes)
                 # Testing binary classification with the same dataset
-                cfg = DEFAULT_CONFIG.copy()
+                cfg = deepcopy(DEFAULT_CONFIG)
                 cfg['data_split_dir'] = dataset
                 cfg['encoder_module'] = encoder
                 cfg['classify_dataset'] = True
@@ -192,7 +220,7 @@ class TrainTest(unittest.TestCase):
         for encoder in ['cnn', 'crnn', 'disentangle']:
             for dataset, n_classes in zip(['25class_0min', '20class_80min'], [25, 20]):
                 # Set the encoder module and datset correctly in our configuration dictionary
-                cfg = DEFAULT_CONFIG.copy()
+                cfg = deepcopy(DEFAULT_CONFIG)
                 cfg['data_split_dir'] = dataset
                 cfg['encoder_module'] = encoder
                 # Set batch size and number of clips to process correctly
@@ -221,7 +249,7 @@ class TrainTest(unittest.TestCase):
         ]
         for dataset, mapper in zip(['25class_0min', '20class_80min'], test_mapping):
             # Set the encoder module and datset correctly in our configuration dictionary
-            cfg = DEFAULT_CONFIG.copy()
+            cfg = deepcopy(DEFAULT_CONFIG)
             cfg['data_split_dir'] = dataset
             # Set the batch size
             cfg['batch_size'] = 5
@@ -302,7 +330,7 @@ class TrainTest(unittest.TestCase):
 
     def test_loss_fn_parsing(self):
         # Test with a triplet and cross entropy loss
-        cfg = DEFAULT_CONFIG.copy()
+        cfg = deepcopy(DEFAULT_CONFIG)
         cfg["loss_type"] = "cce+triplet"
         trip_tm = TrainModule(**cfg)
         self.assertIsInstance(trip_tm.train_loader.dataset, MIDITripletLoader)
@@ -311,7 +339,7 @@ class TrainTest(unittest.TestCase):
         self.assertEqual(len(batch), 4)
 
         # Test with a cross-entropy loss
-        cfg = DEFAULT_CONFIG.copy()
+        cfg = deepcopy(DEFAULT_CONFIG)
         cfg["loss_type"] = "cce"
         trip_tm = TrainModule(**cfg)
         self.assertIsInstance(trip_tm.train_loader.dataset, MIDILoader)

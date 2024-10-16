@@ -79,6 +79,19 @@ class SharedTest(unittest.TestCase):
         expected = (1, 25)
         self.assertEqual(actual.size(), expected)
 
+    def test_identity(self):
+        # Test without dimension expansion
+        ident = Identity(expand_dim=False)
+        x = torch.rand(2, 512)
+        actual = ident(x)
+        self.assertEqual(x.size(), actual.size())
+        self.assertTrue(torch.all(torch.eq(x, actual)).item())  # input shouldn't change
+        # Test with dimension expansion
+        ident_expand = Identity(expand_dim=True)
+        expected = (2, 1, 512)
+        actual = ident_expand(x)
+        self.assertEqual(expected, actual.size())
+
 
 class TripletLossTest(unittest.TestCase):
     def test_tripletmarginloss(self):

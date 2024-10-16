@@ -90,10 +90,6 @@ class DisentangleNet(nn.Module):
         self.mask_probability = mask_probability
         self.max_masked_concepts = max_masked_concepts  # Max up to this number of concepts
         self.dropper = nn.Dropout(p=1.0)  # Always deactivated during testing!
-        # Use default convolutional layer strategy, if this is not passed
-        if layers is None:
-            logger.warning("No convolution layers were passed in `model_cfg`, so falling back on defaults!")
-            layers = DEFAULT_CONV_LAYERS
         # Layers for each individual musical concept
         if _use_resnet:
             logger.debug(f"Using ResNet class {_resnet_cls} as concept encoder!")
@@ -104,6 +100,10 @@ class DisentangleNet(nn.Module):
             # Get the number of output channels in the final convolutional layer
             self.concept_channels = self.melody_concept.layer4[0].conv1.out_channels
         else:
+            # Use default convolutional layer strategy, if this is not passed
+            if layers is None:
+                logger.warning("No convolution layers were passed in `model_cfg`, so falling back on defaults!")
+                layers = DEFAULT_CONV_LAYERS
             self.melody_concept = Concept(layers, use_gru)
             self.harmony_concept = Concept(layers, use_gru)
             self.rhythm_concept = Concept(layers, use_gru)
