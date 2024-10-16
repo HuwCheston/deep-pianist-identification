@@ -7,10 +7,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 from loguru import logger
+from torchvision.models import resnet18, resnet34
 
 import deep_pianist_identification.utils as utils
 from deep_pianist_identification.encoders.shared import (
-    ConvLayer, LinearLayer, GRU, MaskedAvgPool, LinearFlatten, Conv1x1, GeM
+    ConvLayer, LinearLayer, GRU, MaskedAvgPool, LinearFlatten, Conv1x1, GeM, Identity
 )
 
 __all__ = ["DisentangleNet", "Concept"]
@@ -80,6 +81,8 @@ class DisentangleNet(nn.Module):
             mask_probability: float = 0.3,
             max_masked_concepts: int = 3,
             pool_type: str = "avg",
+            _use_resnet: bool = False,
+            _resnet_cls: str = None
     ):
         super(DisentangleNet, self).__init__()
         # Whether to randomly mask individual channels after processing
@@ -92,13 +95,22 @@ class DisentangleNet(nn.Module):
             logger.warning("No convolution layers were passed in `model_cfg`, so falling back on defaults!")
             layers = DEFAULT_CONV_LAYERS
         # Layers for each individual musical concept
-        self.melody_concept = Concept(layers, use_gru)
-        self.harmony_concept = Concept(layers, use_gru)
-        self.rhythm_concept = Concept(layers, use_gru)
-        self.dynamics_concept = Concept(layers, use_gru)
-        # Log the shape of each concept encoder
-        self.concept_channels = self.melody_concept.output_channels
-        self.log_encoder_architecture(self.melody_concept)
+        if _use_resnet:
+            logger.debug(f"Using ResNet class {_resnet_cls} as concept encoder!")
+            self.melody_concept = self.get_resnet(num_classes, _resnet_cls)
+            self.harmony_concept = self.get_resnet(num_classes, _resnet_cls)
+            self.rhythm_concept = self.get_resnet(num_classes, _resnet_cls)
+            self.dynamics_concept = self.get_resnet(num_classes, _resnet_cls)
+            # Get the number of output channels in the final convolutional layer
+            self.concept_channels = self.melody_concept.layer4[0].conv1.out_channels
+        else:
+            self.melody_concept = Concept(layers, use_gru)
+            self.harmony_concept = Concept(layers, use_gru)
+            self.rhythm_concept = Concept(layers, use_gru)
+            self.dynamics_concept = Concept(layers, use_gru)
+            # Log the shape of each concept encoder
+            self.concept_channels = self.melody_concept.output_channels
+            self.log_encoder_architecture(self.melody_concept)
         # Attention and pooling between concepts (i.e., channels)
         self.use_attention = use_attention
         if self.use_attention:
@@ -121,6 +133,32 @@ class DisentangleNet(nn.Module):
             out_channels=num_classes,  # either binary or multiclass
             p=0.5
         )
+
+    @staticmethod
+    def get_resnet(num_classes: int, resnet_cls: str):
+        """Returns a resnet withoug pretraining, with the classification head removed and the input channels set to 1"""
+        # Passed in resnet class must be one of these
+        all_cls = ["resnet18", "resnet34"]
+        assert resnet_cls in all_cls, "`resnet_cls` must be one of " + ", ".join(all_cls)
+        # Get the correct resnet class from the string
+        if resnet_cls == "resnet18":
+            maker = resnet18
+        else:
+            maker = resnet34
+        # Create the resnet with the correct number of classes (possibly not needed)
+        rn = maker(weights=None, num_classes=num_classes)
+        # Remove the classification head by setting it to a custom module that just returns the input tensor with +1 dim
+        rn.fc = Identity(expand_dim=True).to(utils.DEVICE)
+        # Modify the first convolutional layer as it expects a 3-channel image, and we're only using one channel
+        rn.conv1 = nn.Conv2d(
+            in_channels=1,
+            out_channels=rn.conv1.out_channels,
+            kernel_size=rn.conv1.kernel_size,
+            stride=rn.conv1.stride,
+            padding=rn.conv1.padding,
+            bias=rn.conv1.bias
+        ).to(utils.DEVICE)
+        return rn
 
     @staticmethod
     def log_encoder_architecture(encoder: Concept):
@@ -246,7 +284,7 @@ if __name__ == '__main__':
         max_masked_concepts=1,
         layers=DEFAULT_CONV_LAYERS,
         mask_probability=1.0,
-        pool_type="conv1x1",
+        pool_type="avg",
         num_attention_heads=2
     ).to(utils.DEVICE)
     model.train()

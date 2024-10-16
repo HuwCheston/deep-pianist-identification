@@ -7,7 +7,8 @@ import torch
 import torch.nn as nn
 
 __all__ = [
-    "MaskedAvgPool", "LinearFlatten", "Conv1x1", "GeM", "IBN", "ConvLayer", "LinearLayer", "GRU", "TripletMarginLoss"
+    "MaskedAvgPool", "LinearFlatten", "Conv1x1", "GeM", "IBN", "ConvLayer", "LinearLayer", "GRU", "TripletMarginLoss",
+    "Identity"
 ]
 
 
@@ -218,3 +219,18 @@ class TripletMarginLoss(nn.Module):
         # Compute the loss from the similarity matrix and return the mean
         loss = self.compute_loss(similarity_matrix, class_idxs)
         return loss.mean()
+
+
+class Identity(torch.nn.Module):
+    """Returns the input tensor without modifying. Used to replace classification head on `torchvision` models"""
+
+    def __init__(self, expand_dim: bool = False):
+        super(Identity, self).__init__()
+        self.expand_dim = expand_dim
+
+    def forward(self, x: torch.tensor) -> torch.tensor:
+        # If required, this will add an empty extra dimension
+        # For use in DisentangleNet where we want tensors of (batch, 1, features) to concatenate along dim=1
+        if self.expand_dim:
+            x = x.unsqueeze(1)
+        return x
