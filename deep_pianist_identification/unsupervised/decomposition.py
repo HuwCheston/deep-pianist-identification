@@ -4,50 +4,93 @@
 """ Helper for using sklearn decomposition on high-dim tensors. From https://github.com/zhangrh93/InvertibleCE """
 
 import numpy as np
-import sklearn.cluster
-import sklearn.decomposition
 import tensorly as tl
-from sklearn.base import BaseEstimator
+from torch.utils.data import DataLoader
 
-ALGORITHM_NAMES = {}
-for name in dir(sklearn.decomposition):
-    obj = sklearn.decomposition.__getattribute__(name)
-    if isinstance(obj, type) and issubclass(obj, BaseEstimator):
-        ALGORITHM_NAMES[name] = "decomposition"
-for name in dir(sklearn.cluster):
-    obj = sklearn.cluster.__getattribute__(name)
-    if isinstance(obj, type) and issubclass(obj, BaseEstimator):
-        ALGORITHM_NAMES[name] = "cluster"
-# add tucker decomposition
-ALGORITHM_NAMES["NTD"] = "3d_decomposition"
+from deep_pianist_identification.dataloader import MIDILoaderTargeted, remove_bad_clips_from_batch
 
 
-class ChannelTensorDecompositionReducer:
+class TuckerDecomposer:
+    """Initialize the ChannelDecomposition for tensors.
+
+    Parameters
+    ----------
+    dimension : int
+        the number of dimensions (e.g., 3 for a 3d matrix). Only 3 and 4 are supported.
+    rank : list[int]
+        list of ranks. Its length must match `dimension`.
+    iter_max : int
+        number of maximum iteration for the tucker decomposition.
+    """
+
     def __init__(
             self,
+            model,
+            target_idx: int,
+            layer: str,
+            num_classes: int = 20,
+            data_split_dir: str = "20class_80min",
             dimension: int = 3,
             rank: list[int] = None,
-            iter_max: int = 1000
+            iter_max: int = 1000,
+            batch_size: int = 20,
+            non_negative: bool = False
     ):
-        """Initialize the ChannelDecomposition for tensors.
+        # Construct the layer dictionary
+        self.model = model
+        self.model.eval()
+        self.layer = layer
+        self.layer_dict: dict[torch.nn.Module] = dict(self.model.named_children())
+        assert layer in self.layer_dict.keys(), f'`layer` must be an attribute of `model`, but got `{layer}`'
+        # Initialise dataloaders
+        dl_cfg = dict(
+            data_split_dir=data_split_dir,
+            split="validation",
+            normalize_velocity=True,
+            data_augmentation=False,
+            jitter_start=False,
+            multichannel=True,
+            classify_dataset=False,
+            # TODO: update this, set to use melody concept by default
+            use_concepts=0
+        )
+        self.target_loader = DataLoader(
+            MIDILoaderTargeted(
+                target=target_idx,
+                # TODO: just set to a temporary value for now
+                n_clips=40,
+                **dl_cfg
+            ),
+            batch_size=batch_size,
+            shuffle=True,
+            drop_last=False,
+            collate_fn=remove_bad_clips_from_batch
+        )
+        # self.target_acts = self.get_layer_activations(self.target_loader)
+        self.other_loader = DataLoader(
+            MIDILoaderTargeted(
+                target=[i for i in range(num_classes) if i != target_idx],
+                n_clips=len(self.target_loader.dataset),
+                **dl_cfg
+            ),
+            batch_size=batch_size,
+            shuffle=True,
+            drop_last=False,
+            collate_fn=remove_bad_clips_from_batch
+        )
+        # Computed when calling self.get_layer_activations()
+        self.target_acts = None
+        self.other_acts = None
 
-        Parameters
-        ----------
-        dimension : int
-            the number of dimensions (e.g., 3 for a 3d matrix). Only 3 and 4 are supported.
-        rank : list[int]
-            list of ranks. Its length must match `dimension`.
-        iter_max : int
-            number of maximum iteration for the tucker decomposition.
-        """
-
+        # Initialise arguments for tucker decomposition
+        self.non_negative = non_negative
         if dimension not in [3, 4]:
-            raise Exception("Only dimension 3 and 4 are supported.")
+            raise NotImplementedError("Only dimension 3 and 4 are supported.")
         self.dimension = dimension
         if len(rank) != dimension:
-            raise Exception("The number of ranks must be the same as dimension.")
+            raise ValueError("The number of ranks must be the same as dimension.")
         self.rank = rank
-
+        # Default arguments taken straight from repo
         self.precomputed_tensors = None
         self._is_fit = False
         self.trained_shape = None
@@ -56,9 +99,44 @@ class ChannelTensorDecompositionReducer:
         self.orig_dataset = None
         self.reducer_conv = None
 
+    def _get_layer_activations(self, dataloader: DataLoader) -> np.ndarray:
+        def getter(batch: torch.tensor) -> list[torch.tensor]:
+            data_out, handles = [], []
+
+            def hook_out(_, __, o) -> None:
+                data_out.append(o)
+
+            # Register forward hooks for the models correctly
+            handles.append(self.layer_dict[self.layer].register_forward_hook(hook_out))
+            # Pass through the model with our forward hook set correctly
+            # We don't need the output from forward directly,
+            # we just need to use it to hit the `hook_out` function
+            with torch.no_grad():
+                batch = batch.to(DEVICE).unsqueeze(1)  # adding an extra channel dimension in
+                _ = self.model(batch.to(DEVICE))
+            data_out = data_out[0].cpu()
+            # Remove all hooks
+            for handle in handles:
+                handle.remove()
+            # Pass through a ReLU which clips all negative values to 0
+            if self.non_negative:
+                data_out = torch.relu(data_out)
+            # This should just return the activations for the specified layer
+            return data_out
+
+        # This gives us activations in the form (B, C, H, W)
+        acts = [getter(nx) for nx, _, __ in dataloader]
+        # Permute to (B, H, W, C) and return
+        return torch.cat(acts, 0).permute(0, 2, 3, 1).detach().numpy()
+
+    def get_layer_activations(self):
+        """Compute target activation for both target and other dataloaders"""
+        # Shape is (B, H, W, C)
+        self.target_acts = self._get_layer_activations(self.target_loader)
+        self.other_acts = self._get_layer_activations(self.other_loader)
+
     def _flat_transpose_pad(self, acts, pad=False):
-        """ flat the input matrix A to (c x (h x w) x n),
-         """
+        """Flatten the input matrix A to (c x (h x w) x n)"""
         # acts is the input matrix to factorize.
         # first transpose it to c x h x w x n (this is necessary because we can't fix last mode in tensorly)
         acts = np.swapaxes(acts, 0, -1)
@@ -80,7 +158,7 @@ class ChannelTensorDecompositionReducer:
             return padded_acts
 
     def _inverse_flat_transpose(self, acts, reduced_channel=True):
-        """reshape W according to the initial shape of A."""
+        """Reshape W according to the initial shape of A"""
         # transpose to put channel at the end and pieces at first
         acts = np.swapaxes(acts, 0, -1)
         # reshape to reconstruct h x w
@@ -95,7 +173,7 @@ class ChannelTensorDecompositionReducer:
         # matrix now has the shape n x h x w x c
         self.orig_shape = acts.shape
         self.orig_dataset = acts
-        # transpose and flat
+        # transpose and flat to c x h x w x c
         acts_flat = self._flat_transpose_pad(acts)
         # now run tucker decomposition
         print("Running tucker on the matrix of shape", acts_flat.shape)
@@ -211,12 +289,10 @@ if __name__ == "__main__":
 
     import torch
     import yaml
-    from torch.utils.data import DataLoader, TensorDataset
 
     from deep_pianist_identification.training import DEFAULT_CONFIG, TrainModule
     from deep_pianist_identification.encoders import DisentangleNet
     from deep_pianist_identification.utils import get_project_root, DEVICE
-    from deep_pianist_identification.unsupervised.wrapper import ModelWrapper
 
     # Define the name of the model we're going to wrap
     MODEL_NAME = "disentangle-jtd+pijama-resnet18-mask30concept3-augment50-noattention-avgpool"
@@ -231,47 +307,13 @@ if __name__ == "__main__":
     tm = TrainModule(**cfg)
     # Simply grab the checkpointed model from the training module
     disentangle_model: DisentangleNet = tm.model.to(DEVICE)
-    disentangle_model.eval()
-    # Wrap the melody ResNet from the model with the wrapper
     melody_concept = disentangle_model.melody_concept
-    wrappedup = ModelWrapper(melody_concept, layer_dict=dict(melody_concept.named_children()))
-
-    # Create a list of dataloaders with random data: assuming one dataloader per composer
-    loaders = [
-        DataLoader(
-            TensorDataset(
-                torch.randn(2, 1, 88, 3000).type(torch.float32),
-                torch.tensor([1 for _ in range(2)])
-            ),
-            batch_size=10,
-            shuffle=True
-        ),
-        DataLoader(
-            TensorDataset(
-                torch.randn(2, 1, 88, 3000).type(torch.float32),
-                torch.tensor([2 for _ in range(2)])
-            ),
-            batch_size=10,
-            shuffle=True
-        ),
-    ]
-    # Get the activations for the final layer of the ResNet, before the classification head
-    # Output is (B, H, W, C)
-    X_features = []
-    for loader in loaders:
-        X_feature = wrappedup.get_feature(loader, "layer4")
-        X_features.append(X_feature)
-
-    nX_feature = np.concatenate(X_features)
-    out = torch.nn.functional.adaptive_avg_pool2d(
-        torch.tensor(nX_feature).permute(0, 3, 1, 2),
-        (3, nX_feature.shape[2] // 8)
-    ).permute(0, 2, 3, 1).numpy().astype(np.float32)
-    # Create the channel reducer
-    reducer = ChannelTensorDecompositionReducer(
+    td = TuckerDecomposer(
+        model=melody_concept,
+        target_idx=1,
+        layer="layer4",
         dimension=4,
         # Replace 13 and 3 with height/width (check which?)
         rank=[4, 13, 3, 375],
-        iter_max=1000,
     )
-    reducer.fit_transform(out)
+    td.get_layer_activations()
