@@ -17,3 +17,5 @@ torchvision
 torchmetrics
 mlflow
 tenacity
+lime
+tensorly
