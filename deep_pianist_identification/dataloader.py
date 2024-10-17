@@ -20,7 +20,7 @@ from deep_pianist_identification.extractors import (
 )
 from deep_pianist_identification.utils import get_project_root, CLIP_LENGTH
 
-__all__ = ["MIDILoader", "MIDITripletLoader", "remove_bad_clips_from_batch"]
+__all__ = ["MIDILoader", "MIDITripletLoader", "MIDILoaderTargeted", "remove_bad_clips_from_batch"]
 
 MAX_RETRIES = 100
 
@@ -74,8 +74,7 @@ class MIDILoader(Dataset):
         if n_clips is not None:
             self.clips = self.clips[:n_clips]
 
-    @staticmethod
-    def get_clips_for_split(csv_path: str) -> tuple:
+    def get_clips_for_split(self, csv_path: str) -> tuple:
         """For a CSV file located at a given path, load all the clips (rows) it contains as tuples"""
         split_df = pd.read_csv(csv_path, delimiter=',', index_col=0)
         for idx, track in split_df.iterrows():
@@ -170,6 +169,51 @@ class MIDILoader(Dataset):
             return piano_roll, target, track_path.split(os.path.sep)[-1]
 
 
+class MIDILoaderTargeted(MIDILoader):
+    """Dataloader subclass that only returns clips from pianists from a particular target class (or classes)"""
+
+    def __init__(
+            self,
+            split: str,
+            target: int | list[int],
+            data_split_dir: str = "25class_0min",
+            n_clips: int = None,
+            data_augmentation: bool = True,
+            augmentation_probability: float = 0.5,
+            jitter_start: bool = True,
+            normalize_velocity: bool = True,
+            multichannel: bool = False,
+            use_concepts: str = None,
+            extractor_cfg: dict = None,
+            classify_dataset: bool = False,
+    ):
+        # We could probably implement this fairly simply but needs testing
+        if classify_dataset is True:
+            raise NotImplementedError("`classify_dataset` must be False when using `MIDILoaderTargeted`")
+        self.target = target if isinstance(target, list) else [target]
+        # Initialise the main dataloader with all passed argu
+        super().__init__(
+            split, data_split_dir, n_clips, data_augmentation, augmentation_probability, jitter_start,
+            normalize_velocity, multichannel, use_concepts, extractor_cfg, classify_dataset
+        )
+
+    def get_clips_for_split(self, csv_path: str) -> tuple:
+        """For a CSV file located at a given path, load all the clips (rows) it contains as tuples"""
+        split_df = pd.read_csv(csv_path, delimiter=',', index_col=0)
+        for idx, track in split_df.iterrows():
+            # Skip over pianists who are not in our target list
+            if track['pianist'] not in self.target:
+                continue
+            track_path = os.path.join(get_project_root(), 'data/clips', track['track'])
+            track_clips = len(os.listdir(track_path))
+            # Get the dataset from the track name
+            dataset = track['track'].split('/')
+            dataset_idx = 0 if dataset == 'jtd' else 1
+            # Iterate through all clips for this track
+            for clip_idx in range(track_clips):
+                yield track_path, track['pianist'], dataset_idx, clip_idx
+
+
 class MIDITripletLoader(MIDILoader):
     """A variant of the MIDILoader that returns both anchor and positive clips (i.e., two clips from one pianist)"""
 
@@ -250,8 +294,9 @@ if __name__ == "__main__":
     batch_size = 12
     times = []
     loader = DataLoader(
-        MIDILoader('train', data_augmentation=True, augmentation_probability=1.0, jitter_start=True,
-                   normalize_velocity=True, multichannel=True),
+        MIDILoaderTargeted('train', target=[1, 2], data_augmentation=True, augmentation_probability=1.0,
+                           jitter_start=True,
+                           normalize_velocity=True, multichannel=True),
         batch_size=batch_size,
         shuffle=True,
         collate_fn=remove_bad_clips_from_batch,

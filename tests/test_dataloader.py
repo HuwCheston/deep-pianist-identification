@@ -9,7 +9,9 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from deep_pianist_identification.dataloader import MIDILoader, MIDITripletLoader, remove_bad_clips_from_batch
+from deep_pianist_identification.dataloader import (
+    MIDILoader, MIDITripletLoader, remove_bad_clips_from_batch, MIDILoaderTargeted
+)
 from deep_pianist_identification.utils import seed_everything, PIANO_KEYS, CLIP_LENGTH, FPS
 
 
@@ -183,6 +185,48 @@ class TripletLoaderTest(unittest.TestCase):
         positive_two = loader.get_positive_sample(anc_class, anc_index)
         # The two positive samples should be different from each other
         self.assertFalse(np.array_equal(positive_one, positive_two))
+
+
+class TargetedLoaderTest(unittest.TestCase):
+    def test_single_target(self):
+        expected = 1
+        loader = DataLoader(
+            MIDILoaderTargeted(
+                'train',
+                target=expected,
+                normalize_velocity=True,
+                multichannel=True,
+                data_split_dir="25class_0min"
+            ),
+            batch_size=10,
+            shuffle=True,
+        )
+        loader = iter(loader)
+        # Iterate through 10 batches
+        for i in range(10):
+            _, target, __ = next(loader)
+            for targ in target.tolist():
+                self.assertEqual(targ, expected)
+
+    def test_multiple_targets(self):
+        expected = [1, 4, 5, 10, 19]
+        loader = DataLoader(
+            MIDILoaderTargeted(
+                'train',
+                target=expected,
+                normalize_velocity=True,
+                multichannel=True,
+                data_split_dir="25class_0min"
+            ),
+            batch_size=10,
+            shuffle=True,
+        )
+        loader = iter(loader)
+        # Iterate through 10 batches
+        for i in range(10):
+            _, target, __ = next(loader)
+            for targ in target.tolist():
+                self.assertIn(targ, expected)
 
 
 if __name__ == '__main__':
