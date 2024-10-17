@@ -185,8 +185,19 @@ class ValidateModule:
                     # Mask the required embeddings for this combination
                     new_embeddings = list(apply_masks(deepcopy(embeddings), mask_idxs))
                     # Stack into a tensor, calculate logits, and softmax
-                    stacked = torch.cat(new_embeddings, dim=1)
-                    logits = self.model.forward_features(stacked)
+                    x = torch.cat(new_embeddings, dim=1)
+                    # Self-attention across channels
+                    if self.model.use_attention:
+                        x, _ = self.model.self_attention(x, x, x)
+                    # Permute to (batch, features, channels)
+                    x = x.permute(0, 2, 1)
+                    # Pool across channels
+                    x = self.model.pooling(x)
+                    # Remove singleton dimension
+                    x = x.squeeze(2)
+                    # Pass through linear layers
+                    x = self.model.fc1(x)
+                    logits = self.model.fc2(x)
                     softmaxed = torch.nn.functional.softmax(logits, dim=1)
                     # Get clip level accuracy
                     combo_preds = torch.argmax(softmaxed, dim=1)

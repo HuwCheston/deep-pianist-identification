@@ -131,8 +131,6 @@ class BarPlotMaskedConceptsAccuracy(BasePlot):
         pd.options.mode.chained_assignment = None
         counter = lambda x: x.count('+') + 1 if '+' in x else 0
         df["n_concepts"] = df['concepts'].apply(counter)
-        max_acc = df[df['n_concepts'] == df['n_concepts'].max()]['track_acc'].iloc[0]
-        df['track_acc'] /= max_acc
         sort_and_title = lambda x: ', '.join(sorted([i.title() for i in x.split('+')]))
         df["concepts"] = df["concepts"].apply(sort_and_title)
         pd.options.mode.chained_assignment = "warn"
@@ -149,7 +147,7 @@ class BarPlotMaskedConceptsAccuracy(BasePlot):
         )
 
     def _format_ax(self):
-        self.ax.set(ylabel="Concepts", xlabel="Track accuracy (1.0 = no masking)")
+        self.ax.set(ylabel="Concepts", xlabel="Validation accuracy (track)")
         plt.setp(self.ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
         self.ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
         self.ax.grid(axis="x", zorder=0, **GRID_KWS)
