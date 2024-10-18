@@ -82,12 +82,14 @@ class DisentangleNet(nn.Module):
             max_masked_concepts: int = 3,
             pool_type: str = "avg",
             _use_resnet: bool = False,
-            _resnet_cls: str = None
+            _resnet_cls: str = None,
+            use_2fc: bool = True  # Use two fully connected layers at the end of the model
     ):
         super(DisentangleNet, self).__init__()
-        # Whether to randomly mask individual channels after processing
-        self.use_masking = use_masking
-        self.mask_probability = mask_probability
+        self.num_classes = num_classes
+        self.use_2fc = use_2fc  # Whether to use two fully connected layers as opposed to one
+        self.use_masking = use_masking  # Whether to randomly mask individual channels after processing
+        self.mask_probability = mask_probability  # Probability of applying masking
         self.max_masked_concepts = max_masked_concepts  # Max up to this number of concepts
         self.dropper = nn.Dropout(p=1.0)  # Always deactivated during testing!
         # Layers for each individual musical concept
@@ -121,17 +123,28 @@ class DisentangleNet(nn.Module):
                 dropout=0.1
             )
         self.pooling = self.get_pooling_module(pool_type)
-        # Linear layers project on to final output: these have dropout added with p=0.5
-        self.fc1 = LinearLayer(
-            in_channels=self.concept_channels,
-            out_channels=self.concept_channels // 4,
-            p=0.5
-        )
-        self.fc2 = LinearLayer(
-            in_channels=self.concept_channels // 4,  # i.e., fc1 out_channels
-            out_channels=num_classes,  # either binary or multiclass
-            p=0.5
-        )
+        # Create either one or two linear layers
+        # We define two attributes here for backwards compatibility.
+        # When use_fc2=False, fc1 will do nothing during .forward
+        self.fc1, self.fc2 = self.create_fc_layers()
+
+    def create_fc_layers(self, dropout_p: float = 0.5) -> tuple[nn.Module, nn.Module]:
+        """Create either one or two FC layers as the classification head of the module"""
+        # All layers use dropout at p=0.5 by default
+        if self.use_2fc:
+            # channels -> 128 -> classes
+            in1, out1 = self.concept_channels, self.concept_channels // 4
+            in2, out2 = out1, self.num_classes
+            logger.info(f'Using two FC layers with I/O ({in1}>>{out1})-({in2}>>{out2})')
+            fc1 = LinearLayer(in_channels=in1, out_channels=out1, p=dropout_p)
+            fc2 = LinearLayer(in_channels=in2, out_channels=out2, p=dropout_p)
+        else:
+            # channels -> classes
+            in1, out1 = self.concept_channels, self.num_classes
+            logger.info(f'Using one FC layer with I/O ({in1}>>{out1})')
+            fc1 = Identity(expand_dim=False)  # does nothing, for backwards compatibility
+            fc2 = LinearLayer(in_channels=in1, out_channels=out1, p=dropout_p)
+        return fc1, fc2
 
     @staticmethod
     def get_resnet(num_classes: int, resnet_cls: str):

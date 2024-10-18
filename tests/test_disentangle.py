@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 
 from deep_pianist_identification.dataloader import MIDILoader, remove_bad_clips_from_batch
 from deep_pianist_identification.encoders import DisentangleNet, Concept
-from deep_pianist_identification.encoders.shared import MaskedAvgPool, Conv1x1, Identity
+from deep_pianist_identification.encoders.shared import MaskedAvgPool, Conv1x1, Identity, LinearLayer
 from deep_pianist_identification.utils import (
     DEVICE, seed_everything, SEED, PIANO_KEYS, FPS, CLIP_LENGTH
 )
@@ -222,6 +222,21 @@ class DisentangledTest(unittest.TestCase):
         threemask_embeddings = threemask.mask([torch.rand(2, 1, 512) for _ in range(4)])
         ismasked = [(torch.count_nonzero(emb) == 0).item() for emb in threemask_embeddings]
         self.assertGreaterEqual(len([i for i in ismasked if i]), 1)
+
+    def test_fc2(self):
+        # Compute with the first linear layer
+        withfc1 = DisentangleNet(num_classes=20, use_2fc=True)
+        self.assertIsInstance(withfc1.fc1, LinearLayer)
+        self.assertEqual(withfc1.fc2.fc.in_features, 128)
+        # Compute without the first linear layer
+        withoutfc1 = DisentangleNet(num_classes=20, use_2fc=False)
+        self.assertIsInstance(withoutfc1.fc1, Identity)  # Forward for this class does nothing
+        self.assertEqual(withoutfc1.fc2.fc.in_features, 512)
+        # Compare number of parameters
+        fc1_params = sum(p.numel() for p in withfc1.parameters())
+        nofc1_params = sum(p.numel() for p in withoutfc1.parameters())
+        # With only one FC layer, we should have a smaller number of parameters
+        self.assertLess(nofc1_params, fc1_params)
 
     def test_resnet(self):
         # Iterate over both resnet types and layer configurations
