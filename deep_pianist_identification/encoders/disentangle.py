@@ -11,7 +11,7 @@ from torchvision.models import resnet18, resnet34
 
 import deep_pianist_identification.utils as utils
 from deep_pianist_identification.encoders.shared import (
-    ConvLayer, LinearLayer, GRU, MaskedAvgPool, LinearFlatten, Conv1x1, GeM, Identity
+    ConvLayer, LinearLayer, GRU, MaskedAvgPool, Conv1x1, GeM, Identity
 )
 
 __all__ = ["DisentangleNet", "Concept"]
@@ -123,8 +123,7 @@ class DisentangleNet(nn.Module):
         self.pooling = self.get_pooling_module(pool_type)
         # Linear layers project on to final output: these have dropout added with p=0.5
         self.fc1 = LinearLayer(
-            # If we're flattening -> linear at the end (rather than pooling), input size will be 2048, not 512
-            in_channels=self.concept_channels * 4 if pool_type == "linear" else self.concept_channels,
+            in_channels=self.concept_channels,
             out_channels=self.concept_channels // 4,
             p=0.5
         )
@@ -182,9 +181,10 @@ class DisentangleNet(nn.Module):
         logger.info(f"After convolution, shape will be (B, {concept_chan}, {concept_height}, {concept_width})")
         logger.info(f'After pooling, shape will be (B, {concept_chan})')
 
-    def get_pooling_module(self, pool_type: str) -> nn.Module:
+    @staticmethod
+    def get_pooling_module(pool_type: str) -> nn.Module:
         """Returns the correct final pooling module to reduce across the channels dimension"""
-        accept = ["gem", "max", "avg", "masked-avg", "linear", "conv1x1"]
+        accept = ["gem", "max", "avg", "masked-avg", "conv1x1"]
         assert pool_type in accept, "Module `pool_type` must be one of" + ", ".join(accept)
         if pool_type == "max":
             return nn.AdaptiveMaxPool1d(1)
@@ -192,11 +192,6 @@ class DisentangleNet(nn.Module):
             return nn.AdaptiveAvgPool1d(1)
         elif pool_type == "masked-avg":
             return MaskedAvgPool()
-        elif pool_type == "linear":
-            # We can't both compute self attention and use our linear pooling hack
-            if self.use_attention:
-                raise NotImplementedError("Cannot set both `use_attention=True` and `pool_type='linear'`")
-            return LinearFlatten()
         elif pool_type == "conv1x1":
             return Conv1x1(in_channels=4)
         else:
