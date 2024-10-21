@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from loguru import logger
-from torchvision.models import resnet18, resnet34
+from torchvision.models import resnet18, resnet34, resnet50
 
 import deep_pianist_identification.utils as utils
 from deep_pianist_identification.encoders.shared import (
@@ -100,7 +100,10 @@ class DisentangleNet(nn.Module):
             self.rhythm_concept = self.get_resnet(num_classes, _resnet_cls)
             self.dynamics_concept = self.get_resnet(num_classes, _resnet_cls)
             # Get the number of output channels in the final convolutional layer
-            self.concept_channels = self.melody_concept.layer4[0].conv1.out_channels
+            if _resnet_cls != "resnet50":
+                self.concept_channels = self.melody_concept.layer4[0].conv1.out_channels
+            else:
+                self.concept_channels = 2048
         else:
             # Use default convolutional layer strategy, if this is not passed
             if layers is None:
@@ -150,11 +153,13 @@ class DisentangleNet(nn.Module):
     def get_resnet(num_classes: int, resnet_cls: str):
         """Returns a resnet withoug pretraining, with the classification head removed and the input channels set to 1"""
         # Passed in resnet class must be one of these
-        all_cls = ["resnet18", "resnet34"]
+        all_cls = ["resnet18", "resnet34", "resnet50"]
         assert resnet_cls in all_cls, "`resnet_cls` must be one of " + ", ".join(all_cls)
         # Get the correct resnet class from the string
         if resnet_cls == "resnet18":
             maker = resnet18
+        elif resnet_cls == "resnet50":
+            maker = resnet50
         else:
             maker = resnet34
         # Create the resnet with the correct number of classes (possibly not needed)
@@ -293,7 +298,9 @@ if __name__ == '__main__':
         layers=DEFAULT_CONV_LAYERS,
         mask_probability=1.0,
         pool_type="avg",
-        num_attention_heads=2
+        _use_resnet=True,
+        _resnet_cls="resnet50",
+        num_attention_heads=4
     ).to(utils.DEVICE)
     model.train()
     print(utils.total_parameters(model))
