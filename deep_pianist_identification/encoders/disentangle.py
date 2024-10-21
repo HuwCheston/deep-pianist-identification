@@ -99,11 +99,8 @@ class DisentangleNet(nn.Module):
             self.harmony_concept = self.get_resnet(num_classes, _resnet_cls)
             self.rhythm_concept = self.get_resnet(num_classes, _resnet_cls)
             self.dynamics_concept = self.get_resnet(num_classes, _resnet_cls)
-            # Get the number of output channels in the final convolutional layer
-            if _resnet_cls != "resnet50":
-                self.concept_channels = self.melody_concept.layer4[0].conv1.out_channels
-            else:
-                self.concept_channels = 2048
+            # Get the number of output channels in the final layer
+            self.concept_channels = list(self.melody_concept.layer4[0].children())[-1][-1].num_features
         else:
             # Use default convolutional layer strategy, if this is not passed
             if layers is None:
@@ -135,7 +132,7 @@ class DisentangleNet(nn.Module):
         """Create either one or two FC layers as the classification head of the module"""
         # All layers use dropout at p=0.5 by default
         if self.use_2fc:
-            # channels -> 128 -> classes
+            # channels -> channels / 4 -> classes
             in1, out1 = self.concept_channels, self.concept_channels // 4
             in2, out2 = out1, self.num_classes
             logger.info(f'Using two FC layers with I/O ({in1}>>{out1})-({in2}>>{out2})')
@@ -158,10 +155,10 @@ class DisentangleNet(nn.Module):
         # Get the correct resnet class from the string
         if resnet_cls == "resnet18":
             maker = resnet18
-        elif resnet_cls == "resnet50":
-            maker = resnet50
-        else:
+        elif resnet_cls == "resnet34":
             maker = resnet34
+        else:
+            maker = resnet50
         # Create the resnet with the correct number of classes (possibly not needed)
         rn = maker(weights=None, num_classes=num_classes)
         # Remove the classification head by setting it to a custom module that just returns the input tensor with +1 dim
@@ -299,7 +296,7 @@ if __name__ == '__main__':
         mask_probability=1.0,
         pool_type="avg",
         _use_resnet=True,
-        _resnet_cls="resnet50",
+        _resnet_cls="resnet34",
         num_attention_heads=4
     ).to(utils.DEVICE)
     model.train()

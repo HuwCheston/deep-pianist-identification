@@ -240,11 +240,15 @@ class DisentangledTest(unittest.TestCase):
 
     def test_resnet(self):
         # Iterate over both resnet types and layer configurations
-        for resnet_cls, resnet_layers in zip(["resnet18", "resnet34"], [[2, 2, 2, 2], [3, 4, 6, 3]]):
+        for resnet_cls, resnet_layers, output_channels in zip(
+                ["resnet18", "resnet34", "resnet50"],
+                [[2, 2, 2, 2], [3, 4, 6, 3], [3, 4, 6, 3]],
+                [512, 512, 2048]
+        ):
             # Create the DisentangleNet with this resnet type
             rn = DisentangleNet(num_classes=20, _use_resnet=True, _resnet_cls=resnet_cls)
-            # Number of feature channels should always be 512
-            self.assertEqual(rn.concept_channels, 512)
+            # Number of feature channels should be 512 (resnet18/resnet34) or 2048 (resnet50)
+            self.assertEqual(rn.concept_channels, output_channels)
             # Iterate over all the concept types
             for concept in ["melody", "harmony", "rhythm", "dynamics"]:
                 # Get the concept resnet
