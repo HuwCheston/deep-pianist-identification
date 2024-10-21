@@ -11,7 +11,7 @@ from pretty_midi import PrettyMIDI, Instrument, Note
 
 import deep_pianist_identification.rf_baselines.rf_utils as rf_utils
 import deep_pianist_identification.utils as utils
-from deep_pianist_identification.encoders import CNNet, CRNNet, ResNet50
+from deep_pianist_identification.encoders import CNNet, CRNNet, ResNet50, TangCNN
 from deep_pianist_identification.encoders.shared import IBN
 
 
@@ -135,6 +135,15 @@ class BaselineNNTest(unittest.TestCase):
         x = torch.rand(4, 1, 88, 3000)
         expected = (4, 15)
         actual = cn(x)
+        self.assertEqual(actual.size(), expected)
+
+    def test_tang_cnn(self):
+        tcnn = TangCNN(num_classes=15)
+        self.assertEqual(tcnn.fc2.out_features, 15)
+        # Test forward
+        x = torch.rand(4, 1, 88, 3000)
+        expected = (4, 15)
+        actual = tcnn(x)
         self.assertEqual(actual.size(), expected)
 
     def test_crnn(self):
