@@ -37,6 +37,19 @@ class ForestTest(unittest.TestCase):
         ]
         actual_dropped = rf_utils.drop_invalid_ngrams(tester, predicted)
         self.assertEqual(predicted_dropped, actual_dropped)
+        # Test dropping n-grams that appear in too many tracks
+        predicted = ["[2, 3, 4]", "[3, 4]", "[3, 4, 5]"]
+        actual = rf_utils.get_valid_ngrams(tester, min_count=1, max_count=2)
+        self.assertEqual(predicted, actual)
+        # Results should look like this
+        predicted_dropped = [
+            {"[2, 3, 4]": 2},
+            {},
+            {"[3, 4]": 1},
+            {"[3, 4, 5]": 2}
+        ]
+        actual_dropped = rf_utils.drop_invalid_ngrams(tester, predicted)
+        self.assertEqual(predicted_dropped, actual_dropped)
 
     def test_format_features(self):
         # These are equivalent to the n-grams extracted from two splits of the dataset
