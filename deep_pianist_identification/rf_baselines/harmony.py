@@ -16,10 +16,12 @@ import deep_pianist_identification.rf_baselines.rf_utils as rf_utils
 from deep_pianist_identification import utils
 from deep_pianist_identification.extractors import HarmonyExtractor, ExtractorError
 
+__all__ = ["VALID_CHORDS", "extract_chords"]
+
 VALID_CHORDS = 10
 
 
-def extract_fn(roll: PrettyMIDI, transpose: bool = True):
+def _extract_fn(roll: PrettyMIDI, transpose: bool = True):
     chorded = groupby(roll.instruments[0].notes, lambda x: x.start)
     for _, chord in chorded:
         pitches = sorted(i.pitch for i in chord)
@@ -39,7 +41,7 @@ def extract_chords(tpath, nclips, pianist, remove_highest_pitch: bool):
         except ExtractorError as e:
             logger.warning(f'Errored for {tpath}, clip {clip_idx}, skipping! {e}')
             continue
-        for chord in extract_fn(he.output_midi):
+        for chord in _extract_fn(he.output_midi):
             track_chords[str(chord)] += 1
     return track_chords, pianist
 

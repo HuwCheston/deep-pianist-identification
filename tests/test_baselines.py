@@ -64,7 +64,7 @@ class ForestTest(unittest.TestCase):
         self.assertTrue(np.array_equal(expected_2, actual_2, equal_nan=True))
 
     def test_melody_ngram_extraction(self):
-        from deep_pianist_identification.rf_baselines.melody import extract_fn
+        from deep_pianist_identification.rf_baselines.melody import _extract_fn
 
         # Create the pretty MIDI object
         midi = PrettyMIDI()
@@ -84,16 +84,16 @@ class ForestTest(unittest.TestCase):
         expected_4grams = [[10, 5, 3, 5], [5, 3, 5, 3], [3, 5, 3, 5]]
         expected_34grams = [expected_3grams, expected_4grams]
         # These are the n-grams we are actually extracting
-        actual_3grams = list(extract_fn(midi, [3]))[0]
-        actual_4grams = list(extract_fn(midi, [4]))[0]
-        actual_34grams = list(extract_fn(midi, [3, 4]))
+        actual_3grams = list(_extract_fn(midi, [3]))[0]
+        actual_4grams = list(_extract_fn(midi, [4]))[0]
+        actual_34grams = list(_extract_fn(midi, [3, 4]))
         # Should both be the same
         self.assertEqual(expected_3grams, actual_3grams)
         self.assertEqual(expected_4grams, actual_4grams)
         self.assertEqual(expected_34grams, actual_34grams)
 
     def test_harmony_chord_extraction(self):
-        from deep_pianist_identification.rf_baselines.harmony import extract_fn
+        from deep_pianist_identification.rf_baselines.harmony import _extract_fn
 
         # Create the pretty MIDI object
         midi = PrettyMIDI()
@@ -110,11 +110,11 @@ class ForestTest(unittest.TestCase):
         midi.instruments.append(instr)
         # These are the chords we expect to extract from the PrettyMIDI object, with transposition
         expected_chords_transpose = [[0, 5, 10, 15], [0, 10, 20]]
-        actual_chords_transpose = list(extract_fn(midi, transpose=True))
+        actual_chords_transpose = list(_extract_fn(midi, transpose=True))
         self.assertEqual(expected_chords_transpose, actual_chords_transpose)
         # These are the chords we expect to extract from the PrettyMIDI object, without transposition
         expected_chords_notranspose = [[25, 30, 35, 40], [45, 55, 65]]
-        actual_chords_notranspose = list(extract_fn(midi, transpose=False))
+        actual_chords_notranspose = list(_extract_fn(midi, transpose=False))
         self.assertEqual(expected_chords_notranspose, actual_chords_notranspose)
 
 

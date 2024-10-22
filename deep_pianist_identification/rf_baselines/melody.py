@@ -14,11 +14,13 @@ import deep_pianist_identification.rf_baselines.rf_utils as rf_utils
 from deep_pianist_identification import utils
 from deep_pianist_identification.extractors import MelodyExtractor, ExtractorError
 
+__all__ = ["NGRAMS", "VALID_NGRAMS", "extract_melody_ngrams"]
+
 NGRAMS = [3, 4]
 VALID_NGRAMS = 10
 
 
-def extract_fn(roll: PrettyMIDI, ngrams: list[int]):
+def _extract_fn(roll: PrettyMIDI, ngrams: list[int]):
     """From a given piano roll, extract required melody n-grams"""
     # Sort the notes by onset start time and calculate the intervals
     melody = sorted(roll.instruments[0].notes, key=lambda x: x.start)
@@ -47,7 +49,7 @@ def extract_melody_ngrams(tpath: str, nclips: int, pianist: str, ngrams: list = 
             logger.warning(f'Errored for {tpath}, clip {idx}, skipping! {e}')
             continue
         # Extract the n-grams from the output midi
-        ngs = extract_fn(roll.output_midi, ngrams)
+        ngs = _extract_fn(roll.output_midi, ngrams)
         # Iterate through every ngram and corresponding results dictionary
         for grams, di in zip(ngs, ngram_res):
             # Append each n-gram to the dictionary if not present already and increase the count by one
