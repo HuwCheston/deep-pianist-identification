@@ -26,7 +26,7 @@ class ForestTest(unittest.TestCase):
         ]
         # This is the only n-gram that appears in at least three dictionaries (i.e., tracks)
         predicted = ["[1, 2, 3]"]
-        actual = rf_utils.get_valid_ngrams(tester, valid_count=3)
+        actual = rf_utils.get_valid_ngrams(tester, min_count=3)
         self.assertEqual(predicted, actual)
         # This is what the results should look like once we've dropped all the invalid n-grams
         predicted_dropped = [

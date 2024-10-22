@@ -66,7 +66,7 @@ def rf_harmony(dataset: str, n_iter: int, valid_chords_count: int, remove_highes
     valid_x, valid_y = rf_utils.extract_ngrams_from_clips(validation_clips, extract_chords, remove_highest_pitch)
     # Get those n-grams that appear in at least N tracks in the training dataset
     logger.info(f"Extracting chords which appear in at least {valid_chords_count} training tracks...")
-    valid_chords = rf_utils.get_valid_ngrams(temp_x, valid_count=valid_chords_count)
+    valid_chords = rf_utils.get_valid_ngrams(temp_x, min_count=valid_chords_count)
     logger.info(f"... found {len(valid_chords)} chords!")
     # Subset both datasets to ensure we only keep valid ngrams
     logger.info("Formatting harmony features...")

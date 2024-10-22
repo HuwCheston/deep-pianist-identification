@@ -133,7 +133,7 @@ def extract_ngrams_from_clips(split_clips: Iterable, extract_func: Callable, *ar
     return zip(*res)
 
 
-def get_valid_ngrams(list_of_ngram_dicts: list[dict], valid_count: int) -> list[str]:
+def get_valid_ngrams(list_of_ngram_dicts: list[dict], min_count: int, max_count: int = 10000) -> list[str]:
     """From a list of n-gram dictionaries (one dictionary per track), get n-grams that appear in at least N tracks"""
     ngram_counts = defaultdict(int)
     # Iterate through each dictionary (= one track)
@@ -143,7 +143,7 @@ def get_valid_ngrams(list_of_ngram_dicts: list[dict], valid_count: int) -> list[
             # Increase the global count for this n-gram
             ngram_counts[key] += 1
     # Return a list of n-grams that appear in at least N tracks
-    return [key for key, count in ngram_counts.items() if count >= valid_count]
+    return [key for key, count in ngram_counts.items() if min_count <= count <= max_count]
 
 
 def drop_invalid_ngrams(list_of_ngram_dicts: list[dict], valid_ngrams: list[str]) -> list[dict]:

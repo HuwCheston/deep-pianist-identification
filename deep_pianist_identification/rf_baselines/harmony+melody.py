@@ -15,10 +15,19 @@ from deep_pianist_identification import utils
 from deep_pianist_identification.rf_baselines.harmony import extract_chords
 from deep_pianist_identification.rf_baselines.melody import NGRAMS, extract_melody_ngrams
 
-VALID_NUM = 1
+MIN_COUNT = 10
+MAX_COUNT = 100
 
 
-def rf_melody_harmony(dataset: str, n_iter: int, valid_count: int, ngrams: list[int], remove_highest_pitch: bool):
+def rf_melody_harmony(
+        dataset: str,
+        n_iter: int,
+        min_count: int,
+        max_count: int,
+        ngrams: list[int],
+        remove_highest_pitch: bool
+):
+    """Fit the random forest to both melody and harmony features"""
     logger.info("Creating baseline random forest classifier using melody and harmony data!")
     # Get clips from all splits of the dataset
     logger.info(f"Getting tracks from all splits for dataset {dataset}...")
@@ -37,8 +46,8 @@ def rf_melody_harmony(dataset: str, n_iter: int, valid_count: int, ngrams: list[
     logger.info("Extracting n-grams from validation tracks...")
     valid_x_mel, valid_y_mel = rf_utils.extract_ngrams_from_clips(validation_clips, extract_melody_ngrams, ngrams)
     # Get those n-grams that appear in at least N tracks in the training dataset
-    logger.info(f"Extracting n-grams which appear in at least {valid_count} training tracks...")
-    valid_ngs = rf_utils.get_valid_ngrams(temp_x_mel, valid_count=valid_count)
+    logger.info(f"Extracting n-grams which appear in at least {min_count} training tracks...")
+    valid_ngs = rf_utils.get_valid_ngrams(temp_x_mel, min_count=min_count, max_count=max_count)
     logger.info(f"... found {len(valid_ngs)} n-grams!")
     # Subset both datasets to ensure we only keep valid ngrams
     logger.info("Formatting features...")
@@ -56,8 +65,8 @@ def rf_melody_harmony(dataset: str, n_iter: int, valid_count: int, ngrams: list[
     valid_x_har, valid_y_har = rf_utils.extract_ngrams_from_clips(validation_clips, extract_chords,
                                                                   remove_highest_pitch)
     # Get those n-grams that appear in at least N tracks in the training dataset
-    logger.info(f"Extracting chords which appear in at least {valid_count} training tracks...")
-    valid_chords = rf_utils.get_valid_ngrams(temp_x_har, valid_count=valid_count)
+    logger.info(f"Extracting chords which appear in at least {min_count} training tracks...")
+    valid_chords = rf_utils.get_valid_ngrams(temp_x_har, min_count=min_count, max_count=max_count)
     logger.info(f"... found {len(valid_chords)} chords!")
     # Subset both datasets to ensure we only keep valid ngrams
     logger.info("Formatting harmony features...")
@@ -75,6 +84,8 @@ def rf_melody_harmony(dataset: str, n_iter: int, valid_count: int, ngrams: list[
     logger.info(f"Beginning parameter optimization with {n_iter} iterations...")
     csvpath = os.path.join(utils.get_project_root(), 'references/rf_baselines', f'{dataset}_harmony+melody.csv')
     logger.info(f"... optimization results will be saved in {csvpath}")
+    logger.info(f"... shape of training features: {train_x_arr.shape}")
+    logger.info(f"... shape of testing features: {test_x_arr.shape}")
     # Check targets are identical for both melody and harmony
     assert train_y_mel == train_y_har, "Melody and Harmony train targets are not identical (shouldn't happen!)"
     assert test_y_mel == test_y_har, "Melody and Harmony test targets are not identical (shouldn't happen!)"
@@ -139,17 +150,24 @@ if __name__ == "__main__":
         default=NGRAMS
     )
     parser.add_argument(
-        "-v", "--valid-count",
-        default=VALID_NUM,
+        "-s", "--min-count",
+        default=MIN_COUNT,
         type=int,
-        help="Valid chords or n-grams appear in this many tracks"
+        help="Minimum number of tracks an n-gram can appear in"
+    )
+    parser.add_argument(
+        "-b", "--max-count",
+        default=MAX_COUNT,
+        type=int,
+        help="Maximum number of tracks an n-gram can appear in"
     )
     # Parse all arguments and create the forest
     args = vars(parser.parse_args())
     rf_melody_harmony(
         dataset=args['dataset'],
         n_iter=args["n_iter"],
-        valid_count=args["valid_count"],
+        min_count=args["min_count"],
+        ngrams=args['ngrams'],
         remove_highest_pitch=args['remove_highest_pitch'],
-        ngrams=args['ngrams']
+        max_count=args["max_count"]
     )

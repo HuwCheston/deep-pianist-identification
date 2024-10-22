@@ -83,7 +83,7 @@ def rf_melody(dataset: str, n_iter: int, valid_ngrams_count: int, ngrams: list[i
     valid_x, valid_y = rf_utils.extract_ngrams_from_clips(validation_clips, extract_melody_ngrams, ngrams)
     # Get those n-grams that appear in at least N tracks in the training dataset
     logger.info(f"Extracting n-grams which appear in at least {valid_ngrams_count} training tracks...")
-    valid_ngs = rf_utils.get_valid_ngrams(temp_x, valid_count=valid_ngrams_count)
+    valid_ngs = rf_utils.get_valid_ngrams(temp_x, min_count=valid_ngrams_count)
     logger.info(f"... found {len(valid_ngs)} n-grams!")
     # Subset both datasets to ensure we only keep valid ngrams
     logger.info("Formatting features...")
