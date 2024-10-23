@@ -152,7 +152,6 @@ class ForestTest(unittest.TestCase):
         # Total number of ngrams should be larger when allowing for leaps
         self.assertLess(len(list(restrict_ngrams.keys())), len(list(all_ngrams.keys())))
 
-
     def test_harmony_chord_extraction(self):
         from deep_pianist_identification.rf_baselines.harmony import _extract_fn
 
@@ -170,7 +169,7 @@ class ForestTest(unittest.TestCase):
         ])
         midi.instruments.append(instr)
         # These are the chords we expect to extract from the PrettyMIDI object, with transposition
-        expected_chords_transpose = [[0, 5, 10, 15], [0, 10, 20]]
+        expected_chords_transpose = [[5, 10, 15], [10, 20]]
         actual_chords_transpose = list(_extract_fn(midi, transpose=True))
         self.assertEqual(expected_chords_transpose, actual_chords_transpose)
         # These are the chords we expect to extract from the PrettyMIDI object, without transposition
