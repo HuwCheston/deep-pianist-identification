@@ -15,6 +15,7 @@ from typing import Callable, Iterable
 import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
+from loguru import logger
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import ParameterSampler
@@ -42,6 +43,12 @@ OPTIMIZE_PARAMS = dict(
 
 N_ITER = 10000  # default number of iterations for optimization process
 N_JOBS = -1  # number of parallel processing cpu cores. -1 means use all cores.
+
+MIN_COUNT = 10
+MAX_COUNT = 1000
+
+MAX_LEAP = 15  # If we leap by more than this number of semitones (once in a n-gram, twice in a chord), drop it
+NGRAMS = [2, 3]  # The ngrams to consider when extracting melody (horizontal) or chords (vertical)
 
 
 @retry(
@@ -166,17 +173,26 @@ def format_features(*features: list[dict]) -> tuple:
         fmt.append(df)
     # Combine all dataframes row-wise, which ensures the correct number of columns in all, and fill NaNs with 0
     conc = pd.concat(fmt, axis=0).fillna(0)
-    # Return a tuple of numpy arrays, one for each split initially provided
-    return (conc[conc['split'] == str(sp)].drop(columns='split').to_numpy() for sp in range(len(features)))
+    # Return a tuple of numpy arrays, one for each split initially provided, PLUS the names of the features themselves
+    return (
+        *(conc[conc['split'] == str(sp)].drop(columns='split').to_numpy() for sp in range(len(features))),
+        conc.drop(columns='split').columns.tolist()
+    )
 
 
-def optimize_classifier(
-        train_features: np.ndarray, train_targets: list, test_features: np.ndarray, test_targets: np.ndarray,
-        out: str, classifier: Callable = RandomForestClassifier, n_iter: int = N_ITER, use_cache: bool = True
+def _optimize_classifier(
+        train_features: np.ndarray,
+        train_targets: list,
+        test_features: np.ndarray,
+        test_targets: np.ndarray,
+        out: str,
+        classifier: Callable = RandomForestClassifier,
+        n_iter: int = N_ITER,
+        use_cache: bool = True
 ) -> dict:
     """With given training and test features/targets, optimize random forest for test accuracy and save CSV to `out`"""
 
-    def _step(iteration: int, parameters: dict) -> dict:
+    def __step(iteration: int, parameters: dict) -> dict:
         """Inner optimization function"""
         # Try and load in the CSV file for this particular task
         if use_cache:
@@ -203,7 +219,103 @@ def optimize_classifier(
     # Use lazy parallelization to create the forest and fit to the data
     # fit = [_step(num, params) for num, params in tqdm(enumerate(sampler), total=n_iter, desc="Fitting...")]
     with Parallel(n_jobs=-1, verbose=5) as p:
-        fit = p(delayed(_step)(num, params) for num, params in tqdm(enumerate(sampler), total=n_iter, desc="Fitting..."))
+        fit = p(
+            delayed(__step)(num, params) for num, params in tqdm(enumerate(sampler), total=n_iter, desc="Fitting...")
+        )
     # Get the parameter combination that yielded the best test set accuracy
     best_params = max(fit, key=lambda x: x["accuracy"])
     return {k: v for k, v in best_params.items() if k not in ["accuracy", "iteration"]}
+
+
+def fit_forest(
+        train_x: np.ndarray,
+        test_x: np.ndarray,
+        valid_x: np.ndarray,
+        train_y: np.ndarray,
+        test_y: np.ndarray,
+        valid_y: np.ndarray,
+        csvpath: str,
+        n_iter: int
+) -> tuple[RandomForestClassifier, float]:
+    """Runs optimization, fits optimized settings to validation set, and returns accuracy + fitted model"""
+    logger.info(f"Beginning parameter optimization with {n_iter} iterations...")
+    logger.info(f"... optimization results will be saved in {csvpath}")
+    logger.info(f"... shape of training features: {train_x.shape}")
+    logger.info(f"... shape of testing features: {test_x.shape}")
+    optimized_params = _optimize_classifier(
+        train_x, train_y, test_x, test_y, csvpath, n_iter=n_iter
+    )
+    # Create the optimized random forest model
+    logger.info("Optimization finished, fitting optimized model to test and validation set...")
+    clf_opt = RandomForestClassifier(**optimized_params, random_state=utils.SEED)
+    clf_opt.fit(train_x, train_y)
+    # Get the optimized test accuracy
+    test_y_pred = clf_opt.predict(test_x)
+    test_acc = accuracy_score(test_y, test_y_pred)
+    logger.info(f"... test accuracy for melody: {test_acc:.3f}")
+    # Get the optimized validation accuracy
+    valid_y_pred = clf_opt.predict(valid_x)
+    valid_acc = accuracy_score(valid_y, valid_y_pred)
+    logger.info(f"... validation accuracy for melody: {valid_acc:.3f}")
+    return clf_opt, valid_acc
+
+
+def get_all_clips(dataset: str, n_clips: int = None):
+    # Get clips from all splits of the dataset
+    logger.info(f"Getting tracks from all splits for dataset {dataset}...")
+    train_clips = list(get_split_clips("train", dataset))
+    test_clips = list(get_split_clips("test", dataset))
+    validation_clips = list(get_split_clips("validation", dataset))
+    # Truncate the number of clips if required
+    if n_clips is not None and isinstance(n_clips, int):
+        train_clips = train_clips[:n_clips]
+        test_clips = test_clips[:n_clips]
+        validation_clips = validation_clips[:n_clips]
+    logger.info(f"... found {len(train_clips)} train tracks, "
+                f"{len(test_clips)} test tracks, "
+                f"{len(validation_clips)} validation tracks!")
+    return train_clips, test_clips, validation_clips
+
+
+def parse_arguments(parser) -> dict:
+    """Takes in a parser object and adds all required arguments, then returns these arguments"""
+    parser.add_argument(
+        "-d", "--dataset",
+        default="20class_80min",
+        type=str,
+        help="Name of dataset inside `references/data_split`"
+    )
+    parser.add_argument(
+        "-i", "--n-iter",
+        default=N_ITER,
+        type=int,
+        help="Number of optimization iterations"
+    )
+    parser.add_argument(
+        "-r", "--remove-leaps",
+        default=True,
+        type=bool,
+        help="Remove leaps of more than +/- 15 semitones",
+    )
+    parser.add_argument(
+        '-l', '--ngrams',
+        nargs='+',
+        type=int,
+        help="Extract these n-grams",
+        default=NGRAMS
+    )
+    parser.add_argument(
+        "-s", "--min-count",
+        default=MIN_COUNT,
+        type=int,
+        help="Minimum number of tracks an n-gram can appear in"
+    )
+    parser.add_argument(
+        "-b", "--max-count",
+        default=MAX_COUNT,
+        type=int,
+        help="Maximum number of tracks an n-gram can appear in"
+    )
+    # Parse all arguments and return
+    args = vars(parser.parse_args())
+    return args

@@ -9,16 +9,14 @@ from itertools import groupby
 
 from loguru import logger
 from pretty_midi import PrettyMIDI
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
 
 import deep_pianist_identification.rf_baselines.rf_utils as rf_utils
 from deep_pianist_identification import utils
 from deep_pianist_identification.extractors import HarmonyExtractor, ExtractorError
 
-__all__ = ["VALID_CHORDS", "extract_chords"]
+__all__ = ["extract_chords", "get_harmony_features", "MAX_LEAPS_IN_CHORD"]
 
-VALID_CHORDS = 10
+MAX_LEAPS_IN_CHORD = 2
 
 
 def _extract_fn(roll: PrettyMIDI, transpose: bool = True):
@@ -26,71 +24,107 @@ def _extract_fn(roll: PrettyMIDI, transpose: bool = True):
     for _, chord in chorded:
         pitches = sorted(i.pitch for i in chord)
         if transpose:
-            yield [i - min(pitches) for i in pitches]
+            # Express as interval classes rather than pitch classes
+            yield [i - min(pitches) for i in pitches][1:]
         else:
-            yield list(pitches)
+            yield sorted(list(pitches))
 
 
-def extract_chords(tpath, nclips, pianist, remove_highest_pitch: bool):
-    track_chords = defaultdict(int)
+def extract_chords(
+        tpath: str,
+        nclips: int,
+        pianist: str,
+        ngrams: list[int] = None,
+        remove_leaps: bool = False
+):
+    # Use the default ngram value, if not provided
+    if ngrams is None:
+        ngrams = rf_utils.NGRAMS
+    # Create a list of empty default dictionaries, one per each value of n we wish to extract (e.g., 3-gram, 4-gram...)
+    track_chords = {ng: defaultdict(int) for ng in ngrams}
     for clip_idx in range(nclips):
         clip_str = f'clip_{str(clip_idx).zfill(3)}.mid'
         loaded = PrettyMIDI(os.path.join(utils.get_project_root(), tpath, clip_str))
         try:
-            he = HarmonyExtractor(loaded, remove_highest_pitch=remove_highest_pitch, quantize_resolution=0.3)
+            he = HarmonyExtractor(loaded, quantize_resolution=0.3)
         except ExtractorError as e:
             logger.warning(f'Errored for {tpath}, clip {clip_idx}, skipping! {e}')
             continue
         for chord in _extract_fn(he.output_midi):
-            track_chords[str(chord)] += 1
-    return track_chords, pianist
+            if remove_leaps:
+                # Calculate the number of semitones between successive notes of the chord
+                leaps = [i1 - i2 for i2, i1 in zip(chord, chord[1:])]
+                # Calculate the number of semitone leaps that are above our threshold
+                above_thresh = [i for i in leaps if i >= rf_utils.MAX_LEAP]
+                # If we have more than N (default N = 2) leaps above the threshold, skip the chord
+                if len(above_thresh) >= MAX_LEAPS_IN_CHORD:
+                    continue
+            # Increment the counter by one
+            if len(chord) in ngrams:
+                track_chords[len(chord)][str(chord)] += 1
+    # Collapse all the n-gram dictionaries into one
+    return {k: v for d in track_chords.values() for k, v in d.items()}, pianist
 
 
-def rf_harmony(dataset: str, n_iter: int, valid_chords_count: int, remove_highest_pitch: bool):
+def get_harmony_features(
+        train_clips,
+        test_clips,
+        validation_clips,
+        ngrams: list[int],
+        min_count: int,
+        max_count: int,
+        remove_leaps: bool
+) -> tuple:
+    logger.info("Extracting chord n-grams from training tracks..")
+    temp_x_har, train_y_har = rf_utils.extract_ngrams_from_clips(
+        train_clips, extract_chords, ngrams, remove_leaps
+    )
+    logger.info("Extracting chord n-grams from testing tracks...")
+    test_x_har, test_y_har = rf_utils.extract_ngrams_from_clips(
+        test_clips, extract_chords, ngrams, remove_leaps
+    )
+    logger.info("Extracting chord n-grams from validation tracks...")
+    valid_x_har, valid_y_har = rf_utils.extract_ngrams_from_clips(
+        validation_clips, extract_chords, ngrams, remove_leaps
+    )
+    # These are lists of dictionaries with one dictionary == one track, so we can just combine them
+    all_ngs = temp_x_har + test_x_har + valid_x_har
+    # Get all the unique n-grams
+    unique_ngs = list(set(k for d in all_ngs for k in d.keys()))
+    logger.info(f'... found {len(unique_ngs)} chord n-grams!')
+    # Get those n-grams that appear in at least N tracks in the entire dataset
+    logger.info(f"Extracting chord n-grams which appear in min {min_count}, max {max_count} tracks...")
+    valid_chords = rf_utils.get_valid_ngrams(all_ngs, min_count, max_count)
+    logger.info(f"... found {len(valid_chords)} chord n-grams!")
+    # Subset both datasets to ensure we only keep valid ngrams
+    logger.info("Formatting harmony features...")
+    train_x_har = rf_utils.drop_invalid_ngrams(temp_x_har, valid_chords)
+    test_x_har = rf_utils.drop_invalid_ngrams(test_x_har, valid_chords)
+    valid_x_har = rf_utils.drop_invalid_ngrams(valid_x_har, valid_chords)
+    return *rf_utils.format_features(train_x_har, test_x_har, valid_x_har), train_y_har, test_y_har, valid_y_har
+
+
+def rf_harmony(
+        dataset: str,
+        n_iter: int,
+        ngrams: list[int],
+        min_count: int,
+        max_count: int,
+        remove_leaps: bool
+):
     """Create and optimize random forest harmony classifier using provided command line arguemnts"""
     logger.info("Creating baseline random forest classifier using harmony data!")
     # Get clips from all splits of the dataset
-    logger.info(f"Getting tracks from all splits for dataset {dataset}...")
-    train_clips = list(rf_utils.get_split_clips("train", dataset))
-    test_clips = list(rf_utils.get_split_clips("test", dataset))
-    validation_clips = list(rf_utils.get_split_clips("validation", dataset))
-    logger.info(f"... found {len(train_clips)} train tracks, "
-                f"{len(test_clips)} test tracks, "
-                f"{len(validation_clips)} validation tracks!")
+    train_clips, test_clips, validation_clips = rf_utils.get_all_clips(dataset)
     # Get n-grams from both datasets
-    logger.info("Extracting chords from training tracks..")
-    temp_x, train_y = rf_utils.extract_ngrams_from_clips(train_clips, extract_chords, remove_highest_pitch)
-    logger.info("Extracting chords from testing tracks...")
-    test_x, test_y = rf_utils.extract_ngrams_from_clips(test_clips, extract_chords, remove_highest_pitch)
-    logger.info("Extracting chords from validation tracks...")
-    valid_x, valid_y = rf_utils.extract_ngrams_from_clips(validation_clips, extract_chords, remove_highest_pitch)
-    # Get those n-grams that appear in at least N tracks in the training dataset
-    logger.info(f"Extracting chords which appear in at least {valid_chords_count} training tracks...")
-    valid_chords = rf_utils.get_valid_ngrams(temp_x, min_count=valid_chords_count)
-    logger.info(f"... found {len(valid_chords)} chords!")
-    # Subset both datasets to ensure we only keep valid ngrams
-    logger.info("Formatting harmony features...")
-    train_x = rf_utils.drop_invalid_ngrams(temp_x, valid_chords)
-    test_x = rf_utils.drop_invalid_ngrams(test_x, valid_chords)
-    valid_x = rf_utils.drop_invalid_ngrams(valid_x, valid_chords)
-    train_x_arr, test_x_arr, valid_x_arr = rf_utils.format_features(train_x, test_x, valid_x)
+    train_x_arr, test_x_arr, valid_x_arr, feature_names, train_y, test_y, valid_y = get_harmony_features(
+        train_clips, test_clips, validation_clips, ngrams, min_count, max_count, remove_leaps
+    )
     # Load the optimized parameter settings (or recreate them, if they don't exist)
-    logger.info(f"Beginning parameter optimization for harmony with {n_iter} iterations...")
     csvpath = os.path.join(utils.get_project_root(), 'references/rf_baselines', f'{dataset}_harmony.csv')
-    logger.info(f"... optimization results will be saved in {csvpath}")
-    optimized_params = rf_utils.optimize_classifier(train_x_arr, train_y, test_x_arr, test_y, csvpath, n_iter=n_iter)
-    # Create the optimized random forest model
-    logger.info("Optimization finished, fitting optimized model to test and validation set...")
-    clf_opt = RandomForestClassifier(**optimized_params, random_state=utils.SEED)
-    clf_opt.fit(train_x_arr, train_y)
-    # Get the optimized test accuracy
-    test_y_pred = clf_opt.predict(test_x_arr)
-    test_acc = accuracy_score(test_y, test_y_pred)
-    logger.info(f"... test accuracy for harmony: {test_acc:.3f}")
-    # Get the optimized validation accuracy
-    valid_y_pred = clf_opt.predict(valid_x_arr)
-    valid_acc = accuracy_score(valid_y, valid_y_pred)
-    logger.info(f"... validation accuracy for harmony: {valid_acc:.3f}")
+    _, __ = rf_utils.fit_forest(
+        train_x_arr, test_x_arr, valid_x_arr, train_y, test_y, valid_y, csvpath, n_iter
+    )
     logger.info('Done!')
 
 
@@ -100,35 +134,13 @@ if __name__ == "__main__":
     utils.seed_everything(utils.SEED)
     # Parsing arguments from the command line interface
     parser = argparse.ArgumentParser(description='Create baseline random forest classifier for harmony')
-    parser.add_argument(
-        "-d", "--dataset",
-        default="20class_80min",
-        type=str,
-        help="Name of dataset inside `references/data_split`"
-    )
-    parser.add_argument(
-        "-i", "--n-iter",
-        default=rf_utils.N_ITER,
-        type=int,
-        help="Number of optimization iterations"
-    )
-    parser.add_argument(
-        "-r", "--remove-highest-pitch",
-        default=False,
-        type=bool,
-        help="Remove highest pitch in a chord",
-    )
-    parser.add_argument(
-        "-v", "--valid-chords-count",
-        default=VALID_CHORDS,
-        type=int,
-        help="Valid chords appear in this many tracks"
-    )
-    # Parse all arguments and create the forest
-    args = vars(parser.parse_args())
+    args = rf_utils.parse_arguments(parser)
+    # Create the forest
     rf_harmony(
         dataset=args['dataset'],
         n_iter=args["n_iter"],
-        valid_chords_count=args["valid_chords_count"],
-        remove_highest_pitch=args['remove_highest_pitch']
+        ngrams=args["ngrams"],
+        min_count=args["min_count"],
+        max_count=args["max_count"],
+        remove_leaps=args["remove_leaps"]
     )

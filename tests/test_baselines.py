@@ -3,6 +3,7 @@
 
 """Test suite for baselines (random forest and C(R)NN/resnet)"""
 
+import os
 import unittest
 
 import numpy as np
@@ -72,9 +73,11 @@ class ForestTest(unittest.TestCase):
             [5, 0, 0],
             [3, 0, 0]
         ])
-        actual_1, actual_2 = rf_utils.format_features(tester_1, tester_2)
+        expected_feature_names = ["[1, 2, 3]", "[2, 3, 4]", "[2, 3, 5]"]
+        actual_1, actual_2, actual_feature_names = rf_utils.format_features(tester_1, tester_2)
         self.assertTrue(np.array_equal(expected_1, actual_1, equal_nan=True))
         self.assertTrue(np.array_equal(expected_2, actual_2, equal_nan=True))
+        self.assertTrue(expected_feature_names == actual_feature_names)
 
     def test_melody_ngram_extraction(self):
         from deep_pianist_identification.rf_baselines.melody import _extract_fn
@@ -104,6 +107,51 @@ class ForestTest(unittest.TestCase):
         self.assertEqual(expected_3grams, actual_3grams)
         self.assertEqual(expected_4grams, actual_4grams)
         self.assertEqual(expected_34grams, actual_34grams)
+
+    def test_remove_leaps_melody(self):
+        from deep_pianist_identification.rf_baselines.melody import extract_melody_ngrams
+
+        # Define the testing track
+        track = 'monkt-sweetandlovelytake1-unaccompanied-xxxx-gsz3i0ac'
+        tester = os.path.join(utils.get_project_root(), 'data/clips/pijama', track)
+        # Extract the ngrams, making sure to remove leaps
+        restrict_ngrams, _ = extract_melody_ngrams(tester, nclips=6, pianist=18, ngrams=[3], remove_leaps=True)
+        # Iterate through all the n-grams
+        for ng, _ in restrict_ngrams.items():
+            # Convert the interval classes from strings to integers
+            ics = [abs(int(i.replace('[', '').replace(']', ''))) for i in ng.split(', ')]
+            # Quick check that we're only extracting 3-gram
+            self.assertEqual(len(ics), 3)
+            # All interval classes should be below the threshold
+            for ic in ics:
+                self.assertTrue(ic < rf_utils.MAX_LEAP)
+        # Extract the ngrams, allowing for leaps
+        all_ngrams, _ = extract_melody_ngrams(tester, nclips=6, pianist=18, ngrams=[3], remove_leaps=False)
+        # Total number of ngrams should be larger when allowing for leaps
+        self.assertLess(len(list(restrict_ngrams.keys())), len(list(all_ngrams.keys())))
+
+    def test_remove_leaps_harmony(self):
+        from deep_pianist_identification.rf_baselines.harmony import extract_chords, MAX_LEAPS_IN_CHORD
+
+        # Define the testing track
+        track = 'monkt-sweetandlovelytake1-unaccompanied-xxxx-gsz3i0ac'
+        tester = os.path.join(utils.get_project_root(), 'data/clips/pijama', track)
+        # Extract the ngrams, making sure to remove leaps
+        restrict_ngrams, _ = extract_chords(tester, nclips=6, pianist=18, ngrams=[3], remove_leaps=True)
+        # Iterate through all the n-grams
+        for ng, _ in restrict_ngrams.items():
+            # Convert the interval classes from strings to integers
+            ics = [abs(int(i.replace('[', '').replace(']', ''))) for i in ng.split(', ')]
+            # Quick check that we're only extracting 3-gram
+            self.assertEqual(len(ics), 3)
+            # Should not have more than MAX_LEAPS_IN_CHORD leaps of MAX_LEAP semitones
+            above_thresh = [i1 for i1, i2 in zip(ics, ics[1:]) if i2 - i1 >= rf_utils.MAX_LEAP]
+            self.assertTrue(len(above_thresh) < MAX_LEAPS_IN_CHORD)
+        # Extract the ngrams, allowing for leaps
+        all_ngrams, _ = extract_chords(tester, nclips=6, pianist=18, ngrams=[3], remove_leaps=False)
+        # Total number of ngrams should be larger when allowing for leaps
+        self.assertLess(len(list(restrict_ngrams.keys())), len(list(all_ngrams.keys())))
+
 
     def test_harmony_chord_extraction(self):
         from deep_pianist_identification.rf_baselines.harmony import _extract_fn
