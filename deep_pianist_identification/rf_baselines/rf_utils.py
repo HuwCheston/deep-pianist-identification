@@ -17,7 +17,7 @@ import pandas as pd
 from joblib import Parallel, delayed
 from loguru import logger
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, top_k_accuracy_score
 from sklearn.model_selection import ParameterSampler
 from tenacity import retry, retry_if_exception_type, wait_random_exponential, stop_after_attempt
 from tqdm import tqdm
@@ -249,14 +249,27 @@ def fit_forest(
     logger.info("Optimization finished, fitting optimized model to test and validation set...")
     clf_opt = RandomForestClassifier(**optimized_params, random_state=utils.SEED)
     clf_opt.fit(train_x, train_y)
+
     # Get the optimized test accuracy
     test_y_pred = clf_opt.predict(test_x)
     test_acc = accuracy_score(test_y, test_y_pred)
-    logger.info(f"... test accuracy for melody: {test_acc:.3f}")
+    logger.info(f"... test accuracy: {test_acc:.3f}")
+    # Compute top-k test accuracy
+    test_y_proba = clf_opt.predict_proba(test_x)
+    for k in [2, 5, 10]:
+        test_k_acc = top_k_accuracy_score(test_y, test_y_proba, k=k)
+        logger.info(f"... test accuracy @ k = {k}: {test_k_acc:.3f}")
+
     # Get the optimized validation accuracy
     valid_y_pred = clf_opt.predict(valid_x)
     valid_acc = accuracy_score(valid_y, valid_y_pred)
-    logger.info(f"... validation accuracy for melody: {valid_acc:.3f}")
+    logger.info(f"... validation accuracy: {valid_acc:.3f}")
+    # Compute top-k validation accuracy
+    valid_y_proba = clf_opt.predict_proba(valid_x)
+    for k in [2, 5, 10]:
+        valid_k_acc = top_k_accuracy_score(valid_y, valid_y_proba, k=k)
+        logger.info(f"... validation accuracy @ k = {k}: {valid_k_acc:.3f}")
+
     return clf_opt, valid_acc
 
 
