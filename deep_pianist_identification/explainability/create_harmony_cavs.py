@@ -183,4 +183,5 @@ def main():
 
 
 if __name__ == '__main__':
+    utils.seed_everything(utils.SEED)
     main()

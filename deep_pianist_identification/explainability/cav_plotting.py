@@ -280,6 +280,7 @@ class HeatmapCAVKernelSensitivity(plotting.BasePlot):
         fmt_heatmap_axis(self.ax)
 
     def save_fig(self):
+        # Get the directory to save the heatmap in
         di = os.path.join(
             utils.get_project_root(),
             "reports/figures",
@@ -287,7 +288,11 @@ class HeatmapCAVKernelSensitivity(plotting.BasePlot):
         )
         if not os.path.isdir(di):
             os.makedirs(di)
-        fp = os.path.join(di, f'{self.clip_name.lower()}_{self.cav_name.lower().replace(" ", "_")}.png')
+        # Format track and cav name
+        tn = self.clip_name.lower().replace(os.path.sep, '_')
+        cn = self.cav_name.lower().replace(" ", "_")
+        fp = os.path.join(di, f'{tn}_{cn}.png')
+        # Save the figure
         self.fig.savefig(fp, format="png", facecolor=plotting.WHITE)
 
 
