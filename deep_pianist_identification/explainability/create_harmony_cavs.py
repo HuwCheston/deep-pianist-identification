@@ -16,7 +16,8 @@ from tqdm import tqdm
 from deep_pianist_identification import utils
 from deep_pianist_identification.explainability.cav_dataloader import VoicingLoaderFake, VoicingLoaderReal
 from deep_pianist_identification.explainability.cav_explainer import Explainer
-from deep_pianist_identification.explainability.cav_plotting import HeatmapPianistCAV, HeatmapCAVKernelSensitivity
+from deep_pianist_identification.explainability.cav_plotting import HeatmapPianistCAV, HeatmapCAVKernelSensitivity, \
+    HeatmapCAVKernelSensitivityInteractive
 from deep_pianist_identification.extractors import HarmonyExtractor
 from deep_pianist_identification.training import DEFAULT_CONFIG, TrainModule
 
@@ -170,6 +171,7 @@ def main():
     # Create heatmap for a single clip
     for cav_name, topk_tracks, cav in zip(CAV_MAPPING, list(topk_dict.values()), cavs):
         for track in topk_tracks:
+            # Create the non-interactive (matplotlib) heatmap
             hmks = HeatmapCAVKernelSensitivity(
                 track,
                 cav,
@@ -179,7 +181,18 @@ def main():
             )
             hmks.create_plot()
             hmks.save_fig()
-            logger.info(f'... kernel sensitivity plot done for track {track}, CAV {cav_name}!')
+            logger.info(f'... kernel sensitivity plot done for track {track}, CAV {cav_name}')
+            # Create the interactive (plotly) heatmap
+            hmks = HeatmapCAVKernelSensitivityInteractive(
+                track,
+                cav,
+                encoder=harmony_concept,
+                cav_name=cav_name,
+                extractor_cls=HarmonyExtractor,
+            )
+            hmks.create_plot()
+            hmks.save_fig()
+            logger.info(f'... interactive kernel sensitivity plot done for track {track}, CAV {cav_name}')
 
 
 if __name__ == '__main__':

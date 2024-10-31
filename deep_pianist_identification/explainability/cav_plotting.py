@@ -98,6 +98,7 @@ class HeatmapCAVKernelSensitivity(plotting.BasePlot):
             cav_name: str = "",
             heatmap_size: tuple = None,
             kernel_size: tuple = None,
+            draw_rectangle: bool = False
     ):
         super().__init__()
         # We use this model to generate embeddings for the piano roll
@@ -127,6 +128,7 @@ class HeatmapCAVKernelSensitivity(plotting.BasePlot):
         # Variables that will hold the biggest change in sensitivity values and kernel location
         self.largest_sensitivity_change = 0
         self.largest_sensitivity_kernel = (0, 0)
+        self.draw_rectangle = draw_rectangle
         # Will hold the array of kernel sensitivities
         self.sensitivity_array = None
         # Matplotlib figure and axis
@@ -228,7 +230,8 @@ class HeatmapCAVKernelSensitivity(plotting.BasePlot):
             vmax=127
         )
         # Draw a rectangle around the kernel that leads to the greatest loss in CAV sensitivity
-        self._draw_most_sensitive_kernel()
+        if self.draw_rectangle:
+            self._draw_most_sensitive_kernel()
 
     def _format_fig(self):
         # Figure aesthetics
@@ -318,6 +321,7 @@ class HeatmapCAVKernelSensitivityInteractive(HeatmapCAVKernelSensitivity):
             cav_name,
             heatmap_size,
             kernel_size,
+            draw_rectangle=False  # won't do anything so just set it to false
         )
         self.fig, self.ax = None, None
         plt.close()
@@ -334,8 +338,8 @@ class HeatmapCAVKernelSensitivityInteractive(HeatmapCAVKernelSensitivity):
         return hover_text
 
     @staticmethod
-    def create_plotly_colorscale_from_seaborn(seaborn_cmap: str, n_colors: int = 256):
-        palette = sns.color_palette(seaborn_cmap, n_colors=256)
+    def create_plotly_colorscale_from_seaborn(seaborn_cmap: str, n_colors: int = 256) -> list:
+        palette = sns.color_palette(seaborn_cmap, n_colors=n_colors)
         colors = [f'rgba({int(r * 255)}, {int(g * 255)}, {int(b * 255)}, 1)' for r, g, b in palette]
         return list(zip(np.linspace(0, 1, len(colors)), colors))
 
@@ -402,8 +406,7 @@ class HeatmapCAVKernelSensitivityInteractive(HeatmapCAVKernelSensitivity):
         pass
 
     def save_fig(self):
-        # This just saves the plot JSON information
-        # so that it can be loaded in JavaScript for our interactive web application
+        # This just saves the plot JSON information so that it can be loaded in JavaScript for our web application
         # create a folder for this clip
         fname = self.clip_name.replace(os.path.sep, '_').split('.')[0]
         fp = os.path.join(
@@ -411,6 +414,8 @@ class HeatmapCAVKernelSensitivityInteractive(HeatmapCAVKernelSensitivity):
         )
         if not os.path.isdir(fp):
             os.makedirs(fp)
+        # Write the HTML object
+        self.fig.write_html(os.path.join(fp, "plot.html"), include_plotlyjs="cdn")
         # Write the MIDI object if it doesn't already exist
         midi_f = os.path.join(fp, 'midi.mid')
         if not os.path.isfile(midi_f):
