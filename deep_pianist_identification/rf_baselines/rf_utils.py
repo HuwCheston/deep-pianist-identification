@@ -17,15 +17,18 @@ import pandas as pd
 from joblib import Parallel, delayed
 from loguru import logger
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, top_k_accuracy_score
 from sklearn.model_selection import ParameterSampler
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.svm import LinearSVC
 from tenacity import retry, retry_if_exception_type, wait_random_exponential, stop_after_attempt
 from tqdm import tqdm
 
 from deep_pianist_identification import utils
 
-# These are the parameters we'll sample from when optimizing
-OPTIMIZE_PARAMS = dict(
+# These are the parameters we'll sample from when optimizing different types of model
+RF_OPTIMIZE_PARAMS = dict(
     # The number of trees to grow in the forest
     n_estimators=[i for i in range(10, 401, 1)],
     # Max number of features considered for splitting a node
@@ -39,6 +42,20 @@ OPTIMIZE_PARAMS = dict(
     min_samples_leaf=[i for i in range(1, 11)],
     # Whether to sample data points with our without replacement
     bootstrap=[True, False],
+)
+SVM_OPTIMIZE_PARAMS = dict(
+    C=np.logspace(-3, 3, num=1001),
+    penalty=['l2', 'l1'],
+    class_weight=[None, 'balanced'],
+)
+LR_OPTIMIZE_PARAMS = dict(
+    C=np.logspace(-3, 3, num=1001),
+    penalty=[None, 'l2', 'l1', 'elasticnet'],
+    class_weight=[None, 'balanced'],
+)
+NB_OPTIMIZE_PARAMS = dict(
+    alpha=np.logspace(-3, 3, num=1001),
+    fit_prior=[True, False]
 )
 
 N_ITER = 10000  # default number of iterations for optimization process
@@ -186,9 +203,9 @@ def _optimize_classifier(
         test_features: np.ndarray,
         test_targets: np.ndarray,
         out: str,
-        classifier: Callable = RandomForestClassifier,
         n_iter: int = N_ITER,
-        use_cache: bool = True
+        use_cache: bool = True,
+        classifier_type: str = "rf"
 ) -> dict:
     """With given training and test features/targets, optimize random forest for test accuracy and save CSV to `out`"""
 
@@ -214,8 +231,9 @@ def _optimize_classifier(
         # Return the results for this optimization step
         return results_dict
 
+    classifier, params = get_classifier_and_params(classifier_type)
     # Create the parameter sampling instance with the required parameters, number of iterations, and random state
-    sampler = ParameterSampler(OPTIMIZE_PARAMS, n_iter=n_iter, random_state=utils.SEED)
+    sampler = ParameterSampler(params, n_iter=n_iter, random_state=utils.SEED)
     # Use lazy parallelization to create the forest and fit to the data
     # fit = [_step(num, params) for num, params in tqdm(enumerate(sampler), total=n_iter, desc="Fitting...")]
     with Parallel(n_jobs=-1, verbose=5) as p:
@@ -227,7 +245,21 @@ def _optimize_classifier(
     return {k: v for k, v in best_params.items() if k not in ["accuracy", "iteration"]}
 
 
-def fit_forest(
+def get_classifier_and_params(classifier_type: str) -> tuple:
+    """Return the correct classifier instance and optimized parameter settings"""
+    clf = ["rf", "svm", "nb", "lr"]
+    assert classifier_type in clf, "`classifier_type` must be one of " + ", ".join(clf) + f" but got {classifier_type}"
+    if classifier_type == "rf":
+        return RandomForestClassifier, RF_OPTIMIZE_PARAMS
+    elif classifier_type == "svm":
+        return LinearSVC, SVM_OPTIMIZE_PARAMS
+    elif classifier_type == "nb":
+        return MultinomialNB, NB_OPTIMIZE_PARAMS
+    elif classifier_type == "lr":
+        return LogisticRegression, LR_OPTIMIZE_PARAMS
+
+
+def fit_classifier(
         train_x: np.ndarray,
         test_x: np.ndarray,
         valid_x: np.ndarray,
@@ -235,19 +267,22 @@ def fit_forest(
         test_y: np.ndarray,
         valid_y: np.ndarray,
         csvpath: str,
-        n_iter: int
+        n_iter: int,
+        classifier_type: str = "rf"
 ) -> tuple[RandomForestClassifier, float]:
     """Runs optimization, fits optimized settings to validation set, and returns accuracy + fitted model"""
-    logger.info(f"Beginning parameter optimization with {n_iter} iterations...")
+    logger.info(f"Beginning parameter optimization with {n_iter} iterations and classifier {classifier_type}...")
     logger.info(f"... optimization results will be saved in {csvpath}")
     logger.info(f"... shape of training features: {train_x.shape}")
     logger.info(f"... shape of testing features: {test_x.shape}")
+    classifier, _ = get_classifier_and_params(classifier_type)
     optimized_params = _optimize_classifier(
-        train_x, train_y, test_x, test_y, csvpath, n_iter=n_iter
+        train_x, train_y, test_x, test_y, csvpath, n_iter=n_iter, classifier_type=classifier_type
     )
     # Create the optimized random forest model
     logger.info("Optimization finished, fitting optimized model to test and validation set...")
-    clf_opt = RandomForestClassifier(**optimized_params, random_state=utils.SEED)
+    # TODO: test out a few different model types here - SVM, multinomial logistic...
+    clf_opt = classifier(**optimized_params, random_state=utils.SEED)
     clf_opt.fit(train_x, train_y)
 
     # Get the optimized test accuracy
@@ -328,6 +363,14 @@ def parse_arguments(parser) -> dict:
         default=MAX_COUNT,
         type=int,
         help="Maximum number of tracks an n-gram can appear in"
+    )
+    parser.add_argument(
+        "-c", "--classifier-type",
+        default="rf",
+        type=str,
+        help="Classifier type to use. "
+             "Either 'rf' (random forest)', 'svm' (support vector machine), "
+             "'nb' (naive Bayes), or 'lr' (logistic regression)"
     )
     # Parse all arguments and return
     args = vars(parser.parse_args())

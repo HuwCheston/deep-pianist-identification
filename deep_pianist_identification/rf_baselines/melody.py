@@ -110,10 +110,12 @@ def rf_melody(
         ngrams: list[int],
         min_count: int,
         max_count: int,
-        remove_leaps: bool
+        remove_leaps: bool,
+        classifier_type: str
 ) -> None:
     """Create and optimize random forest melody classifier using provided command line arguemnts"""
-    logger.info("Creating baseline random forest classifier using melody data!")
+    logger.info("Creating white box classifier using melody data!")
+    logger.info(f'... using model type {classifier_type}')
     # Get clips from all splits of the dataset
     train_clips, test_clips, validation_clips = rf_utils.get_all_clips(dataset)
     # Get n-grams from both datasets
@@ -121,8 +123,14 @@ def rf_melody(
         train_clips, test_clips, validation_clips, ngrams, min_count, max_count, remove_leaps
     )
     # Load the optimized parameter settings (or recreate them, if they don't exist)
-    csvpath = os.path.join(utils.get_project_root(), 'references/rf_baselines', f'{dataset}_melody.csv')
-    _, __ = rf_utils.fit_forest(train_x_arr, test_x_arr, valid_x_arr, train_y, test_y, valid_y, csvpath, n_iter)
+    csvpath = os.path.join(
+        utils.get_project_root(),
+        'references/rf_baselines',
+        f'{dataset}_{classifier_type}_melody.csv'
+    )
+    _, __ = rf_utils.fit_classifier(
+        train_x_arr, test_x_arr, valid_x_arr, train_y, test_y, valid_y, csvpath, n_iter, classifier_type
+    )
     logger.info('Done!')
 
 
@@ -131,7 +139,7 @@ if __name__ == "__main__":
 
     utils.seed_everything(utils.SEED)
     # Parsing arguments from the command line interface
-    parser = argparse.ArgumentParser(description='Create baseline random forest classifier for melody')
+    parser = argparse.ArgumentParser(description='Create white box classifier for melody')
     args = rf_utils.parse_arguments(parser)
     # Create the forest
     rf_melody(
@@ -140,5 +148,6 @@ if __name__ == "__main__":
         ngrams=args["ngrams"],
         min_count=args["min_count"],
         max_count=args["max_count"],
-        remove_leaps=args["remove_leaps"]
+        remove_leaps=args["remove_leaps"],
+        classifier_type=args["classifier_type"]
     )

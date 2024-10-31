@@ -21,10 +21,12 @@ def rf_melody_harmony(
         min_count: int,
         max_count: int,
         ngrams: list[int],
-        remove_leaps: bool
+        remove_leaps: bool,
+        classifier_type: str = "rf"
 ):
     """Fit the random forest to both melody and harmony features"""
-    logger.info("Creating baseline random forest classifier using melody and harmony data!")
+    logger.info("Creating white box classifier using melody and harmony data!")
+    logger.info(f'... using model type {classifier_type}')
     logger.info(f"... using ngrams {ngrams}, with remove_leaps {remove_leaps}")
     train_clips, test_clips, validation_clips = rf_utils.get_all_clips(dataset)
     # Melody extraction
@@ -60,9 +62,13 @@ def rf_melody_harmony(
     valid_x_arr = np.concatenate((valid_x_arr_mel, valid_x_arr_har), axis=1)
     # Load the optimized parameter settings (or recreate them, if they don't exist)
     logger.info('---FITTING---')
-    csvpath = os.path.join(utils.get_project_root(), 'references/rf_baselines', f'{dataset}_harmony+melody.csv')
-    clf_opt, valid_acc = rf_utils.fit_forest(
-        train_x_arr, test_x_arr, valid_x_arr, train_y_mel, test_y_mel, valid_y_mel, csvpath, n_iter
+    csvpath = os.path.join(
+        utils.get_project_root(),
+        'references/rf_baselines',
+        f'{dataset}_{classifier_type}_harmony+melody.csv'
+    )
+    clf_opt, valid_acc = rf_utils.fit_classifier(
+        train_x_arr, test_x_arr, valid_x_arr, train_y_mel, test_y_mel, valid_y_mel, csvpath, n_iter, classifier_type
     )
     # Computing parameter importance scores
     logger.info('---CONCEPT IMPORTANCE---')
@@ -82,7 +88,7 @@ if __name__ == "__main__":
 
     utils.seed_everything(utils.SEED)
     # Parsing arguments from the command line interface
-    parser = argparse.ArgumentParser(description='Create baseline random forest classifier for harmony')
+    parser = argparse.ArgumentParser(description='Create white box classifier for melody + harmony')
     args = rf_utils.parse_arguments(parser)
     # Create the forest
     rf_melody_harmony(
@@ -91,5 +97,6 @@ if __name__ == "__main__":
         min_count=args["min_count"],
         ngrams=args['ngrams'],
         remove_leaps=args['remove_leaps'],
-        max_count=args["max_count"]
+        max_count=args["max_count"],
+        classifier_type=args["classifier_type"]
     )
