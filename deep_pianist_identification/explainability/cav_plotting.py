@@ -26,7 +26,9 @@ from deep_pianist_identification.extractors import get_piano_roll, ExtractorErro
 __all__ = ["BIRTH_YEARS", "HeatmapPianistCAV", "HeatmapCAVKernelSensitivity"]
 
 # Array of pianist birth years and indexes needed to sort these in order
-BIRTH_YEARS = np.array(os.path.join(utils.get_project_root(), 'references/data_splits/20class_80min/birth_years.txt'))
+BIRTH_YEARS = np.genfromtxt(
+    os.path.join(utils.get_project_root(), 'references/data_splits/20class_80min/birth_years.txt'), dtype=int
+)
 
 
 def fmt_heatmap_axis(heatmap_ax: plt.Axes):

@@ -83,6 +83,6 @@ class Explainer:
         # Create the model
         self.predictor.fit(X, y)
         acc = self.predictor.score(X, y)
-        logger.info(f'Accuracy for CAV {self.cav_idx}: ', acc)
+        logger.info(f'Accuracy for CAV {self.cav_idx}: {acc:.2f}')
         # Extract coefficients - these are our CAVs
         self.cavs = self.predictor.coef_
