@@ -155,6 +155,36 @@ class TrainModule:
             drop_last=False,
             collate_fn=remove_bad_clips_from_batch
         )
+        logger.debug(f'Initialising validation dataloader with batch size {self.batch_size} '
+                     f'and parameters {self.test_dataset_cfg}')
+        try:
+            self.validation_loader = DataLoader(
+                self.dataloader_cls(
+                    'validation',
+                    classify_dataset=self.classify_dataset,
+                    data_split_dir=self.data_split_dir,
+                    # We can just use the test dataset configuration here
+                    **self.test_dataset_cfg
+                ),
+                batch_size=self.batch_size,
+                shuffle=True,
+                drop_last=False,
+                collate_fn=remove_bad_clips_from_batch
+            )
+        except FileNotFoundError:
+            logger.warning('Could not find seperate validation split; validation will use test split!')
+            self.validation_loader = DataLoader(
+                self.dataloader_cls(
+                    'test',
+                    classify_dataset=self.classify_dataset,
+                    data_split_dir=self.data_split_dir,
+                    **self.test_dataset_cfg
+                ),
+                batch_size=self.batch_size,
+                shuffle=True,
+                drop_last=False,
+                collate_fn=remove_bad_clips_from_batch
+            )
 
         # METRICS
         logger.debug('Initialising metrics...')
@@ -415,6 +445,8 @@ class TrainModule:
         # For some reason, we need to do a step in the scheduler here so that we have the correct LR
         self.scheduler.step()
         logger.debug(f'Loaded the checkpoint at {checkpoint_path}!')
+        # TODO: we should possibly re-seed here by doing seed_everything(SEED * self.current_epoch)
+        #  Otherwise I think we might just be using the same randomizations as epoch 1
 
     def save_checkpoint(self, metrics) -> None:
         """Save the model checkpoint at the current epoch"""
@@ -519,25 +551,6 @@ class TrainModule:
         logger.info(f'Finished in {(time() - training_start) // 60} minutes!')
 
     def validation(self) -> None:
-        # Try and create the validation dataloader
-        try:
-            validation_loader = DataLoader(
-                self.dataloader_cls(
-                    'validation',
-                    classify_dataset=self.classify_dataset,
-                    data_split_dir=self.data_split_dir,
-                    # We can just use the test dataset configuration here
-                    **self.test_dataset_cfg
-                ),
-                batch_size=self.batch_size,
-                shuffle=True,
-                drop_last=False,
-                collate_fn=remove_bad_clips_from_batch
-            )
-        # Skip if we don't have a validation split created for this dataset
-        except FileNotFoundError as e:
-            logger.error(f'Could not find validation split for dataset {self.data_split_dir}, skipping validation! {e}')
-            return
         # Lists to track metrics across all batches
         clip_loss, clip_accs = [], []
         track_names, track_preds, track_targets = [], [], []
@@ -546,8 +559,8 @@ class TrainModule:
         # Iterate through all batches, with a nice TQDM counter
         with torch.no_grad():
             for batch in tqdm(
-                    validation_loader,
-                    total=len(validation_loader),
+                    self.validation_loader,
+                    total=len(self.validation_loader),
                     desc=f'Validating...'
             ):
                 loss, acc, preds = self.step(batch)
