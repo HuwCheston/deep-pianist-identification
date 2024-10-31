@@ -19,3 +19,5 @@ mlflow
 tenacity
 lime
 tensorly
+plotly
+scikit-image

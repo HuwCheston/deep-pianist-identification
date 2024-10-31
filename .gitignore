@@ -110,6 +110,8 @@ target/
 *.npy
 *.pth
 *.pt
+*.html
+*.pdf
 
 # Ignore model files used by MVSEP
 *.th
