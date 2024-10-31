@@ -23,7 +23,7 @@ import deep_pianist_identification.plotting as plotting
 from deep_pianist_identification import utils
 from deep_pianist_identification.extractors import get_piano_roll, ExtractorError
 
-__all__ = ["BIRTH_YEARS", "HeatmapPianistCAV", "HeatmapCAVKernelSensitivity"]
+__all__ = ["BIRTH_YEARS", "HeatmapPianistCAV", "HeatmapCAVKernelSensitivity", "HeatmapCAVKernelSensitivityInteractive"]
 
 # Array of pianist birth years and indexes needed to sort these in order
 BIRTH_YEARS = np.genfromtxt(
@@ -43,9 +43,10 @@ def fmt_heatmap_axis(heatmap_ax: plt.Axes):
 
 
 class HeatmapPianistCAV(plotting.BasePlot):
-    def __init__(self, corr_df: pd.DataFrame):
+    def __init__(self, corr_df: pd.DataFrame, cav_type: str = "Voicings"):
         super().__init__()
         self.df = self._format_df(corr_df)
+        self.cav_type = cav_type
         self.fig, self.ax = plt.subplots(1, 1, figsize=(plotting.WIDTH, plotting.WIDTH))
 
     def _format_df(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -73,7 +74,7 @@ class HeatmapPianistCAV(plotting.BasePlot):
         # Set aesthetics for both colorbar and main axis
         fmt_heatmap_axis(self.ax)
         self.ax.set(
-            xlabel="Harmony CAV (→→→ $increasing$ $complexity$ →→→)",
+            xlabel=f"{self.cav_type} CAV (→→→ $increasing$ $complexity$ →→→)",
             ylabel="Pianist (→→→ $increasing$ $birth$ $year$ →→→)"
         )
 
@@ -81,7 +82,12 @@ class HeatmapPianistCAV(plotting.BasePlot):
         self.fig.tight_layout()
 
     def save_fig(self):
-        fp = os.path.join(utils.get_project_root(), "reports/figures", "cav_plots/voicings", "correlation_heatmap")
+        fp = os.path.join(
+            utils.get_project_root(),
+            "reports/figures",
+            f"cav_plots/{self.cav_type.lower()}",
+            "correlation_heatmap"
+        )
         for fmt in ["png", "svg"]:
             self.fig.savefig(fp + "." + fmt, format=fmt, facecolor=plotting.WHITE)
 
@@ -98,7 +104,8 @@ class HeatmapCAVKernelSensitivity(plotting.BasePlot):
             cav_name: str = "",
             heatmap_size: tuple = None,
             kernel_size: tuple = None,
-            draw_rectangle: bool = False
+            draw_rectangle: bool = False,
+            cav_type: str = "Voicings"
     ):
         super().__init__()
         # We use this model to generate embeddings for the piano roll
@@ -133,6 +140,7 @@ class HeatmapCAVKernelSensitivity(plotting.BasePlot):
         self.sensitivity_array = None
         # Matplotlib figure and axis
         self.fig, self.ax = plt.subplots(1, 1, figsize=(plotting.WIDTH, plotting.WIDTH // 3))
+        self.cav_type = cav_type
 
     def get_kernels(self):
         # Unpack the kernel and heatmap size tuples for readability
@@ -235,7 +243,7 @@ class HeatmapCAVKernelSensitivity(plotting.BasePlot):
 
     def _format_fig(self):
         # Figure aesthetics
-        self.fig.suptitle(f"CAV: {self.cav_name}")
+        self.fig.suptitle(f"{self.cav_type} CAV: {self.cav_name}")
         self.fig.supxlabel("Time (seconds)")
         self.fig.supylabel("Note")
         self.fig.tight_layout()
@@ -287,7 +295,7 @@ class HeatmapCAVKernelSensitivity(plotting.BasePlot):
         di = os.path.join(
             utils.get_project_root(),
             "reports/figures",
-            "cav_plots/voicings/clip_heatmaps"
+            f"cav_plots/{self.cav_type.lower()}/clip_heatmaps"
         )
         if not os.path.isdir(di):
             os.makedirs(di)
@@ -311,7 +319,8 @@ class HeatmapCAVKernelSensitivityInteractive(HeatmapCAVKernelSensitivity):
             cav_name: str = "",
             heatmap_size: tuple = None,
             kernel_size: tuple = None,
-            cav_idx: int = 1
+            cav_idx: int = 1,
+            cav_type: str = "Voicings"
     ):
         super().__init__(
             clip_name,
@@ -321,7 +330,8 @@ class HeatmapCAVKernelSensitivityInteractive(HeatmapCAVKernelSensitivity):
             cav_name,
             heatmap_size,
             kernel_size,
-            draw_rectangle=False  # won't do anything so just set it to false
+            draw_rectangle=False,  # won't do anything so just set it to false
+            cav_type=cav_type
         )
         self.fig, self.ax = None, None
         plt.close()
@@ -410,7 +420,9 @@ class HeatmapCAVKernelSensitivityInteractive(HeatmapCAVKernelSensitivity):
         # create a folder for this clip
         fname = self.clip_name.replace(os.path.sep, '_').split('.')[0]
         fp = os.path.join(
-            utils.get_project_root(), "reports/figures/cav_plots/voicings/clip_heatmaps_interactive", fname
+            utils.get_project_root(),
+            f"reports/figures/cav_plots/{self.cav_type.lower()}/clip_heatmaps_interactive",
+            fname
         )
         if not os.path.isdir(fp):
             os.makedirs(fp)

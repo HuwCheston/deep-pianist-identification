@@ -16,8 +16,9 @@ from tqdm import tqdm
 from deep_pianist_identification import utils
 from deep_pianist_identification.explainability.cav_dataloader import VoicingLoaderFake, VoicingLoaderReal
 from deep_pianist_identification.explainability.cav_explainer import Explainer
-from deep_pianist_identification.explainability.cav_plotting import HeatmapPianistCAV, HeatmapCAVKernelSensitivity, \
-    HeatmapCAVKernelSensitivityInteractive
+from deep_pianist_identification.explainability.cav_plotting import (
+    HeatmapPianistCAV, HeatmapCAVKernelSensitivity, HeatmapCAVKernelSensitivityInteractive
+)
 from deep_pianist_identification.extractors import HarmonyExtractor
 from deep_pianist_identification.training import DEFAULT_CONFIG, TrainModule
 
@@ -124,7 +125,7 @@ def performer_cav_correlation(cav_similarities: np.array, target_idxs: np.array,
     return pd.DataFrame(res).pivot_table('corr', ['musician'], 'cav', sort=False)
 
 
-def generate_topk_json(tracks: np.array, sims: np.array) -> dict:
+def generate_topk_json(tracks: np.array, sims: np.array, cav_type: str = "Voicings") -> dict:
     # Create the similarity dict: filenames are read in from our HTML file here
     similarity_dict = {}
     for num, cav_sim in enumerate(sims.T):
@@ -132,7 +133,13 @@ def generate_topk_json(tracks: np.array, sims: np.array) -> dict:
         topk_tracks = tracks[topk_idxs]
         similarity_dict[str(num).zfill(3)] = topk_tracks.tolist()
     # Dump the JSON
-    with open(os.path.join(utils.get_project_root(), "reports/figures/cav_plots/voicings/similarity.json"), 'w') as f:
+    fp = os.path.join(
+        utils.get_project_root(),
+        "reports/figures/cav_plots",
+        cav_type.lower(),
+        "similarity.json"
+    )
+    with open(fp, 'w') as f:
         json.dump(similarity_dict, f)
     return similarity_dict
 
@@ -159,12 +166,12 @@ def main():
     # Outputs
     logger.info(f"Creating outputs...")
     # Generate the topk dictionary for all concepts
-    topk_dict = generate_topk_json(track_names, similarities)
+    topk_dict = generate_topk_json(track_names, similarities, cav_type="Voicings")
     logger.info('... top-K JSON done!')
     # Get binary correlation between all performers and all CAVs
     corr_df = performer_cav_correlation(similarities, targets, tm.class_mapping)
     # Create the performer heatmap
-    hm = HeatmapPianistCAV(corr_df)
+    hm = HeatmapPianistCAV(corr_df, cav_type="Voicings")
     hm.create_plot()
     hm.save_fig()
     logger.info('... correlation heatmap done!')
@@ -178,6 +185,7 @@ def main():
                 encoder=harmony_concept,
                 cav_name=cav_name,
                 extractor_cls=HarmonyExtractor,
+                cav_type="Voicings"
             )
             hmks.create_plot()
             hmks.save_fig()
@@ -189,6 +197,7 @@ def main():
                 encoder=harmony_concept,
                 cav_name=cav_name,
                 extractor_cls=HarmonyExtractor,
+                cav_type="Voicings"
             )
             hmks.create_plot()
             hmks.save_fig()
