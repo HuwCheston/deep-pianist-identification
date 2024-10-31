@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import torch
 import yaml
+from loguru import logger
 from tqdm import tqdm
 
 from deep_pianist_identification import utils
@@ -136,6 +137,7 @@ def generate_topk_json(tracks: np.array, sims: np.array) -> dict:
 
 
 def main():
+    logger.info("Initialising model...")
     # Get the training module
     cfg_loc = os.path.join(utils.get_project_root(), 'config', DEFAULT_MODEL + '.yaml')
     tm = get_training_module(cfg_loc)
@@ -143,28 +145,41 @@ def main():
     harmony_concept = tm.model.harmony_concept.to(utils.DEVICE)
     harmony_concept.eval()
     # Extract all CAVs
+    logger.info("Extracting harmony CAVs...")
     cavs = get_all_cavs(harmony_concept)
+    logger.info(f"... created CAVs with shape {cavs.shape}")
     # Get embeddings, target indices, and track names
-    features, targets, track_names = embed_all_clips([tm.test_loader, tm.validation_loader], harmony_concept)
+    logger.info("Embedding validation clips...")
+    features, targets, track_names = embed_all_clips([tm.validation_loader, tm.test_loader], harmony_concept)
+    logger.info(f"... created embeddings with shape {features.shape}")
     # Get similarities between clip and CAV features
     similarities = clip_cav_similarity(features, cavs, normalize=False)
-    # Get binary correlation between all performers and all CAVs
-    corr_df = performer_cav_correlation(similarities, targets, tm.class_mapping)
+    logger.info(f"CAV similarity matrix has shape {similarities.shape}")
+    # Outputs
+    logger.info(f"Creating outputs...")
     # Generate the topk dictionary for all concepts
     topk_dict = generate_topk_json(track_names, similarities)
+    logger.info('... top-K JSON done!')
+    # Get binary correlation between all performers and all CAVs
+    corr_df = performer_cav_correlation(similarities, targets, tm.class_mapping)
     # Create the performer heatmap
     hm = HeatmapPianistCAV(corr_df)
     hm.create_plot()
     hm.save_fig()
+    logger.info('... correlation heatmap done!')
     # Create heatmap for a single clip
-    hmks = HeatmapCAVKernelSensitivity(
-        'pijama/petersono-makinwhoopeelive-unaccompanied-xxxx-i3xns7vr/clip_003.mid',
-        cavs[0],
-        encoder=harmony_concept,
-        cav_name=CAV_MAPPING[0],
-        extractor_cls=HarmonyExtractor,
-    )
-    hmks.create_plot()
+    for cav_name, topk_tracks, cav in zip(CAV_MAPPING, list(topk_dict.values()), cavs):
+        for track in topk_tracks:
+            hmks = HeatmapCAVKernelSensitivity(
+                track,
+                cav,
+                encoder=harmony_concept,
+                cav_name=cav_name,
+                extractor_cls=HarmonyExtractor,
+            )
+            hmks.create_plot()
+            hmks.save_fig()
+            logger.info(f'... kernel sensitivity plot done for track {track}, CAV {cav_name}!')
 
 
 if __name__ == '__main__':
