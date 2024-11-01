@@ -176,7 +176,7 @@ def main():
     hm.save_fig()
     logger.info('... correlation heatmap done!')
     # Create heatmap for a single clip
-    for cav_name, topk_tracks, cav in zip(CAV_MAPPING, list(topk_dict.values()), cavs):
+    for cav_idx, (cav_name, topk_tracks, cav) in enumerate(zip(CAV_MAPPING, list(topk_dict.values()), cavs)):
         for track in topk_tracks:
             # Create the non-interactive (matplotlib) heatmap
             hmks = HeatmapCAVKernelSensitivity(
@@ -197,7 +197,8 @@ def main():
                 encoder=harmony_concept,
                 cav_name=cav_name,
                 extractor_cls=HarmonyExtractor,
-                cav_type="Voicings"
+                cav_type="Voicings",
+                cav_idx=cav_idx
             )
             hmks.create_plot()
             hmks.save_fig()
