@@ -228,7 +228,7 @@ def _optimize_classifier(
             except (FileNotFoundError, IndexError):
                 pass
         # Create the forest model with the given parameter settings
-        forest = classifier(**parameters, random_state=utils.SEED)
+        forest = classifier(**parameters)
         # Fit the model to the training data and get the test data accuracy
         forest.fit(train_features, train_targets)
         acc = accuracy_score(test_targets, forest.predict(test_features))
