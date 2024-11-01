@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
 from loguru import logger
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, HistGradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import ParameterSampler
@@ -43,6 +43,21 @@ RF_OPTIMIZE_PARAMS = dict(
     min_samples_leaf=[i for i in range(1, 11)],
     # Whether to sample data points with our without replacement
     bootstrap=[True, False],
+    random_state=[utils.SEED]
+)
+XGB_OPTIMIZE_PARAMS = dict(
+    # 1 = no shrinkage
+    learning_rate=np.linspace(0, 1., 401),
+    # Will grow max_iter * num_classes trees per iteration
+    max_iter=[i for i in range(10, 401, 1)],
+    # Number of leaves for each tree; if None, there is no upper limit
+    max_leaf_nodes=[None, *[i for i in range(1, 101, 1)]],
+    # Max number of levels in each tree
+    max_depth=[None, 1 / 1000, 1 / 100, 1 / 50, 1 / 10],
+    # Minimum number of samples required at each leaf node
+    min_samples_leaf=[i for i in range(1, 11)],
+    # Max number of features considered for splitting a node
+    max_features=np.linspace(0, 1., 401),
     random_state=[utils.SEED]
 )
 SVM_OPTIMIZE_PARAMS = dict(
@@ -254,7 +269,7 @@ def _optimize_classifier(
 
 def get_classifier_and_params(classifier_type: str) -> tuple:
     """Return the correct classifier instance and optimized parameter settings"""
-    clf = ["rf", "svm", "nb", "lr"]
+    clf = ["rf", "svm", "nb", "lr", "xgb"]
     assert classifier_type in clf, "`classifier_type` must be one of " + ", ".join(clf) + f" but got {classifier_type}"
     if classifier_type == "rf":
         return RandomForestClassifier, RF_OPTIMIZE_PARAMS
@@ -264,6 +279,8 @@ def get_classifier_and_params(classifier_type: str) -> tuple:
         return MultinomialNB, NB_OPTIMIZE_PARAMS
     elif classifier_type == "lr":
         return LogisticRegression, LR_OPTIMIZE_PARAMS
+    elif classifier_type == "xgb":
+        return HistGradientBoostingClassifier, XGB_OPTIMIZE_PARAMS
 
 
 def fit_classifier(
