@@ -7,7 +7,6 @@ import os
 
 import numpy as np
 from loguru import logger
-from sklearn.metrics import accuracy_score
 
 import deep_pianist_identification.rf_baselines.rf_utils as rf_utils
 from deep_pianist_identification import utils
@@ -71,15 +70,15 @@ def rf_melody_harmony(
         train_x_arr, test_x_arr, valid_x_arr, train_y_mel, test_y_mel, valid_y_mel, csvpath, n_iter, classifier_type
     )
     # Computing parameter importance scores
-    logger.info('---CONCEPT IMPORTANCE---')
-    mel_concept_idxs, harm_concept_idxs = train_x_arr_mel.shape[1], train_x_arr_har.shape[1]
-    for idxs, concept in zip([mel_concept_idxs, harm_concept_idxs], ['melody', 'harmony']):
-        temp = valid_x_arr.copy()
-        temp = np.random.shuffle(temp[:, idxs])
-        valid_y_permute_predict = clf_opt.predict(temp)
-        valid_permute_acc = accuracy_score(valid_y_mel, valid_y_permute_predict)
-        importance = valid_acc - valid_permute_acc
-        logger.info(f"... feature importance for {concept}: {importance:.3f}")
+    # logger.info('---CONCEPT IMPORTANCE---')
+    # mel_concept_idxs, harm_concept_idxs = train_x_arr_mel.shape[1], train_x_arr_har.shape[1]
+    # for idxs, concept in zip([mel_concept_idxs, harm_concept_idxs], ['melody', 'harmony']):
+    #     temp = valid_x_arr.copy()
+    #     temp = np.random.shuffle(temp[:, idxs])
+    #     valid_y_permute_predict = clf_opt.predict(temp)
+    #     valid_permute_acc = accuracy_score(valid_y_mel, valid_y_permute_predict)
+    #     importance = valid_acc - valid_permute_acc
+    #     logger.info(f"... feature importance for {concept}: {importance:.3f}")
     logger.info('Done!')
 
 

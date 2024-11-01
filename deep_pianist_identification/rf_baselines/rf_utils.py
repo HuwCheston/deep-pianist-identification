@@ -18,9 +18,10 @@ from joblib import Parallel, delayed
 from loguru import logger
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, top_k_accuracy_score
+from sklearn.metrics import accuracy_score
 from sklearn.model_selection import ParameterSampler
 from sklearn.naive_bayes import MultinomialNB
+from sklearn.preprocessing import StandardScaler
 from sklearn.svm import LinearSVC
 from tenacity import retry, retry_if_exception_type, wait_random_exponential, stop_after_attempt
 from tqdm import tqdm
@@ -42,19 +43,25 @@ RF_OPTIMIZE_PARAMS = dict(
     min_samples_leaf=[i for i in range(1, 11)],
     # Whether to sample data points with our without replacement
     bootstrap=[True, False],
+    random_state=[utils.SEED]
 )
 SVM_OPTIMIZE_PARAMS = dict(
-    C=np.logspace(-3, 3, num=1001),
+    C=np.logspace(-2, 2, num=401),
     penalty=['l2', 'l1'],
     class_weight=[None, 'balanced'],
+    intercept_scaling=np.logspace(-2, 2, num=401),
+    max_iter=[1000],
+    random_state=[utils.SEED]
 )
 LR_OPTIMIZE_PARAMS = dict(
-    C=np.logspace(-3, 3, num=1001),
-    penalty=[None, 'l2', 'l1', 'elasticnet'],
+    C=np.logspace(-2, 2, num=401),
+    penalty=[None, 'l2', 'l1'],
     class_weight=[None, 'balanced'],
+    solver=["saga"],
+    random_state=[utils.SEED]
 )
 NB_OPTIMIZE_PARAMS = dict(
-    alpha=np.logspace(-3, 3, num=1001),
+    alpha=np.logspace(-2, 2, num=401),
     fit_prior=[True, False]
 )
 
@@ -73,7 +80,7 @@ NGRAMS = [2, 3]  # The ngrams to consider when extracting melody (horizontal) or
     wait=wait_random_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(20)
 )
-def threadsafe_load_csv(csv_path: str) -> dict:
+def threadsafe_load_csv(csv_path: str) -> list[dict]:
     """Simple wrapper around `csv.load` that catches errors when working on the same file in multiple threads"""
 
     def eval_(i):
@@ -93,7 +100,7 @@ def threadsafe_save_csv(obj: list | dict, fpath: str) -> None:
     fdir, fpath = str(_path.parent), str(_path.name)
     # If we have an existing file with the same name, load it in and extend it with our new data
     try:
-        existing_file = threadsafe_load_csv(os.path.join(fdir, fpath))
+        existing_file: list = threadsafe_load_csv(os.path.join(fdir, fpath))
     except FileNotFoundError:
         pass
     else:
@@ -221,7 +228,7 @@ def _optimize_classifier(
             except (FileNotFoundError, IndexError):
                 pass
         # Create the forest model with the given parameter settings
-        forest = classifier(**parameters, random_state=utils.SEED, n_jobs=1)
+        forest = classifier(**parameters, random_state=utils.SEED)
         # Fit the model to the training data and get the test data accuracy
         forest.fit(train_features, train_targets)
         acc = accuracy_score(test_targets, forest.predict(test_features))
@@ -268,7 +275,8 @@ def fit_classifier(
         valid_y: np.ndarray,
         csvpath: str,
         n_iter: int,
-        classifier_type: str = "rf"
+        classifier_type: str = "rf",
+        scale: bool = True
 ) -> tuple[RandomForestClassifier, float]:
     """Runs optimization, fits optimized settings to validation set, and returns accuracy + fitted model"""
     logger.info(f"Beginning parameter optimization with {n_iter} iterations and classifier {classifier_type}...")
@@ -279,9 +287,14 @@ def fit_classifier(
     optimized_params = _optimize_classifier(
         train_x, train_y, test_x, test_y, csvpath, n_iter=n_iter, classifier_type=classifier_type
     )
+    # Scale the data if required (not for naive Bayes as data must be non-negative)
+    if scale and classifier_type != "nb":
+        scaler = StandardScaler()
+        train_x = scaler.fit_transform(train_x)
+        test_x = scaler.transform(test_x)
+        valid_x = scaler.transform(valid_x)
     # Create the optimized random forest model
     logger.info("Optimization finished, fitting optimized model to test and validation set...")
-    # TODO: test out a few different model types here - SVM, multinomial logistic...
     clf_opt = classifier(**optimized_params, random_state=utils.SEED)
     clf_opt.fit(train_x, train_y)
 
@@ -290,21 +303,22 @@ def fit_classifier(
     test_acc = accuracy_score(test_y, test_y_pred)
     logger.info(f"... test accuracy: {test_acc:.3f}")
     # Compute top-k test accuracy
-    test_y_proba = clf_opt.predict_proba(test_x)
-    for k in [2, 5, 10]:
-        test_k_acc = top_k_accuracy_score(test_y, test_y_proba, k=k)
-        logger.info(f"... test accuracy @ k = {k}: {test_k_acc:.3f}")
+    # TODO: fix this
+    # test_y_proba = clf_opt.predict_proba(test_x)
+    # for k in [2, 5, 10]:
+    #     test_k_acc = top_k_accuracy_score(test_y, test_y_proba, k=k)
+    #     logger.info(f"... test accuracy @ k = {k}: {test_k_acc:.3f}")
 
     # Get the optimized validation accuracy
     valid_y_pred = clf_opt.predict(valid_x)
     valid_acc = accuracy_score(valid_y, valid_y_pred)
     logger.info(f"... validation accuracy: {valid_acc:.3f}")
     # Compute top-k validation accuracy
-    valid_y_proba = clf_opt.predict_proba(valid_x)
-    for k in [2, 5, 10]:
-        valid_k_acc = top_k_accuracy_score(valid_y, valid_y_proba, k=k)
-        logger.info(f"... validation accuracy @ k = {k}: {valid_k_acc:.3f}")
-
+    # valid_y_proba = clf_opt.predict_proba(valid_x)
+    # for k in [2, 5, 10]:
+    #     valid_k_acc = top_k_accuracy_score(valid_y, valid_y_proba, k=k)
+    #     logger.info(f"... validation accuracy @ k = {k}: {valid_k_acc:.3f}")
+    # TODO: permutation importance can go here
     return clf_opt, valid_acc
 
 
