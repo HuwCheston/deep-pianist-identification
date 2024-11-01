@@ -34,7 +34,7 @@ RF_OPTIMIZE_PARAMS = dict(
     n_estimators=[i for i in range(10, 401, 1)],
     # Max number of features considered for splitting a node
     # max_features=[None, 'sqrt', 'log2'],
-    max_features=['sqrt', 'log2', 1/1000, 1/100, 1/50, 1/10],
+    max_features=['sqrt', 'log2', *np.linspace(1e-4, 0.2, 401)],
     # Max number of levels in each tree
     max_depth=[None, *[i for i in range(1, 41, 1)]],
     # Minimum number of samples required to split a node
@@ -49,11 +49,11 @@ XGB_OPTIMIZE_PARAMS = dict(
     # 1 = no shrinkage
     learning_rate=np.linspace(0, 1., 401),
     # Will grow max_iter * num_classes trees per iteration
-    max_iter=[i for i in range(10, 401, 1)],
+    max_iter=[i for i in range(1, 101, 1)],
     # Number of leaves for each tree; if None, there is no upper limit
     max_leaf_nodes=[None, *[i for i in range(1, 101, 1)]],
     # Max number of levels in each tree
-    max_depth=[None, 1 / 1000, 1 / 100, 1 / 50, 1 / 10],
+    max_depth=[None, *range(1, 101, 1)],
     # Minimum number of samples required at each leaf node
     min_samples_leaf=[i for i in range(1, 11)],
     # Max number of features considered for splitting a node
