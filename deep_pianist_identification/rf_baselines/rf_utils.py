@@ -295,7 +295,7 @@ def fit_classifier(
         valid_x = scaler.transform(valid_x)
     # Create the optimized random forest model
     logger.info("Optimization finished, fitting optimized model to test and validation set...")
-    clf_opt = classifier(**optimized_params, random_state=utils.SEED)
+    clf_opt = classifier(**optimized_params)
     clf_opt.fit(train_x, train_y)
 
     # Get the optimized test accuracy
@@ -385,6 +385,12 @@ def parse_arguments(parser) -> dict:
         help="Classifier type to use. "
              "Either 'rf' (random forest)', 'svm' (support vector machine), "
              "'nb' (naive Bayes), or 'lr' (logistic regression)"
+    )
+    parser.add_argument(
+        "-z", "--scale",
+        default=True,
+        type=bool,
+        help="Whether to scale data using z-transformation or not"
     )
     # Parse all arguments and return
     args = vars(parser.parse_args())

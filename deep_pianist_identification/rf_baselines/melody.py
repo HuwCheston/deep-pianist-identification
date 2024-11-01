@@ -111,7 +111,8 @@ def rf_melody(
         min_count: int,
         max_count: int,
         remove_leaps: bool,
-        classifier_type: str
+        classifier_type: str,
+        scale: bool
 ) -> None:
     """Create and optimize random forest melody classifier using provided command line arguemnts"""
     logger.info("Creating white box classifier using melody data!")
@@ -129,7 +130,7 @@ def rf_melody(
         f'{dataset}_{classifier_type}_melody.csv'
     )
     _, __ = rf_utils.fit_classifier(
-        train_x_arr, test_x_arr, valid_x_arr, train_y, test_y, valid_y, csvpath, n_iter, classifier_type
+        train_x_arr, test_x_arr, valid_x_arr, train_y, test_y, valid_y, csvpath, n_iter, classifier_type, scale
     )
     logger.info('Done!')
 
@@ -149,5 +150,6 @@ if __name__ == "__main__":
         min_count=args["min_count"],
         max_count=args["max_count"],
         remove_leaps=args["remove_leaps"],
-        classifier_type=args["classifier_type"]
+        classifier_type=args["classifier_type"],
+        scale=args["scale"]
     )

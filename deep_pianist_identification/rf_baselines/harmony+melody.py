@@ -21,7 +21,8 @@ def rf_melody_harmony(
         max_count: int,
         ngrams: list[int],
         remove_leaps: bool,
-        classifier_type: str = "rf"
+        classifier_type: str = "rf",
+        scale: bool = True
 ):
     """Fit the random forest to both melody and harmony features"""
     logger.info("Creating white box classifier using melody and harmony data!")
@@ -67,7 +68,8 @@ def rf_melody_harmony(
         f'{dataset}_{classifier_type}_harmony+melody.csv'
     )
     clf_opt, valid_acc = rf_utils.fit_classifier(
-        train_x_arr, test_x_arr, valid_x_arr, train_y_mel, test_y_mel, valid_y_mel, csvpath, n_iter, classifier_type
+        train_x_arr, test_x_arr, valid_x_arr, train_y_mel, test_y_mel, valid_y_mel,
+        csvpath, n_iter, classifier_type, scale
     )
     # Computing parameter importance scores
     # logger.info('---CONCEPT IMPORTANCE---')
@@ -97,5 +99,6 @@ if __name__ == "__main__":
         ngrams=args['ngrams'],
         remove_leaps=args['remove_leaps'],
         max_count=args["max_count"],
-        classifier_type=args["classifier_type"]
+        classifier_type=args["classifier_type"],
+        scale=args["scale"]
     )
