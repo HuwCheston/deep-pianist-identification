@@ -1,0 +1,41 @@
+experiment: disentangle-final-experiments
+run: disentangle-jtd+pijama-resnet50-noattention-avgpool-augment50-mask30concept3
+batch_size: 20
+epochs: 100
+data_split_dir: 20class_80min
+classify_dataset: false
+train_dataset_cfg:
+  n_clips: null
+  normalize_velocity: true
+  multichannel: true
+  data_augmentation: true
+  augmentation_probability: 0.5
+  jitter_start: true
+test_dataset_cfg:
+  n_clips: null
+  normalize_velocity: true
+  multichannel: true
+  data_augmentation: false
+  jitter_start: false
+encoder_module: disentangle
+model_cfg:
+  use_gru: false
+  use_masking: true
+  mask_probability: 0.3
+  max_masked_concepts: 3
+  use_attention: false
+  _use_resnet: true
+  _resnet_cls: resnet50
+  use_2fc: false
+  pool_type: avg
+optim_type: adam
+optim_cfg:
+  lr: 0.0001
+checkpoint_cfg:
+  save_checkpoints: true
+  load_checkpoints: true
+  checkpoint_after_n_epochs: 10
+  checkpoint_dir: /rds/user/hwc31/hpc-work/deep-pianist-identification/checkpoints
+mlflow_cfg:
+  use: true
+  tracking_uri: http://127.0.0.1:5000

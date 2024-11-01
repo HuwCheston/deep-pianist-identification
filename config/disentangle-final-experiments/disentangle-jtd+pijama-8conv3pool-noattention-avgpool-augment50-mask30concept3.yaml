@@ -1,0 +1,49 @@
+experiment: disentangle-final-experiments
+run: disentangle-jtd+pijama-8conv3pool-noattention-avgpool-augment50-mask30concept3
+batch_size: 20
+epochs: 100
+data_split_dir: 20class_80min
+classify_dataset: False
+train_dataset_cfg:
+  n_clips: null
+  normalize_velocity: True
+  multichannel: True
+  data_augmentation: True
+  augmentation_probability: 0.5
+  jitter_start: True
+test_dataset_cfg:
+  n_clips: null
+  normalize_velocity: True
+  multichannel: True
+  data_augmentation: False
+  jitter_start: False
+encoder_module: disentangle
+model_cfg:
+  use_gru: True
+  use_masking: True
+  use_attention: False
+  mask_probability: 0.3
+  max_masked_concepts: 3
+  layers: [
+    { in_channels: 1, out_channels: 64, conv_kernel_size: 3, has_pool: False },
+    { in_channels: 64, out_channels: 64, conv_kernel_size: 3, has_pool: True, pool_kernel_size: 2 },
+    { in_channels: 64, out_channels: 128, conv_kernel_size: 3, has_pool: False },
+    { in_channels: 128, out_channels: 128, conv_kernel_size: 3, has_pool: True, pool_kernel_size: 2 },
+    { in_channels: 128, out_channels: 256, conv_kernel_size: 3, has_pool: False },
+    { in_channels: 256, out_channels: 256, conv_kernel_size: 3, has_pool: True, pool_kernel_size: 2 },
+    { in_channels: 256, out_channels: 512, conv_kernel_size: 3, has_pool: False },
+    { in_channels: 512, out_channels: 512, conv_kernel_size: 3, has_pool: False }
+  ]
+  pool_type: avg
+  use_2fc: false
+optim_type: adam
+optim_cfg:
+  lr: 1.0e-4
+checkpoint_cfg:
+  save_checkpoints: True
+  load_checkpoints: True
+  checkpoint_after_n_epochs: 10
+  checkpoint_dir: /rds/user/hwc31/hpc-work/deep-pianist-identification/checkpoints
+mlflow_cfg:
+  use: True
+  tracking_uri: http://127.0.0.1:5000
