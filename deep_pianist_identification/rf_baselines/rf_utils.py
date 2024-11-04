@@ -8,6 +8,7 @@ import json
 import os
 from ast import literal_eval
 from collections import defaultdict
+from multiprocessing import Manager, Process
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Callable, Iterable
@@ -89,7 +90,7 @@ N_JOBS = -1  # number of parallel processing cpu cores. -1 means use all cores.
 MIN_COUNT = 10
 MAX_COUNT = 1000
 
-MAX_LEAP = 15  # If we leap by more than this number of semitones (once in a n-gram, twice in a chord), drop it
+MAX_LEAP = 15  # If we leap by more than this number of semitones (once in an n-gram, twice in a chord), drop it
 NGRAMS = [2, 3]  # The ngrams to consider when extracting melody (horizontal) or chords (vertical)
 
 
@@ -228,22 +229,41 @@ def _optimize_classifier(
         test_features: np.ndarray,
         test_targets: np.ndarray,
         out: str,
-        n_iter: int = N_ITER,
+        n_iter: int = 100,
         use_cache: bool = True,
         classifier_type: str = "rf"
 ) -> dict:
     """With given training and test features/targets, optimize random forest for test accuracy and save CSV to `out`"""
+
+    def save_to_file(q):
+        """Threadsafe writing to file"""
+        with open(out, 'a') as o:
+            while True:
+                val = q.get()
+                if val is None:
+                    break
+                o.write(val + '\n')
+
+    def load_from_file() -> list[dict]:
+        """Tries to load cached results and returns a list of dictionaries"""
+        try:
+            cr = pd.read_csv(out).to_dict(orient='records')
+            logger.info(f'... loaded {len(cr)} results from {out}')
+        except (FileNotFoundError, pd.errors.EmptyDataError):
+            cr = []
+            q.put('accuracy,iteration,' + ','.join(i for i in next(iter(sampler)).keys()))
+        return cr
 
     def __step(iteration: int, parameters: dict) -> dict:
         """Inner optimization function"""
         # Try and load in the CSV file for this particular task
         if use_cache:
             try:
-                cached_results = threadsafe_load_csv(out)
                 # If we have it, just return the cached results for this particular iteration
-                return [o for o in cached_results if o['iteration'] == iteration][0]
+                res = [o for o in cached_results if o['iteration'] == iteration][0]
+                return res
             # Don't worry if we haven't got the CSV file or results for this interation yet
-            except (FileNotFoundError, IndexError):
+            except IndexError:
                 pass
         # Create the forest model with the given parameter settings
         forest = classifier(**parameters)
@@ -251,22 +271,39 @@ def _optimize_classifier(
         forest.fit(train_features, train_targets)
         acc = accuracy_score(test_targets, forest.predict(test_features))
         # Create the results dictionary and save
+        line = str(acc) + ',' + str(iteration) + ',' + ','.join(str(i) for i in parameters.values())
         results_dict = {'accuracy': acc, 'iteration': iteration, **parameters}
-        threadsafe_save_csv(results_dict, out)
+        # rf_utils.threadsafe_save_csv(results_dict, out)
+        q.put(line)
         # Return the results for this optimization step
         return results_dict
 
     classifier, params = get_classifier_and_params(classifier_type)
     # Create the parameter sampling instance with the required parameters, number of iterations, and random state
     sampler = ParameterSampler(params, n_iter=n_iter, random_state=utils.SEED)
+    # Define multiprocessing instance used to write in threadsafe manner
+    m = Manager()
+    q = m.Queue()
+    p = Process(target=save_to_file, args=(q,))
+    p.start()
+    # Get cached results
+    cached_results = load_from_file()
     # Use lazy parallelization to create the forest and fit to the data
-    # fit = [_step(num, params) for num, params in tqdm(enumerate(sampler), total=n_iter, desc="Fitting...")]
-    with Parallel(n_jobs=-1, verbose=5) as p:
+    with Parallel(n_jobs=1, verbose=5) as p:
         fit = p(
             delayed(__step)(num, params) for num, params in tqdm(enumerate(sampler), total=n_iter, desc="Fitting...")
         )
-    # Get the parameter combination that yielded the best test set accuracy
-    best_params = max(fit, key=lambda x: x["accuracy"])
+    # Adding a None at this point kills the multiprocessing manager instance
+    q.put(None)
+    # Get the best parameter combination using pandas
+    best_params = (
+        pd.DataFrame(fit)
+        .replace({np.nan: None})
+        .sort_values(by=['accuracy', 'iteration'], ascending=False)
+        .head(1)
+        .to_dict(orient='records')[0]
+    )
+    logger.info(f'... best parameters: {best_params}')
     return {k: v for k, v in best_params.items() if k not in ["accuracy", "iteration"]}
 
 
