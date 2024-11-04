@@ -289,7 +289,7 @@ def _optimize_classifier(
     # Get cached results
     cached_results = load_from_file()
     # Use lazy parallelization to create the forest and fit to the data
-    with Parallel(n_jobs=1, verbose=5) as p:
+    with Parallel(n_jobs=-1, verbose=5) as p:
         fit = p(
             delayed(__step)(num, params) for num, params in tqdm(enumerate(sampler), total=n_iter, desc="Fitting...")
         )
@@ -342,18 +342,19 @@ def fit_classifier(
     logger.info(f"... optimization results will be saved in {csvpath}")
     logger.info(f"... shape of training features: {train_x.shape}")
     logger.info(f"... shape of testing features: {test_x.shape}")
-    classifier, _ = get_classifier_and_params(classifier_type)
-    optimized_params = _optimize_classifier(
-        train_x, train_y, test_x, test_y, csvpath, n_iter=n_iter, classifier_type=classifier_type
-    )
     # Scale the data if required (not for naive Bayes as data must be non-negative)
     if scale and classifier_type != "nb":
         scaler = StandardScaler()
         train_x = scaler.fit_transform(train_x)
         test_x = scaler.transform(test_x)
         valid_x = scaler.transform(valid_x)
+    # Run the hyperparameter optimization here and get the optimized parameter settings
+    optimized_params = _optimize_classifier(
+        train_x, train_y, test_x, test_y, csvpath, n_iter=n_iter, classifier_type=classifier_type
+    )
     # Create the optimized random forest model
     logger.info("Optimization finished, fitting optimized model to test and validation set...")
+    classifier, _ = get_classifier_and_params(classifier_type)
     clf_opt = classifier(**optimized_params)
     clf_opt.fit(train_x, train_y)
 
