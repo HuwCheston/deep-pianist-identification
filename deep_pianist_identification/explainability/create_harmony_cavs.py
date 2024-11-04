@@ -5,6 +5,7 @@
 
 import json
 import os
+from argparse import ArgumentParser
 
 import numpy as np
 import pandas as pd
@@ -99,14 +100,20 @@ def embed_all_clips(loaders: list, model, roll_idx: int = 1) -> tuple[np.array, 
     return np.concatenate(actual_embeds), np.concatenate(actual_targets), np.array(tns)
 
 
-def clip_cav_similarity(clip_features, cav_features, normalize: bool = False):
+def clip_cav_similarity(clip_features: np.ndarray, cav_features: np.ndarray, normalize: bool = False) -> np.ndarray:
+    """Creats a similarity matrix of shape (n_clips, n_CAVs) from arrays of clip and CAV embeddings"""
     if normalize:
         clip_features = torch.nn.functional.normalize(torch.tensor(clip_features), p=2, dim=-1).cpu().numpy()
         cav_features = torch.nn.functional.normalize(torch.tensor(cav_features), p=2, dim=-1).cpu().numpy()
     return clip_features @ cav_features.T
 
 
-def performer_cav_correlation(cav_similarities: np.array, target_idxs: np.array, performer_mapping: dict):
+def performer_cav_correlation(
+        cav_similarities: np.array,
+        target_idxs: np.array,
+        performer_mapping: dict
+) -> pd.DataFrame:
+    """From a CAV similarity matrix, take the correlation between binary class labels and CAV sensitivity"""
     res = []
     # Iterate over all CAVs
     for cav, cav_name in zip(cav_similarities.T, CAV_MAPPING):
@@ -125,11 +132,12 @@ def performer_cav_correlation(cav_similarities: np.array, target_idxs: np.array,
     return pd.DataFrame(res).pivot_table('corr', ['musician'], 'cav', sort=False)
 
 
-def generate_topk_json(tracks: np.array, sims: np.array, cav_type: str = "Voicings") -> dict:
+def generate_topk_json(k: int, tracks: np.array, sims: np.array, cav_type: str = "Voicings") -> dict:
+    """Generates and saves a JSON dictionary of the top-K most sensitive tracks to each CAV"""
     # Create the similarity dict: filenames are read in from our HTML file here
     similarity_dict = {}
     for num, cav_sim in enumerate(sims.T):
-        topk_idxs = np.argsort(cav_sim)[::-1][:TOPK]
+        topk_idxs = np.argsort(cav_sim)[::-1][:k]
         topk_tracks = tracks[topk_idxs]
         similarity_dict[str(num).zfill(3)] = topk_tracks.tolist()
     # Dump the JSON
@@ -144,10 +152,21 @@ def generate_topk_json(tracks: np.array, sims: np.array, cav_type: str = "Voicin
     return similarity_dict
 
 
-def main():
-    logger.info("Initialising model...")
+def main(
+        model: str,
+        use_all_data: bool,
+        normalize: bool,
+        topk: int,
+        heatmap_size: list[int],
+        kernel_size: list[int]
+):
+    """Creates all CAVs, generates similarity matrix, and saves plots"""
+    logger.info(f"Initialising model with config file {model}")
+    # Get the config file for training the model
+    cfg_loc = os.path.join(utils.get_project_root(), 'config', model + '.yaml')
+    if not os.path.isfile(cfg_loc):
+        raise FileNotFoundError(f"Model {cfg_loc} does not have a config file associated with it!")
     # Get the training module
-    cfg_loc = os.path.join(utils.get_project_root(), 'config', DEFAULT_MODEL + '.yaml')
     tm = get_training_module(cfg_loc)
     # Get the harmony concept encoder and set to the required device/mode
     harmony_concept = tm.model.harmony_concept.to(utils.DEVICE)
@@ -156,17 +175,26 @@ def main():
     logger.info("Extracting harmony CAVs...")
     cavs = get_all_cavs(harmony_concept)
     logger.info(f"... created CAVs with shape {cavs.shape}")
-    # Get embeddings, target indices, and track names
+    # Get the required dataloaders
     logger.info("Embedding validation clips...")
-    features, targets, track_names = embed_all_clips([tm.validation_loader, tm.test_loader], harmony_concept)
+    if use_all_data:
+        logger.info("... using train, test, and validation data")
+        alldata = [tm.validation_loader, tm.test_loader, tm.train_loader]
+    else:
+        logger.info("... using test and validation data only")
+        alldata = [tm.validation_loader, tm.test_loader]
+    # Embed the dataloaders
+    features, targets, track_names = embed_all_clips(alldata, harmony_concept)
     logger.info(f"... created embeddings with shape {features.shape}")
     # Get similarities between clip and CAV features
-    similarities = clip_cav_similarity(features, cavs, normalize=False)
-    logger.info(f"CAV similarity matrix has shape {similarities.shape}")
+    logger.info(f"... creating CAV similarity matrix with normalize = {normalize}")
+    similarities = clip_cav_similarity(features, cavs, normalize=normalize)
+    logger.info(f"... CAV similarity matrix has shape {similarities.shape}")
     # Outputs
     logger.info(f"Creating outputs...")
+    logger.info(f"... using top-K = {topk}")
     # Generate the topk dictionary for all concepts
-    topk_dict = generate_topk_json(track_names, similarities, cav_type="Voicings")
+    topk_dict = generate_topk_json(topk, track_names, similarities, cav_type="Voicings")
     logger.info('... top-K JSON done!')
     # Get binary correlation between all performers and all CAVs
     corr_df = performer_cav_correlation(similarities, targets, tm.class_mapping)
@@ -175,7 +203,8 @@ def main():
     hm.create_plot()
     hm.save_fig()
     logger.info('... correlation heatmap done!')
-    # Create heatmap for a single clip
+    # Create heatmaps for top-K clips for all CAVs
+    logger.info(f'... CAV heatmaps will be size {heatmap_size} using kernel {kernel_size}')
     for cav_idx, (cav_name, topk_tracks, cav) in enumerate(zip(CAV_MAPPING, list(topk_dict.values()), cavs)):
         for track in topk_tracks:
             # Create the non-interactive (matplotlib) heatmap
@@ -205,6 +234,62 @@ def main():
             logger.info(f'... interactive kernel sensitivity plot done for track {track}, CAV {cav_name}')
 
 
+def parse_me(argparser: ArgumentParser) -> dict:
+    """Adds required CLI arguments to an `ArgumentParser` object and parses them to a dictionary"""
+    argparser.add_argument(
+        '-m', '--model',
+        default=DEFAULT_MODEL,
+        type=str,
+        help="Name of a trained model with saved checkpoints"
+    )
+    argparser.add_argument(
+        "-d", "--use-all-data",
+        default=True,
+        type=bool,
+        help="If true, will create CAVs using model training + test + validation data. "
+             "If false, only uses test + validation data"
+    )
+    argparser.add_argument(
+        "-n", "--normalize",
+        default=False,
+        type=bool,
+        help="If true, will compute CAV similarity using cosine similarity. If false, will use dot-product similarity."
+    )
+    argparser.add_argument(
+        '-t', '--topk',
+        type=int,
+        default=TOPK,
+        help="Value of K to use when creating top-K heatmap plots"
+    )
+    argparser.add_argument(
+        '--heatmap-size',
+        nargs='+',
+        type=int,
+        default=[65, 26],
+        help="Size of heatmap created for CAV sensitivity plots"
+    )
+    argparser.add_argument(
+        '--kernel-size',
+        nargs='+',
+        type=int,
+        default=[24, 5],
+        help="Size of kernel used for CAV sensitivity plots, shape (semitones, seconds)"
+    )
+    return vars(parser.parse_args())
+
+
 if __name__ == '__main__':
+    # For reproducible results
     utils.seed_everything(utils.SEED)
-    main()
+    # Declare argument parser and add arguments
+    parser = ArgumentParser(description='Create TCAVs for DisentangleNet models')
+    args = parse_me(parser)
+    # Run the CAV creation and plotting script with given arguments from the console
+    main(
+        model=args["model"],
+        use_all_data=args["use_all_data"],
+        normalize=args["normalize"],
+        topk=args["topk"],
+        heatmap_size=args["heatmap_size"],
+        kernel_size=args["kernel_size"],
+    )
