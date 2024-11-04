@@ -20,7 +20,7 @@ from sklearn.ensemble import RandomForestClassifier, HistGradientBoostingClassif
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import ParameterSampler
-from sklearn.naive_bayes import MultinomialNB
+from sklearn.naive_bayes import MultinomialNB, GaussianNB
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import LinearSVC
 from tenacity import retry, retry_if_exception_type, wait_random_exponential, stop_after_attempt
@@ -34,7 +34,7 @@ RF_OPTIMIZE_PARAMS = dict(
     n_estimators=[i for i in range(10, 401, 1)],
     # Max number of features considered for splitting a node
     # max_features=[None, 'sqrt', 'log2'],
-    max_features=['sqrt', 'log2', *np.linspace(1e-4, 0.2, 401)],
+    max_features=['sqrt', 'log2', *np.linspace(1e-4, 1.0, 401)],
     # Max number of levels in each tree
     max_depth=[None, *[i for i in range(1, 41, 1)]],
     # Minimum number of samples required to split a node
@@ -47,37 +47,40 @@ RF_OPTIMIZE_PARAMS = dict(
 )
 XGB_OPTIMIZE_PARAMS = dict(
     # 1 = no shrinkage
-    learning_rate=np.linspace(0, 1., 401),
+    learning_rate=np.linspace(1e-4, 1., 401),
     # Will grow max_iter * num_classes trees per iteration
     max_iter=[i for i in range(1, 101, 1)],
     # Number of leaves for each tree; if None, there is no upper limit
-    max_leaf_nodes=[None, *[i for i in range(1, 101, 1)]],
+    max_leaf_nodes=[None, *[i for i in range(2, 101, 1)]],
     # Max number of levels in each tree
     max_depth=[None, *range(1, 101, 1)],
     # Minimum number of samples required at each leaf node
     min_samples_leaf=[i for i in range(1, 11)],
     # Max number of features considered for splitting a node
-    max_features=np.linspace(0, 1., 401),
+    max_features=np.linspace(1e-4, 1., 401),
     random_state=[utils.SEED]
 )
 SVM_OPTIMIZE_PARAMS = dict(
-    C=np.logspace(-2, 2, num=401),
+    C=np.logspace(-3, 3, num=401),
     penalty=['l2', 'l1'],
     class_weight=[None, 'balanced'],
-    intercept_scaling=np.logspace(-2, 2, num=401),
-    max_iter=[1000],
+    intercept_scaling=np.logspace(-3, 3, num=401),
+    max_iter=[10000],
     random_state=[utils.SEED]
 )
 LR_OPTIMIZE_PARAMS = dict(
-    C=np.logspace(-2, 2, num=401),
+    C=np.logspace(-3, 3, num=401),
     penalty=[None, 'l2', 'l1'],
     class_weight=[None, 'balanced'],
     solver=["saga"],
     random_state=[utils.SEED]
 )
 NB_OPTIMIZE_PARAMS = dict(
-    alpha=np.logspace(-2, 2, num=401),
+    alpha=np.logspace(-3, 3, num=5001),
     fit_prior=[True, False]
+)
+GNB_OPTIMIZE_PARAMS = dict(
+    var_smoothing=np.logspace(-9, 0, num=10001)
 )
 
 N_ITER = 10000  # default number of iterations for optimization process
@@ -269,7 +272,7 @@ def _optimize_classifier(
 
 def get_classifier_and_params(classifier_type: str) -> tuple:
     """Return the correct classifier instance and optimized parameter settings"""
-    clf = ["rf", "svm", "nb", "lr", "xgb"]
+    clf = ["rf", "svm", "nb", "lr", "xgb", "gnb"]
     assert classifier_type in clf, "`classifier_type` must be one of " + ", ".join(clf) + f" but got {classifier_type}"
     if classifier_type == "rf":
         return RandomForestClassifier, RF_OPTIMIZE_PARAMS
@@ -281,6 +284,8 @@ def get_classifier_and_params(classifier_type: str) -> tuple:
         return LogisticRegression, LR_OPTIMIZE_PARAMS
     elif classifier_type == "xgb":
         return HistGradientBoostingClassifier, XGB_OPTIMIZE_PARAMS
+    elif classifier_type == "gnb":
+        return GaussianNB, GNB_OPTIMIZE_PARAMS
 
 
 def fit_classifier(
