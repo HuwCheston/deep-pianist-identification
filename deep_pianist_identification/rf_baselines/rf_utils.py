@@ -25,7 +25,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.model_selection import ParameterSampler
 from sklearn.naive_bayes import MultinomialNB, GaussianNB
 from sklearn.preprocessing import StandardScaler
-from sklearn.svm import LinearSVC
+from sklearn.svm import SVC
 from tenacity import retry, retry_if_exception_type, wait_random_exponential, stop_after_attempt
 from tqdm import tqdm
 
@@ -50,13 +50,13 @@ RF_OPTIMIZE_PARAMS = dict(
 )
 XGB_OPTIMIZE_PARAMS = dict(
     # 1 = no shrinkage
-    learning_rate=np.linspace(1e-4, 1., 401),
+    learning_rate=np.linspace(1e-3, 1., 401),
     # Will grow max_iter * num_classes trees per iteration
     max_iter=[i for i in range(1, 101, 1)],
     # Number of leaves for each tree; if None, there is no upper limit
-    max_leaf_nodes=[None, *[i for i in range(2, 101, 1)]],
+    max_leaf_nodes=[None, *[i for i in range(2, 51, 1)]],
     # Max number of levels in each tree
-    max_depth=[None, *range(1, 101, 1)],
+    max_depth=[None, *range(1, 51, 1)],
     # Minimum number of samples required at each leaf node
     min_samples_leaf=[i for i in range(1, 11)],
     # Max number of features considered for splitting a node
@@ -64,19 +64,21 @@ XGB_OPTIMIZE_PARAMS = dict(
     random_state=[utils.SEED]
 )
 SVM_OPTIMIZE_PARAMS = dict(
-    C=np.logspace(-3, 3, num=401),
-    penalty=['l2', 'l1'],
+    C=np.logspace(-3, 3, num=5001),
+    kernel=["linear"],
+    shrinking=[True, False],
     class_weight=[None, 'balanced'],
-    intercept_scaling=np.logspace(-3, 3, num=401),
+    decision_function_shape=['ovr'],
     max_iter=[10000],
     random_state=[utils.SEED]
 )
 LR_OPTIMIZE_PARAMS = dict(
-    C=np.logspace(-3, 3, num=401),
-    penalty=[None, 'l2', 'l1'],
+    C=np.logspace(-3, 3, num=5001),
+    penalty=[None, 'l2'],
     class_weight=[None, 'balanced'],
-    solver=["saga"],
-    random_state=[utils.SEED]
+    solver=["lbfgs"],
+    random_state=[utils.SEED],
+    max_iter=[10000]
 )
 NB_OPTIMIZE_PARAMS = dict(
     alpha=np.logspace(-3, 3, num=5001),
@@ -335,7 +337,7 @@ def get_classifier_and_params(classifier_type: str) -> tuple:
     if classifier_type == "rf":
         return RandomForestClassifier, RF_OPTIMIZE_PARAMS
     elif classifier_type == "svm":
-        return LinearSVC, SVM_OPTIMIZE_PARAMS
+        return SVC, SVM_OPTIMIZE_PARAMS
     elif classifier_type == "nb":
         return MultinomialNB, NB_OPTIMIZE_PARAMS
     elif classifier_type == "lr":
