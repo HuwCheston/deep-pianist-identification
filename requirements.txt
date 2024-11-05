@@ -21,3 +21,4 @@ lime
 tensorly
 plotly
 scikit-image
+music21
