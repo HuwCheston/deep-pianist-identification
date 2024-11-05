@@ -266,7 +266,7 @@ def _optimize_classifier(
             logger.info(f'... loaded {len(cr)} results from {out}')
         except (FileNotFoundError, pd.errors.EmptyDataError):
             cr = []
-            q.put('accuracy,iteration,' + ','.join(i for i in next(iter(sampler)).keys()))
+            q.put('accuracy,iteration,time,' + ','.join(i for i in next(iter(sampler)).keys()))
         return cr
 
     def __step(iteration: int, parameters: dict) -> dict:
@@ -287,10 +287,11 @@ def _optimize_classifier(
         forest.fit(train_features, train_targets)
         acc = accuracy_score(test_targets, forest.predict(test_features))
         # Create the results dictionary and save
-        line = str(acc) + ',' + str(iteration) + ',' + ','.join(str(i) for i in parameters.values())
-        results_dict = {'accuracy': acc, 'iteration': iteration, 'time': time() - start, **parameters}
+        end = time() - start
+        # line = str(acc) + ',' + str(iteration) + ',' + str(end) + ',' + ','.join(str(i) for i in parameters.values())
+        results_dict = {'accuracy': acc, 'iteration': iteration, 'time': end, **parameters}
         # threadsafe_save_csv(results_dict, out)
-        q.put(line)
+        q.put(','.join(str(i) for i in results_dict.values()))
         # Return the results for this optimization step
         return results_dict
 
