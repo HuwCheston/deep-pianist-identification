@@ -100,8 +100,6 @@ K = 5  # When plotting, we'll get this number of features per performer (bottom 
 MAX_LEAP = 15  # If we leap by more than this number of semitones (once in an n-gram, twice in a chord), drop it
 NGRAMS = [2, 3]  # The ngrams to consider when extracting melody (horizontal) or chords (vertical)
 
-RNG = np.random.default_rng(seed=utils.SEED)  # Used to permute arrays
-
 
 @retry(
     retry=retry_if_exception_type(json.JSONDecodeError),
@@ -363,19 +361,20 @@ def get_harmony_feature_importance(
     """Calculates harmony feature importance, both for all features and with bootstrapped subsamples of features"""
     scaler = StandardScaler()
 
-    def _shuffler(idxs: np.ndarray = None):
+    def _shuffler(idxs: np.ndarray = None, seed: int = utils.SEED):
+        rng = np.random.default_rng(seed=seed)  # Used to permute arrays
         # Make a copy of the data and shuffle
         toshuffle = deepcopy(harmony_features)
         # If we're using all features, i.e., we're not bootstrapping
         if idxs is None:
-            shuffled = RNG.permuted(toshuffle, axis=0)
+            shuffled = rng.permuted(toshuffle, axis=0)
             # Combine the arrays together as before
             combined = np.concatenate([melody_features, shuffled], axis=1)
         # If we're only using some features, i.e., we're bootstrapping
         else:
             cols = toshuffle[:, idxs]
             # Permute the column
-            permuted = RNG.permutation(cols, axis=0)
+            permuted = rng.permutation(cols, axis=0)
             # Set the column back
             toshuffle[:, idxs] = permuted
             # Combine the arrays together as before
@@ -387,21 +386,21 @@ def get_harmony_feature_importance(
         valid_y_pred_permute = classifier.predict(combined)
         return initial_acc - accuracy_score(y_actual, valid_y_pred_permute)
 
-    def _shuffler_boot():
+    def _shuffler_boot(seed):
         # Get an array of bootstrapping indexes to use
         boot_idxs = np.random.choice(harmony_features.shape[1], N_BOOT_FEATURES)
-        return _shuffler(boot_idxs)
+        return _shuffler(boot_idxs, seed)
 
     with Parallel(n_jobs=-1, verbose=5) as par:
         # Permute all features
         logger.info('Permuting harmony features...')
-        har_acc = par(delayed(_shuffler)() for _ in range(N_ITER))
+        har_acc = par(delayed(_shuffler)(None, seed) for seed in range(N_ITER))
         logger.info(f"... all harmony feature importance {np.mean(har_acc)}, "
                     f"SD {np.std(har_acc)}, "
                     f"CI: [{np.percentile(har_acc, 2.5)}, {np.percentile(har_acc, 97.5)}]")
         # Permute bootstrapped subsamples of features
         logger.info('Permuting harmony features with bootstrapping...')
-        har_acc_boot = par(delayed(_shuffler_boot)() for _ in range(N_ITER))
+        har_acc_boot = par(delayed(_shuffler_boot)(seed) for seed in range(N_ITER))
         logger.info(f"... bootstrapped harmony feature importance {np.mean(har_acc_boot)}, "
                     f"SD {np.std(har_acc_boot)}, "
                     f"CI: [{np.percentile(har_acc_boot, 2.5)}, {np.percentile(har_acc_boot, 97.5)}]")
@@ -418,19 +417,20 @@ def get_melody_feature_importance(
     """Calculates melody feature importance, both for all features and with bootstrapped subsamples of features"""
     scaler = StandardScaler()
 
-    def _shuffler(idxs: np.ndarray = None):
+    def _shuffler(idxs: np.ndarray = None, seed: int = utils.SEED):
+        rng = np.random.default_rng(seed=seed)
         # Make a copy of the data and shuffle
         toshuffle = deepcopy(melody_features)
         # If we're using all features, i.e., we're not bootstrapping
         if idxs is None:
-            shuffled = RNG.permuted(toshuffle, axis=0)
+            shuffled = rng.permuted(toshuffle, axis=0)
             # Combine the arrays together as before
             combined = np.concatenate([shuffled, harmony_features], axis=1)
         # If we're only using some features, i.e., we're bootstrapping
         else:
             cols = toshuffle[:, idxs]
             # Permute the column
-            permuted = RNG.permutation(cols, axis=0)
+            permuted = rng.permutation(cols, axis=0)
             # Set the column back
             toshuffle[:, idxs] = permuted
             # Combine the arrays together as before
@@ -442,21 +442,21 @@ def get_melody_feature_importance(
         valid_y_pred_permute = classifier.predict(combined)
         return initial_acc - accuracy_score(y_actual, valid_y_pred_permute)
 
-    def _shuffler_boot():
+    def _shuffler_boot(seed):
         # Get an array of bootstrapping indexes to use
         boot_idxs = np.random.choice(melody_features.shape[1], N_BOOT_FEATURES)
-        return _shuffler(boot_idxs)
+        return _shuffler(boot_idxs, seed=seed)
 
     with Parallel(n_jobs=-1, verbose=5) as par:
         # Permute all features
         logger.info('Permuting melody features...')
-        mel_acc = par(delayed(_shuffler)() for _ in range(N_ITER))
+        mel_acc = par(delayed(_shuffler)(None, seed) for seed in range(N_ITER))
         logger.info(f"... all melody feature importance {np.mean(mel_acc)}, "
                     f"SD {np.std(mel_acc)}, "
                     f"CI: [{np.percentile(mel_acc, 2.5)}, {np.percentile(mel_acc, 97.5)}]")
         # Permute bootstrapped subsamples of features
         logger.info('Permuting melody features with bootstrapping...')
-        mel_acc_boot = par(delayed(_shuffler_boot)() for _ in range(N_ITER))
+        mel_acc_boot = par(delayed(_shuffler_boot)(seed) for seed in range(N_ITER))
         logger.info(f"... bootstrapped melody feature importance {np.mean(mel_acc_boot)}, "
                     f"SD {np.std(mel_acc_boot)}, "
                     f"CI: [{np.percentile(mel_acc_boot, 2.5)}, {np.percentile(mel_acc_boot, 97.5)}]")
