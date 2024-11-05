@@ -67,21 +67,30 @@ def rf_melody_harmony(
         'references/rf_baselines',
         f'{dataset}_{classifier_type}_harmony+melody.csv'
     )
+    # Scale the data if required (never for multinomial naive Bayes as this expects count data)
+    if scale and classifier_type != "nb":
+        train_x_arr, test_x_arr, valid_x_arr = rf_utils.scale_features(train_x_arr, test_x_arr, valid_x_arr)
+    # Optimize the classifier
     clf_opt, valid_acc = rf_utils.fit_classifier(
         train_x_arr, test_x_arr, valid_x_arr, train_y_mel, test_y_mel, valid_y_mel,
-        csvpath, n_iter, classifier_type, scale
+        csvpath, n_iter, classifier_type
     )
-    # Computing parameter importance scores
-    # logger.info('---CONCEPT IMPORTANCE---')
-    # mel_concept_idxs, harm_concept_idxs = train_x_arr_mel.shape[1], train_x_arr_har.shape[1]
-    # for idxs, concept in zip([mel_concept_idxs, harm_concept_idxs], ['melody', 'harmony']):
-    #     temp = valid_x_arr.copy()
-    #     temp = np.random.shuffle(temp[:, idxs])
-    #     valid_y_permute_predict = clf_opt.predict(temp)
-    #     valid_permute_acc = accuracy_score(valid_y_mel, valid_y_permute_predict)
-    #     importance = valid_acc - valid_permute_acc
-    #     logger.info(f"... feature importance for {concept}: {importance:.3f}")
     logger.info('Done!')
+    # Get feature importance scores
+    rf_utils.get_harmony_feature_importance(
+        harmony_features=valid_x_arr_har,
+        melody_features=valid_x_arr_mel,
+        classifier=clf_opt,
+        initial_acc=valid_acc,
+        y_actual=valid_y_mel
+    )
+    rf_utils.get_melody_feature_importance(
+        harmony_features=valid_x_arr_har,
+        melody_features=valid_x_arr_mel,
+        classifier=clf_opt,
+        initial_acc=valid_acc,
+        y_actual=valid_y_mel
+    )
 
 
 if __name__ == "__main__":

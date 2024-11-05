@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Utility functions and variables for random forest baselines"""
+"""Utility functions and variables for white-box models"""
 
 import csv
 import json
 import os
 from ast import literal_eval
 from collections import defaultdict
+from copy import deepcopy
 from multiprocessing import Manager, Process
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -86,12 +87,16 @@ GNB_OPTIMIZE_PARAMS = dict(
 
 N_ITER = 10000  # default number of iterations for optimization process
 N_JOBS = -1  # number of parallel processing cpu cores. -1 means use all cores.
+N_BOOTS = 1000  # number of times to bootstrap for e.g., permutation feature importance testing
+N_BOOT_FEATURES = 2000  # number of features to sample when bootstrapping permutation importance scores
 
 MIN_COUNT = 10
 MAX_COUNT = 1000
 
 MAX_LEAP = 15  # If we leap by more than this number of semitones (once in an n-gram, twice in a chord), drop it
 NGRAMS = [2, 3]  # The ngrams to consider when extracting melody (horizontal) or chords (vertical)
+
+RNG = np.random.default_rng(seed=utils.SEED)  # Used to permute arrays
 
 
 @retry(
@@ -299,10 +304,17 @@ def _optimize_classifier(
     best_params = (
         pd.DataFrame(fit)
         .replace({np.nan: None})
+        .convert_dtypes()  # Needed to convert some int columns from float
         .sort_values(by=['accuracy', 'iteration'], ascending=False)
         .head(1)
         .to_dict(orient='records')[0]
     )
+    # TODO: maybe this needs to become a function?
+    if classifier_type == 'rf':
+        try:
+            best_params["max_features"] = float(best_params["max_features"])
+        except ValueError:
+            pass
     logger.info(f'... best parameters: {best_params}')
     return {k: v for k, v in best_params.items() if k not in ["accuracy", "iteration"]}
 
@@ -325,6 +337,124 @@ def get_classifier_and_params(classifier_type: str) -> tuple:
         return GaussianNB, GNB_OPTIMIZE_PARAMS
 
 
+def get_harmony_feature_importance(
+        harmony_features: np.ndarray,
+        melody_features: np.ndarray,
+        classifier,
+        y_actual: np.ndarray,
+        initial_acc: float,
+        scale: bool = True
+):
+    """Calculates harmony feature importance, both for all features and with bootstrapped subsamples of features"""
+    scaler = StandardScaler()
+
+    def _shuffler(idxs: np.ndarray = None):
+        # Make a copy of the data and shuffle
+        toshuffle = deepcopy(harmony_features)
+        # If we're using all features, i.e., we're not bootstrapping
+        if idxs is None:
+            shuffled = RNG.permuted(toshuffle, axis=0)
+            # Combine the arrays together as before
+            combined = np.concatenate([melody_features, shuffled], axis=1)
+        # If we're only using some features, i.e., we're bootstrapping
+        else:
+            cols = toshuffle[:, idxs]
+            # Permute the column
+            permuted = RNG.permutation(cols, axis=0)
+            # Set the column back
+            toshuffle[:, idxs] = permuted
+            # Combine the arrays together as before
+            combined = np.concatenate([melody_features, toshuffle], axis=1)
+        # Z-transform the features if required
+        if scale:
+            combined = scaler.fit_transform(combined)
+        # Make predictions and take accuracy
+        valid_y_pred_permute = classifier.predict(combined)
+        return initial_acc - accuracy_score(y_actual, valid_y_pred_permute)
+
+    def _shuffler_boot():
+        # Get an array of bootstrapping indexes to use
+        boot_idxs = np.random.choice(harmony_features.shape[1], N_BOOT_FEATURES)
+        return _shuffler(boot_idxs)
+
+    with Parallel(n_jobs=-1, verbose=5) as par:
+        # Permute all features
+        logger.info('Permuting harmony features...')
+        har_acc = par(delayed(_shuffler)() for _ in range(N_BOOTS))
+        logger.info(f"... all harmony feature importance {np.mean(har_acc)}, (SD {np.std(har_acc)})")
+        # Permute bootstrapped subsamples of features
+        logger.info('Permuting harmony features with bootstrapping...')
+        har_acc_boot = par(delayed(_shuffler_boot)() for _ in range(N_BOOTS))
+        logger.info(f"... bootstrapped harmony feature importance {np.mean(har_acc_boot)}, (SD {np.std(har_acc_boot)})")
+
+
+def get_melody_feature_importance(
+        harmony_features: np.ndarray,
+        melody_features: np.ndarray,
+        classifier,
+        y_actual: np.ndarray,
+        initial_acc: float,
+        scale: bool = True
+):
+    """Calculates melody feature importance, both for all features and with bootstrapped subsamples of features"""
+    scaler = StandardScaler()
+
+    def _shuffler(idxs: np.ndarray = None):
+        # Make a copy of the data and shuffle
+        toshuffle = deepcopy(melody_features)
+        # If we're using all features, i.e., we're not bootstrapping
+        if idxs is None:
+            shuffled = RNG.permuted(toshuffle, axis=0)
+            # Combine the arrays together as before
+            combined = np.concatenate([shuffled, harmony_features], axis=1)
+        # If we're only using some features, i.e., we're bootstrapping
+        else:
+            cols = toshuffle[:, idxs]
+            # Permute the column
+            permuted = RNG.permutation(cols, axis=0)
+            # Set the column back
+            toshuffle[:, idxs] = permuted
+            # Combine the arrays together as before
+            combined = np.concatenate([toshuffle, harmony_features], axis=1)
+        # Z-transform the features if required
+        if scale:
+            combined = scaler.fit_transform(combined)
+        # Make predictions and take accuracy
+        valid_y_pred_permute = classifier.predict(combined)
+        return initial_acc - accuracy_score(y_actual, valid_y_pred_permute)
+
+    def _shuffler_boot():
+        # Get an array of bootstrapping indexes to use
+        boot_idxs = np.random.choice(melody_features.shape[1], N_BOOT_FEATURES)
+        return _shuffler(boot_idxs)
+
+    with Parallel(n_jobs=-1, verbose=5) as par:
+        # Permute all features
+        logger.info('Permuting melody features...')
+        mel_acc = par(delayed(_shuffler)() for _ in range(N_BOOTS))
+        logger.info(f"... all melody feature importance {np.mean(mel_acc)}, (SD {np.std(mel_acc)})")
+        # Permute bootstrapped subsamples of features
+        logger.info('Permuting melody features with bootstrapping...')
+        mel_acc_boot = par(delayed(_shuffler_boot)() for _ in range(N_BOOTS))
+        logger.info(f"... bootstrapped melody feature importance {np.mean(mel_acc_boot)}, (SD {np.std(mel_acc_boot)})")
+
+
+def scale_features(
+        train_x: np.ndarray,
+        test_x: np.ndarray,
+        valid_x: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Scale the data using Z-transformation"""
+    logger.info('... data will be scaled using z-transformation!')
+    # Create the scaler object
+    scaler = StandardScaler()
+    # Fit to the training data and use these values to transform others
+    train_x = scaler.fit_transform(train_x)
+    test_x = scaler.transform(test_x)
+    valid_x = scaler.transform(valid_x)
+    return train_x, test_x, valid_x
+
+
 def fit_classifier(
         train_x: np.ndarray,
         test_x: np.ndarray,
@@ -335,19 +465,12 @@ def fit_classifier(
         csvpath: str,
         n_iter: int,
         classifier_type: str = "rf",
-        scale: bool = True
-) -> tuple[RandomForestClassifier, float]:
+) -> tuple:
     """Runs optimization, fits optimized settings to validation set, and returns accuracy + fitted model"""
     logger.info(f"Beginning parameter optimization with {n_iter} iterations and classifier {classifier_type}...")
     logger.info(f"... optimization results will be saved in {csvpath}")
     logger.info(f"... shape of training features: {train_x.shape}")
     logger.info(f"... shape of testing features: {test_x.shape}")
-    # Scale the data if required (not for naive Bayes as data must be non-negative)
-    if scale and classifier_type != "nb":
-        scaler = StandardScaler()
-        train_x = scaler.fit_transform(train_x)
-        test_x = scaler.transform(test_x)
-        valid_x = scaler.transform(valid_x)
     # Run the hyperparameter optimization here and get the optimized parameter settings
     optimized_params = _optimize_classifier(
         train_x, train_y, test_x, test_y, csvpath, n_iter=n_iter, classifier_type=classifier_type
@@ -357,28 +480,15 @@ def fit_classifier(
     classifier, _ = get_classifier_and_params(classifier_type)
     clf_opt = classifier(**optimized_params)
     clf_opt.fit(train_x, train_y)
-
     # Get the optimized test accuracy
     test_y_pred = clf_opt.predict(test_x)
     test_acc = accuracy_score(test_y, test_y_pred)
     logger.info(f"... test accuracy: {test_acc:.3f}")
-    # Compute top-k test accuracy
-    # TODO: fix this
-    # test_y_proba = clf_opt.predict_proba(test_x)
-    # for k in [2, 5, 10]:
-    #     test_k_acc = top_k_accuracy_score(test_y, test_y_proba, k=k)
-    #     logger.info(f"... test accuracy @ k = {k}: {test_k_acc:.3f}")
-
     # Get the optimized validation accuracy
     valid_y_pred = clf_opt.predict(valid_x)
     valid_acc = accuracy_score(valid_y, valid_y_pred)
     logger.info(f"... validation accuracy: {valid_acc:.3f}")
-    # Compute top-k validation accuracy
-    # valid_y_proba = clf_opt.predict_proba(valid_x)
-    # for k in [2, 5, 10]:
-    #     valid_k_acc = top_k_accuracy_score(valid_y, valid_y_proba, k=k)
-    #     logger.info(f"... validation accuracy @ k = {k}: {valid_k_acc:.3f}")
-    # TODO: permutation importance can go here
+    # Return the fitted classifier for e.g., permutation importance testing
     return clf_opt, valid_acc
 
 
