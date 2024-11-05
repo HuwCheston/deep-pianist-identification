@@ -6,6 +6,7 @@
 import csv
 import json
 import os
+import warnings
 from ast import literal_eval
 from collections import defaultdict
 from copy import deepcopy
@@ -90,7 +91,6 @@ GNB_OPTIMIZE_PARAMS = dict(
 
 N_ITER = 10000  # default number of iterations for optimization process
 N_JOBS = -1  # number of parallel processing cpu cores. -1 means use all cores.
-N_BOOTS = 1000  # number of times to bootstrap for e.g., permutation feature importance testing
 N_BOOT_FEATURES = 2000  # number of features to sample when bootstrapping permutation importance scores
 
 MIN_COUNT = 10
@@ -306,10 +306,12 @@ def _optimize_classifier(
     # Get cached results
     cached_results = load_from_file()
     # Use lazy parallelization to create the forest and fit to the data
+    warnings.filterwarnings("ignore")
     with Parallel(n_jobs=-1, verbose=5) as p:
         fit = p(
             delayed(__step)(num, params) for num, params in tqdm(enumerate(sampler), total=n_iter, desc="Fitting...")
         )
+    warnings.filterwarnings("default")
     # Adding a None at this point kills the multiprocessing manager instance
     q.put(None)
     # Get the best parameter combination using pandas
@@ -392,11 +394,11 @@ def get_harmony_feature_importance(
     with Parallel(n_jobs=-1, verbose=5) as par:
         # Permute all features
         logger.info('Permuting harmony features...')
-        har_acc = par(delayed(_shuffler)() for _ in range(N_BOOTS))
+        har_acc = par(delayed(_shuffler)() for _ in range(N_ITER))
         logger.info(f"... all harmony feature importance {np.mean(har_acc)}, (SD {np.std(har_acc)})")
         # Permute bootstrapped subsamples of features
         logger.info('Permuting harmony features with bootstrapping...')
-        har_acc_boot = par(delayed(_shuffler_boot)() for _ in range(N_BOOTS))
+        har_acc_boot = par(delayed(_shuffler_boot)() for _ in range(N_ITER))
         logger.info(f"... bootstrapped harmony feature importance {np.mean(har_acc_boot)}, (SD {np.std(har_acc_boot)})")
 
 
@@ -443,11 +445,11 @@ def get_melody_feature_importance(
     with Parallel(n_jobs=-1, verbose=5) as par:
         # Permute all features
         logger.info('Permuting melody features...')
-        mel_acc = par(delayed(_shuffler)() for _ in range(N_BOOTS))
+        mel_acc = par(delayed(_shuffler)() for _ in range(N_ITER))
         logger.info(f"... all melody feature importance {np.mean(mel_acc)}, (SD {np.std(mel_acc)})")
         # Permute bootstrapped subsamples of features
         logger.info('Permuting melody features with bootstrapping...')
-        mel_acc_boot = par(delayed(_shuffler_boot)() for _ in range(N_BOOTS))
+        mel_acc_boot = par(delayed(_shuffler_boot)() for _ in range(N_ITER))
         logger.info(f"... bootstrapped melody feature importance {np.mean(mel_acc_boot)}, (SD {np.std(mel_acc_boot)})")
 
 
