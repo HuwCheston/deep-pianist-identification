@@ -9,7 +9,7 @@ import os
 from ast import literal_eval
 from collections import defaultdict
 from copy import deepcopy
-# from multiprocessing import Manager, Process
+from multiprocessing import Manager, Process
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from time import time
@@ -250,14 +250,14 @@ def _optimize_classifier(
 ) -> dict:
     """With given training and test features/targets, optimize random forest for test accuracy and save CSV to `out`"""
 
-    # def save_to_file(q):
-    #     """Threadsafe writing to file"""
-    #     with open(out, 'a') as o:
-    #         while True:
-    #             val = q.get()
-    #             if val is None:
-    #                 break
-    #             o.write(val + '\n')
+    def save_to_file(q):
+        """Threadsafe writing to file"""
+        with open(out, 'a') as o:
+            while True:
+                val = q.get()
+                if val is None:
+                    break
+                o.write(val + '\n')
 
     def load_from_file() -> list[dict]:
         """Tries to load cached results and returns a list of dictionaries"""
@@ -266,7 +266,7 @@ def _optimize_classifier(
             logger.info(f'... loaded {len(cr)} results from {out}')
         except (FileNotFoundError, pd.errors.EmptyDataError):
             cr = []
-            # q.put('accuracy,iteration,' + ','.join(i for i in next(iter(sampler)).keys()))
+            q.put('accuracy,iteration,' + ','.join(i for i in next(iter(sampler)).keys()))
         return cr
 
     def __step(iteration: int, parameters: dict) -> dict:
@@ -287,10 +287,10 @@ def _optimize_classifier(
         forest.fit(train_features, train_targets)
         acc = accuracy_score(test_targets, forest.predict(test_features))
         # Create the results dictionary and save
-        # line = str(acc) + ',' + str(iteration) + ',' + ','.join(str(i) for i in parameters.values())
+        line = str(acc) + ',' + str(iteration) + ',' + ','.join(str(i) for i in parameters.values())
         results_dict = {'accuracy': acc, 'iteration': iteration, 'time': time() - start, **parameters}
-        threadsafe_save_csv(results_dict, out)
-        # q.put(line)
+        # threadsafe_save_csv(results_dict, out)
+        q.put(line)
         # Return the results for this optimization step
         return results_dict
 
@@ -298,10 +298,10 @@ def _optimize_classifier(
     # Create the parameter sampling instance with the required parameters, number of iterations, and random state
     sampler = ParameterSampler(params, n_iter=n_iter, random_state=utils.SEED)
     # Define multiprocessing instance used to write in threadsafe manner
-    # m = Manager()
-    # q = m.Queue()
-    # p = Process(target=save_to_file, args=(q,))
-    # p.start()
+    m = Manager()
+    q = m.Queue()
+    p = Process(target=save_to_file, args=(q,))
+    p.start()
     # Get cached results
     cached_results = load_from_file()
     # Use lazy parallelization to create the forest and fit to the data
@@ -310,7 +310,7 @@ def _optimize_classifier(
             delayed(__step)(num, params) for num, params in tqdm(enumerate(sampler), total=n_iter, desc="Fitting...")
         )
     # Adding a None at this point kills the multiprocessing manager instance
-    # q.put(None)
+    q.put(None)
     # Get the best parameter combination using pandas
     best_params = (
         pd.DataFrame(fit)
