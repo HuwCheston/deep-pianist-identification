@@ -9,9 +9,10 @@ import os
 from ast import literal_eval
 from collections import defaultdict
 from copy import deepcopy
-from multiprocessing import Manager, Process
+# from multiprocessing import Manager, Process
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from time import time
 from typing import Callable, Iterable
 
 import numpy as np
@@ -117,49 +118,56 @@ def threadsafe_load_csv(csv_path: str) -> list[dict]:
         return [{k: eval_(v) for k, v in dict(row).items()} for row in csv.DictReader(in_file, skipinitialspace=True)]
 
 
-def threadsafe_save_csv(obj: list | dict, fpath: str) -> None:
+def threadsafe_save_csv(obje: list | dict, filepath: str) -> None:
     """Simple wrapper around csv.DictWriter with protections to assist in multithreaded access"""
-    # Get the base directory and filename from the provided path
-    _path = Path(fpath)
-    fdir, fpath = str(_path.parent), str(_path.name)
-    # If we have an existing file with the same name, load it in and extend it with our new data
-    try:
-        existing_file: list = threadsafe_load_csv(os.path.join(fdir, fpath))
-    except FileNotFoundError:
-        pass
-    else:
-        if isinstance(obj, dict):
-            obj = [obj]
-        obj: list = existing_file + obj
-
-    # Create a new temporary file, in append mode
-    temp_file = NamedTemporaryFile(mode='a', newline='', dir=fdir, delete=False, suffix='.csv')
-    # Get our CSV header from the keys of the first dictionary, if we've passed in a list of dictionaries
-    if isinstance(obj, list):
-        keys = obj[0].keys()
-    # Otherwise, if we've just passed in a dictionary, get the keys from it directly
-    else:
-        keys = obj.keys()
-    # Open the temporary file and create a new dictionary writer with our given columns
-    with temp_file as out_file:
-        dict_writer = csv.DictWriter(out_file, keys)
-        dict_writer.writeheader()
-        # Write all the rows, if we've passed in a list
-        if isinstance(obj, list):
-            dict_writer.writerows(obj)
-        # Alternatively, write a single row, if we've passed in a dictionary
-        else:
-            dict_writer.writerow(obj)
-
     @retry(
         retry=retry_if_exception_type(PermissionError),
         wait=wait_random_exponential(multiplier=1, max=60),
         stop=stop_after_attempt(20)
     )
-    def replacer():
-        os.replace(temp_file.name, os.path.join(fdir, fpath))
+    def replacer(obj: list | dict, fpath: str):
+        # Get the base directory and filename from the provided path
+        _path = Path(fpath)
+        fdir, fpath = str(_path.parent), str(_path.name)
+        # If we have an existing file with the same name, load it in and extend it with our new data
+        try:
+            existing_file: list = threadsafe_load_csv(os.path.join(fdir, fpath))
+        except FileNotFoundError:
+            pass
+        else:
+            if isinstance(obj, dict):
+                obj = [obj]
+            obj: list = existing_file + obj
 
-    replacer()
+        # Create a new temporary file, in append mode
+        temp_file = NamedTemporaryFile(mode='a', newline='', dir=fdir, delete=False, suffix='.csv')
+        # Get our CSV header from the keys of the first dictionary, if we've passed in a list of dictionaries
+        if isinstance(obj, list):
+            keys = obj[0].keys()
+        # Otherwise, if we've just passed in a dictionary, get the keys from it directly
+        else:
+            keys = obj.keys()
+        # Open the temporary file and create a new dictionary writer with our given columns
+        with temp_file as out_file:
+            dict_writer = csv.DictWriter(out_file, keys)
+            dict_writer.writeheader()
+            # Write all the rows, if we've passed in a list
+            if isinstance(obj, list):
+                dict_writer.writerows(obj)
+            # Alternatively, write a single row, if we've passed in a dictionary
+            else:
+                dict_writer.writerow(obj)
+        # Try to replace the master file with the temporary file
+        try:
+            os.replace(temp_file.name, os.path.join(fdir, fpath))
+        # If another file is already editing the master file
+        except PermissionError as e:
+            # Remove the temporary file
+            os.remove(temp_file.name)
+            # Reraise the exception, which tenacity will catch and retry saving with exponential backoff
+            raise e
+
+    replacer(obje, filepath)
 
 
 def get_split_clips(split_name: str, dataset: str = "20class_80min") -> tuple[str, int, str]:
@@ -240,14 +248,14 @@ def _optimize_classifier(
 ) -> dict:
     """With given training and test features/targets, optimize random forest for test accuracy and save CSV to `out`"""
 
-    def save_to_file(q):
-        """Threadsafe writing to file"""
-        with open(out, 'a') as o:
-            while True:
-                val = q.get()
-                if val is None:
-                    break
-                o.write(val + '\n')
+    # def save_to_file(q):
+    #     """Threadsafe writing to file"""
+    #     with open(out, 'a') as o:
+    #         while True:
+    #             val = q.get()
+    #             if val is None:
+    #                 break
+    #             o.write(val + '\n')
 
     def load_from_file() -> list[dict]:
         """Tries to load cached results and returns a list of dictionaries"""
@@ -256,11 +264,12 @@ def _optimize_classifier(
             logger.info(f'... loaded {len(cr)} results from {out}')
         except (FileNotFoundError, pd.errors.EmptyDataError):
             cr = []
-            q.put('accuracy,iteration,' + ','.join(i for i in next(iter(sampler)).keys()))
+            # q.put('accuracy,iteration,' + ','.join(i for i in next(iter(sampler)).keys()))
         return cr
 
     def __step(iteration: int, parameters: dict) -> dict:
         """Inner optimization function"""
+        start = time()
         # Try and load in the CSV file for this particular task
         if use_cache:
             try:
@@ -276,10 +285,10 @@ def _optimize_classifier(
         forest.fit(train_features, train_targets)
         acc = accuracy_score(test_targets, forest.predict(test_features))
         # Create the results dictionary and save
-        line = str(acc) + ',' + str(iteration) + ',' + ','.join(str(i) for i in parameters.values())
-        results_dict = {'accuracy': acc, 'iteration': iteration, **parameters}
-        # rf_utils.threadsafe_save_csv(results_dict, out)
-        q.put(line)
+        # line = str(acc) + ',' + str(iteration) + ',' + ','.join(str(i) for i in parameters.values())
+        results_dict = {'accuracy': acc, 'iteration': iteration, 'time': time() - start, **parameters}
+        threadsafe_save_csv(results_dict, out)
+        # q.put(line)
         # Return the results for this optimization step
         return results_dict
 
@@ -287,10 +296,10 @@ def _optimize_classifier(
     # Create the parameter sampling instance with the required parameters, number of iterations, and random state
     sampler = ParameterSampler(params, n_iter=n_iter, random_state=utils.SEED)
     # Define multiprocessing instance used to write in threadsafe manner
-    m = Manager()
-    q = m.Queue()
-    p = Process(target=save_to_file, args=(q,))
-    p.start()
+    # m = Manager()
+    # q = m.Queue()
+    # p = Process(target=save_to_file, args=(q,))
+    # p.start()
     # Get cached results
     cached_results = load_from_file()
     # Use lazy parallelization to create the forest and fit to the data
@@ -299,7 +308,7 @@ def _optimize_classifier(
             delayed(__step)(num, params) for num, params in tqdm(enumerate(sampler), total=n_iter, desc="Fitting...")
         )
     # Adding a None at this point kills the multiprocessing manager instance
-    q.put(None)
+    # q.put(None)
     # Get the best parameter combination using pandas
     best_params = (
         pd.DataFrame(fit)
@@ -316,7 +325,7 @@ def _optimize_classifier(
         except ValueError:
             pass
     logger.info(f'... best parameters: {best_params}')
-    return {k: v for k, v in best_params.items() if k not in ["accuracy", "iteration"]}
+    return {k: v for k, v in best_params.items() if k not in ["accuracy", "iteration", "time"]}
 
 
 def get_classifier_and_params(classifier_type: str) -> tuple:
