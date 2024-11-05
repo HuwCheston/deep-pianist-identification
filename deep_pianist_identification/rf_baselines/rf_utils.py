@@ -395,11 +395,15 @@ def get_harmony_feature_importance(
         # Permute all features
         logger.info('Permuting harmony features...')
         har_acc = par(delayed(_shuffler)() for _ in range(N_ITER))
-        logger.info(f"... all harmony feature importance {np.mean(har_acc)}, (SD {np.std(har_acc)})")
+        logger.info(f"... all harmony feature importance {np.mean(har_acc)}, "
+                    f"SD {np.std(har_acc)}, "
+                    f"CI: [{np.percentile(har_acc, 2.5), np.percentile(har_acc, 97.5)}]")
         # Permute bootstrapped subsamples of features
         logger.info('Permuting harmony features with bootstrapping...')
         har_acc_boot = par(delayed(_shuffler_boot)() for _ in range(N_ITER))
-        logger.info(f"... bootstrapped harmony feature importance {np.mean(har_acc_boot)}, (SD {np.std(har_acc_boot)})")
+        logger.info(f"... bootstrapped harmony feature importance {np.mean(har_acc_boot)}, "
+                    f"SD {np.std(har_acc_boot)}, "
+                    f"CI: [{np.percentile(har_acc_boot, 2.5), np.percentile(har_acc_boot, 97.5)}]")
 
 
 def get_melody_feature_importance(
@@ -446,11 +450,15 @@ def get_melody_feature_importance(
         # Permute all features
         logger.info('Permuting melody features...')
         mel_acc = par(delayed(_shuffler)() for _ in range(N_ITER))
-        logger.info(f"... all melody feature importance {np.mean(mel_acc)}, (SD {np.std(mel_acc)})")
+        logger.info(f"... all melody feature importance {np.mean(mel_acc)}, "
+                    f"SD {np.std(mel_acc)}, "
+                    f"CI: [{np.percentile(mel_acc, 2.5), np.percentile(mel_acc, 97.5)}]")
         # Permute bootstrapped subsamples of features
         logger.info('Permuting melody features with bootstrapping...')
         mel_acc_boot = par(delayed(_shuffler_boot)() for _ in range(N_ITER))
-        logger.info(f"... bootstrapped melody feature importance {np.mean(mel_acc_boot)}, (SD {np.std(mel_acc_boot)})")
+        logger.info(f"... bootstrapped melody feature importance {np.mean(mel_acc_boot)}, "
+                    f"SD {np.std(mel_acc_boot)}, "
+                    f"CI: [{np.percentile(mel_acc_boot, 2.5), np.percentile(mel_acc_boot, 97.5)}]")
 
 
 def scale_features(
