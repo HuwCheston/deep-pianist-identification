@@ -14,6 +14,7 @@ from time import time
 from typing import ContextManager
 
 import numpy as np
+import pandas as pd
 import torch
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -23,10 +24,18 @@ PIANO_KEYS = 88
 FPS = 100
 MIDI_OFFSET = 21
 MAX_VELOCITY = 127
+MIDDLE_C = 60
+OCTAVE = 12
 
 CLIP_LENGTH = 30  # Each clip will start at CLIP_LENGTH + PADDING size, then will be cropped to CLIP_SIZE later
 HOP_SIZE = 30
 CLIP_PADDING = 30  # Added to the end of each clip to facilitate random cropping/time dilation
+
+
+def get_class_mapping(dataset_name: str) -> dict:
+    """With a given dataset, returns a dictionary of class_idx: class_name"""
+    csv_loc = os.path.join(get_project_root(), 'references/data_splits', dataset_name, 'pianist_mapping.csv')
+    return {i: row.iloc[0] for i, row in pd.read_csv(csv_loc, index_col=1).iterrows()}
 
 
 def seed_everything(seed: int = SEED) -> None:
