@@ -252,11 +252,11 @@ def _optimize_classifier(
 
     def save_to_file(q):
         """Threadsafe writing to file"""
-        with open(out, 'a') as o:
-            while True:
-                val = q.get()
-                if val is None:
-                    break
+        while True:
+            val = q.get()
+            if val is None:
+                break
+            with open(out, 'a') as o:
                 o.write(val + '\n')
 
     def load_from_file() -> list[dict]:
