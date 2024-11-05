@@ -3,11 +3,20 @@
 
 """Plotting classes, functions, and variables."""
 
+import os
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+from music21.chord import Chord
+from music21.note import Note
+from music21.stream import Stream
+from pretty_midi import note_name_to_number, note_number_to_name
+
+from deep_pianist_identification import utils
 
 # Define constants
 WIDTH = 18.8  # This is a full page width: half page plots will need to use 18.8 / 2
@@ -154,3 +163,100 @@ class BarPlotMaskedConceptsAccuracy(BasePlot):
 
     def _format_fig(self):
         self.fig.tight_layout()
+
+
+class StripplotTopKFeatures(BasePlot):
+    ERROR_KWS = dict(
+        lw=LINEWIDTH, color=BLACK, capsize=8, zorder=0,
+        elinewidth=LINEWIDTH, ls='none'
+    )
+    SCATTER_KWS = dict(
+        legend=False, s=200, edgecolor=BLACK, zorder=10,
+    )
+
+    def __init__(
+            self,
+            concept_dict: dict,
+            pianist_name: str = "",
+            concept_name: str = ""
+    ):
+        super().__init__()
+        self.concept_dict = concept_dict
+        self.pianist_name = pianist_name
+        self.concept_name = concept_name
+        self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH // 2))
+
+    def _add_notation(self, ngram, y):
+        notes = Stream()
+        notes.append(Note(note_number_to_name(utils.MIDDLE_C)))
+        for n in eval(ngram):
+            prev_note = str(notes[-1].pitch)
+            prev_number = note_name_to_number(prev_note)
+            next_number = prev_number + n
+            if self.concept_name == "harmony":
+                while next_number >= utils.MIDDLE_C + utils.OCTAVE:
+                    next_number -= utils.OCTAVE
+            next_note = Note(note_number_to_name(next_number))
+            notes.append(next_note)
+        if self.concept_name == "harmony":
+            notes = Stream(Chord(notes))
+
+        notes.write("musicxml.png", "tmp.png")
+        im = plt.imread("tmp-1.png")
+        imagebox = OffsetImage(im, zoom=0.5)
+        ab = AnnotationBbox(imagebox, (1.2, y), xycoords='axes fraction', frameon=False)
+        self.ax.add_artist(ab)
+        os.remove("tmp-1.png")
+        os.remove("tmp.musicxml")
+
+    def add_notation(self, direction: str, ngram_names):
+        if direction == 'bottom':
+            ys = [0.95, 0.855, 0.765, 0.675, 0.585]
+        else:
+            ys = [0.41, 0.32, 0.23, 0.14, 0.05]
+        for y, ng in zip(ys, ngram_names):
+            self._add_notation(ng, y)
+
+    def _create_plot(self):
+        for direction in ['bottom', 'top']:
+            sorters = np.array(range(len(self.concept_dict[f"{direction}_ors"])))
+            if direction == 'top':
+                sorters = sorters[::-1]
+            names = np.array([i[2:] for i in self.concept_dict[f"{direction}_names"]])[sorters]
+            self.ax.errorbar(
+                self.concept_dict[f"{direction}_ors"][sorters], names,
+                xerr=self.concept_dict[f"{direction}_std"][sorters], **self.ERROR_KWS
+            )
+            sns.scatterplot(
+                x=self.concept_dict[f"{direction}_ors"][sorters], y=names,
+                facecolor=GREEN if direction == 'top' else RED,
+                **self.SCATTER_KWS, ax=self.ax
+            )
+            self.add_notation(direction, names)
+            if direction == 'bottom':
+                sns.scatterplot(x=np.array([1.]), s=0, y=np.array(['']), ax=self.ax)
+
+    def _format_ax(self):
+        self.ax.tick_params(right=True)
+        self.ax.set(title=f'{self.pianist_name}, {self.concept_name} features', xlabel='Odds ratio', ylabel='Feature')
+        self.ax.grid(axis='x', zorder=0, **GRID_KWS)
+        self.ax.axhline(5, 0, 1, linewidth=LINEWIDTH, color=BLACK, alpha=ALPHA, ls='dashed')
+        self.ax.axvline(1, 0, 1, linewidth=LINEWIDTH, color=BLACK)
+        plt.setp(self.ax.spines.values(), linewidth=LINEWIDTH)
+        self.ax.tick_params(axis='both', width=TICKWIDTH)
+
+    def _format_fig(self):
+        self.fig.subplots_adjust(left=0.1, top=0.925, bottom=0.1, right=0.75)
+
+    def save_fig(self):
+        fold = os.path.join(
+            utils.get_project_root(),
+            'reports/figures',
+            'whitebox',
+        )
+        if not os.path.isdir(fold):
+            os.makedirs(fold)
+        fp = os.path.join(
+            fold, f'topk_stripplot_{self.pianist_name.lower().replace(" ", "_")}_{self.concept_name}.png'
+        )
+        self.fig.savefig(fp, **SAVE_KWS)
