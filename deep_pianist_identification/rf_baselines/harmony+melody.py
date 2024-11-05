@@ -10,6 +10,7 @@ from loguru import logger
 
 import deep_pianist_identification.rf_baselines.rf_utils as rf_utils
 from deep_pianist_identification import utils
+from deep_pianist_identification.plotting import StripplotTopKFeatures
 from deep_pianist_identification.rf_baselines.harmony import get_harmony_features
 from deep_pianist_identification.rf_baselines.melody import get_melody_features
 
@@ -28,6 +29,9 @@ def rf_melody_harmony(
     logger.info("Creating white box classifier using melody and harmony data!")
     logger.info(f'... using model type {classifier_type}')
     logger.info(f"... using ngrams {ngrams}, with remove_leaps {remove_leaps}")
+    # Get the class mapping dictionary from the dataset
+    class_mapping = utils.get_class_mapping(dataset)
+    # Get all clips from the given dataset
     train_clips, test_clips, validation_clips = rf_utils.get_all_clips(dataset)
     # Melody extraction
     logger.info('---MELODY---')
@@ -71,12 +75,12 @@ def rf_melody_harmony(
     if scale and classifier_type != "nb":
         train_x_arr, test_x_arr, valid_x_arr = rf_utils.scale_features(train_x_arr, test_x_arr, valid_x_arr)
     # Optimize the classifier
-    clf_opt, valid_acc = rf_utils.fit_classifier(
+    clf_opt, valid_acc, best_params = rf_utils.fit_classifier(
         train_x_arr, test_x_arr, valid_x_arr, train_y_mel, test_y_mel, valid_y_mel,
         csvpath, n_iter, classifier_type
     )
-    logger.info('Done!')
     # Get feature importance scores
+    logger.info('---OVERALL FEATURE IMPORTANCE---')
     rf_utils.get_harmony_feature_importance(
         harmony_features=valid_x_arr_har,
         melody_features=valid_x_arr_mel,
@@ -91,6 +95,32 @@ def rf_melody_harmony(
         initial_acc=valid_acc,
         y_actual=valid_y_mel
     )
+    # Get feature importance scores for individual performers
+    if classifier_type == "lr" or classifier_type == "svm":
+        logger.info('---PERFORMER FEATURE IMPORTANCE---')
+        # Get array of all features, with identifying string at the start
+        all_features = np.array(['M_' + f for f in mel_features] + ['H_' + f for f in har_features])
+        # Combine train, test and validation datasets together
+        full_x = np.vstack([train_x_arr, test_x_arr, valid_x_arr])
+        full_y = np.hstack([train_y_mel, test_y_mel, valid_y_mel])
+        # Scale the data (if it requires this)
+        if scale:
+            full_x = rf_utils.scale_feature(full_x)
+        # Get the classifier weights from the model
+        logger.info('... getting classifier weights with bootstrapping (this may take a while)')
+        weights, boot_weights = rf_utils.get_classifier_weights(
+            full_x, full_y, all_features, best_params, classifier_type
+        )
+        # Create the dictionary of top (and bottom) K features for both harmony and melody
+        topk_dict = rf_utils.get_topk_features(weights, boot_weights, all_features, class_mapping)
+        # Iterate through all performers and concepts
+        for perf in topk_dict.keys():
+            for concept in ['melody', 'harmony']:
+                # Create the plot and save in the default (reports/figures/whitebox) directory
+                sp = StripplotTopKFeatures(topk_dict[perf][concept], pianist_name=perf, concept_name=concept)
+                sp.create_plot()
+                sp.save_fig()
+    logger.info('Done!')
 
 
 if __name__ == "__main__":

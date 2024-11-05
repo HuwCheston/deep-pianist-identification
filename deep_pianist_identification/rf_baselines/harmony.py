@@ -133,7 +133,7 @@ def rf_harmony(
     if scale and classifier_type != "nb":
         train_x_arr, test_x_arr, valid_x_arr = rf_utils.scale_features(train_x_arr, test_x_arr, valid_x_arr)
     # Optimize the classifier
-    _, __ = rf_utils.fit_classifier(
+    _, __, ___ = rf_utils.fit_classifier(
         train_x_arr, test_x_arr, valid_x_arr, train_y, test_y, valid_y, csvpath, n_iter, classifier_type
     )
     logger.info('Done!')

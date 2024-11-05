@@ -95,6 +95,7 @@ N_BOOT_FEATURES = 2000  # number of features to sample when bootstrapping permut
 
 MIN_COUNT = 10
 MAX_COUNT = 1000
+K = 5  # When plotting, we'll get this number of features per performer (bottom and top)
 
 MAX_LEAP = 15  # If we leap by more than this number of semitones (once in an n-gram, twice in a chord), drop it
 NGRAMS = [2, 3]  # The ngrams to consider when extracting melody (horizontal) or chords (vertical)
@@ -477,6 +478,13 @@ def scale_features(
     return train_x, test_x, valid_x
 
 
+def scale_feature(
+        feature: np.array
+) -> np.array:
+    scaler = StandardScaler()
+    return scaler.fit_transform(feature)
+
+
 def fit_classifier(
         train_x: np.ndarray,
         test_x: np.ndarray,
@@ -511,7 +519,7 @@ def fit_classifier(
     valid_acc = accuracy_score(valid_y, valid_y_pred)
     logger.info(f"... validation accuracy: {valid_acc:.3f}")
     # Return the fitted classifier for e.g., permutation importance testing
-    return clf_opt, valid_acc
+    return clf_opt, valid_acc, optimized_params
 
 
 def get_all_clips(dataset: str, n_clips: int = None):
@@ -529,6 +537,112 @@ def get_all_clips(dataset: str, n_clips: int = None):
                 f"{len(test_clips)} test tracks, "
                 f"{len(validation_clips)} validation tracks!")
     return train_clips, test_clips, validation_clips
+
+
+def get_topk_features(
+        weights: np.array,
+        bootstrapped_weights: list[np.array],
+        feature_names: np.array,
+        class_mapping: dict,
+        k: int = K,
+) -> dict:
+    """For weights (with bootstrapping), get top and bottom `k` features for each performer"""
+    res = {}
+    # Iterate over all classes
+    for class_idx in tqdm(range(len(class_mapping.keys()))):
+        # Get the actual and bootstrapped weights for this performer
+        class_ratios = weights[class_idx, :]
+        boot_class_ratios = np.array([b[class_idx, :] for b in bootstrapped_weights])
+        # Apply functions to the bootstrapped weights to get SD, lower, upper bounds
+        stds = np.apply_along_axis(np.std, 0, boot_class_ratios)
+        lower_bounds = np.apply_along_axis(lambda x: np.percentile(x, 2.5), 0, boot_class_ratios)
+        upper_bounds = np.apply_along_axis(lambda x: np.percentile(x, 97.5), 0, boot_class_ratios)
+        # Get sorted idxs in ascending/descending order
+        bottom_idxs = np.argsort(class_ratios)
+        top_idxs = bottom_idxs[::-1]
+        # Iterate through all concepts
+        perf_dict = {}
+        for concept, starter in zip(['melody', 'harmony'], ['M_', 'H_']):
+            # Get top idxs
+            top_m_idxs = np.array([i for i in top_idxs if feature_names[i].startswith(starter)])[:k]
+            top_m_features = feature_names[top_m_idxs]
+            top_m_ors = class_ratios[top_m_idxs]
+            top_m_high = upper_bounds[top_m_idxs] - top_m_ors
+            top_m_low = top_m_ors - lower_bounds[top_m_idxs]
+            top_m_stds = stds[top_m_idxs]
+            # Get bottom idxs
+            bottom_m_idxs = np.array([i for i in bottom_idxs if feature_names[i].startswith(starter)])[:k]
+            bottom_m_features = feature_names[bottom_m_idxs]
+            bottom_m_ors = class_ratios[bottom_m_idxs]
+            bottom_m_high = upper_bounds[bottom_m_idxs] - bottom_m_ors
+            bottom_m_low = bottom_m_ors - lower_bounds[bottom_m_idxs]
+            bottom_m_stds = stds[bottom_m_idxs]
+            # Format results as a dictionary
+            r = dict(
+                top_ors=top_m_ors,
+                top_names=top_m_features,
+                top_high=top_m_high,
+                top_low=top_m_low,
+                top_std=top_m_stds,
+                bottom_ors=bottom_m_ors,
+                bottom_names=bottom_m_features,
+                bottom_high=bottom_m_high,
+                bottom_low=bottom_m_low,
+                bottom_std=bottom_m_stds,
+            )
+            # Append to the performer dictionary
+            perf_dict[concept] = r
+        # Append to the master dictionary
+        res[class_mapping[class_idx]] = perf_dict
+    return res
+
+
+def get_classifier_weights(
+        all_x: np.array,
+        all_y: np.array,
+        feature_names: np.array,
+        classifier_params: dict,
+        classifier_type: str,
+        n_boot: int = N_ITER // 10,  # this will take ages otherwise, so use a smaller number of iterations
+        use_odds_ratios: bool = True
+) -> tuple:
+    """For a given classifier type, get actual weights and bootstrapped versions of these"""
+
+    # Get the correct classifier instance (we don't care about parameters, though)
+    classifier, _ = get_classifier_and_params(classifier_type)
+    # Quick checks here to make sure that all parameters are as expected
+    if classifier_type not in ["lr", "svm"]:
+        raise ValueError(f"Getting classifier weights only supports `lr` and `svm` models, but got {classifier_type}!")
+    if use_odds_ratios and classifier_type != "lr":
+        raise ValueError(f"Getting weights as odds ratios is only supported when `classifier_type == 'lr'`")
+
+    def fitter(x: np.array, y: np.array) -> np.array:
+        # Create and fit the classifier and take the weights
+        temp_model = classifier(**classifier_params)
+        temp_model.fit(x, y)
+        coef = temp_model.coef_
+        # Take exponential if we want odds ratios
+        if use_odds_ratios:
+            coef = np.exp(coef)
+        return coef
+
+    def booter(x: np.array, y: np.array, i: int = utils.SEED) -> np.array:
+        # Sample the features
+        x_samp = x.sample(frac=1, replace=True, random_state=i)
+        # Use the index to sample the y values
+        y_samp = y[x_samp.index]
+        # Return the coefficients
+        return fitter(x_samp, y_samp)
+
+    # Convert to a dataframe as this makes bootstrapping a lot easier
+    full_x_df = pd.DataFrame(all_x, columns=feature_names)
+    full_y_df = pd.Series(all_y)
+    # Get actual coefficients: (n_classes, n_features)
+    ratios = fitter(full_x_df, full_y_df)
+    # Bootstrap the coefficients: (n_boots, n_classes, n_features)
+    with Parallel(n_jobs=-1, verbose=5) as par:
+        boot_ratios = par(delayed(booter)(full_x_df, full_y_df, i) for i in range(n_boot))
+    return ratios, boot_ratios
 
 
 def parse_arguments(parser) -> dict:
