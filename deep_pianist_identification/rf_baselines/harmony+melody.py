@@ -110,7 +110,7 @@ def rf_melody_harmony(
         # Get the classifier weights from the model
         logger.info('... getting classifier weights with bootstrapping (this may take a while)')
         weights, boot_weights = rf_utils.get_classifier_weights(
-            full_x, full_y, all_features, best_params, classifier_type
+            full_x, full_y, all_features, best_params, classifier_type, n_boot=n_iter
         )
         # Create the dictionary of top (and bottom) K features for both harmony and melody
         topk_dict = rf_utils.get_topk_features(weights, boot_weights, all_features, class_mapping)
