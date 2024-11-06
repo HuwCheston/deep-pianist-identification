@@ -87,14 +87,16 @@ def rf_melody_harmony(
         melody_features=valid_x_arr_mel,
         classifier=clf_opt,
         initial_acc=valid_acc,
-        y_actual=valid_y_mel
+        y_actual=valid_y_mel,
+        n_iter=n_iter
     )
     rf_utils.get_melody_feature_importance(
         harmony_features=valid_x_arr_har,
         melody_features=valid_x_arr_mel,
         classifier=clf_opt,
         initial_acc=valid_acc,
-        y_actual=valid_y_mel
+        y_actual=valid_y_mel,
+        n_iter=n_iter
     )
     # Get feature importance scores for individual performers
     if classifier_type == "lr" or classifier_type == "svm":

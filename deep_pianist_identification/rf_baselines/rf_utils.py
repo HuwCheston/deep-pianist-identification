@@ -361,7 +361,8 @@ def get_harmony_feature_importance(
         classifier,
         y_actual: np.ndarray,
         initial_acc: float,
-        scale: bool = True
+        scale: bool = True,
+        n_iter: int = N_ITER
 ):
     """Calculates harmony feature importance, both for all features and with bootstrapped subsamples of features"""
     scaler = StandardScaler()
@@ -399,13 +400,13 @@ def get_harmony_feature_importance(
     with Parallel(n_jobs=-1, verbose=5) as par:
         # Permute all features
         logger.info('Permuting harmony features...')
-        har_acc = par(delayed(_shuffler)(None, seed) for seed in range(N_ITER))
+        har_acc = par(delayed(_shuffler)(None, seed) for seed in range(n_iter))
         logger.info(f"... all harmony feature importance {np.mean(har_acc)}, "
                     f"SD {np.std(har_acc)}, "
                     f"CI: [{np.percentile(har_acc, 2.5)}, {np.percentile(har_acc, 97.5)}]")
         # Permute bootstrapped subsamples of features
         logger.info('Permuting harmony features with bootstrapping...')
-        har_acc_boot = par(delayed(_shuffler_boot)(seed) for seed in range(N_ITER))
+        har_acc_boot = par(delayed(_shuffler_boot)(seed) for seed in range(n_iter))
         logger.info(f"... bootstrapped harmony feature importance {np.mean(har_acc_boot)}, "
                     f"SD {np.std(har_acc_boot)}, "
                     f"CI: [{np.percentile(har_acc_boot, 2.5)}, {np.percentile(har_acc_boot, 97.5)}]")
@@ -417,7 +418,8 @@ def get_melody_feature_importance(
         classifier,
         y_actual: np.ndarray,
         initial_acc: float,
-        scale: bool = True
+        scale: bool = True,
+        n_iter: int = N_ITER
 ):
     """Calculates melody feature importance, both for all features and with bootstrapped subsamples of features"""
     scaler = StandardScaler()
@@ -455,13 +457,13 @@ def get_melody_feature_importance(
     with Parallel(n_jobs=-1, verbose=5) as par:
         # Permute all features
         logger.info('Permuting melody features...')
-        mel_acc = par(delayed(_shuffler)(None, seed) for seed in range(N_ITER))
+        mel_acc = par(delayed(_shuffler)(None, seed) for seed in range(n_iter))
         logger.info(f"... all melody feature importance {np.mean(mel_acc)}, "
                     f"SD {np.std(mel_acc)}, "
                     f"CI: [{np.percentile(mel_acc, 2.5)}, {np.percentile(mel_acc, 97.5)}]")
         # Permute bootstrapped subsamples of features
         logger.info('Permuting melody features with bootstrapping...')
-        mel_acc_boot = par(delayed(_shuffler_boot)(seed) for seed in range(N_ITER))
+        mel_acc_boot = par(delayed(_shuffler_boot)(seed) for seed in range(n_iter))
         logger.info(f"... bootstrapped melody feature importance {np.mean(mel_acc_boot)}, "
                     f"SD {np.std(mel_acc_boot)}, "
                     f"CI: [{np.percentile(mel_acc_boot, 2.5)}, {np.percentile(mel_acc_boot, 97.5)}]")
