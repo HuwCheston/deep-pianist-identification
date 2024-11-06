@@ -7,6 +7,7 @@ import os
 
 import numpy as np
 from loguru import logger
+from tqdm import tqdm
 
 import deep_pianist_identification.rf_baselines.rf_utils as rf_utils
 from deep_pianist_identification import utils
@@ -113,6 +114,7 @@ def rf_melody_harmony(
         )
         # Create the dictionary of top (and bottom) K features for both harmony and melody
         topk_dict = rf_utils.get_topk_features(weights, boot_weights, all_features, class_mapping)
+        logger.info('... creating performer strip plots')
         # Iterate through all performers and concepts
         for perf in topk_dict.keys():
             for concept in ['melody', 'harmony']:
@@ -120,6 +122,25 @@ def rf_melody_harmony(
                 sp = StripplotTopKFeatures(topk_dict[perf][concept], pianist_name=perf, concept_name=concept)
                 sp.create_plot()
                 sp.save_fig()
+        logger.info('... creating piano rolls + MIDI for clips matching top-K melody ngrams')
+        # Iterate through all performers again
+        all_clips = train_clips + test_clips + validation_clips
+        for perf_idx, perf_name in tqdm(class_mapping.items()):
+            # Get tracks by this performer
+            perf_tracks = [c for c in all_clips if c[2] == perf_idx]
+            # Get data for this performer
+            perf_data = topk_dict[perf_name]['melody']
+            # Iterate through all tracks by the performer
+            for track_path, n_clips, _ in perf_tracks:
+                # Iterate through all clips for the track
+                for clip_idx in range(n_clips):
+                    # Get the filepath
+                    clip_idx = 'clip_' + str(clip_idx).zfill(3) + '.mid'
+                    clip_path = os.path.join(track_path, clip_idx)
+                    # Iterate through all n-grams by the performer
+                    for ng in perf_data['top_names']:
+                        manager = rf_utils.MIDIOutputManager(clip_path, perf_name, ng)
+                        manager.run()
     logger.info('Done!')
 
 

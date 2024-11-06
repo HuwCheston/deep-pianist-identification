@@ -10,7 +10,9 @@ import warnings
 from ast import literal_eval
 from collections import defaultdict
 from copy import deepcopy
+from itertools import groupby
 from multiprocessing import Manager, Process
+from operator import itemgetter
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from time import time
@@ -20,6 +22,7 @@ import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
 from loguru import logger
+from pretty_midi import PrettyMIDI, Instrument, Note
 from sklearn.ensemble import RandomForestClassifier, HistGradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
@@ -31,6 +34,8 @@ from tenacity import retry, retry_if_exception_type, wait_random_exponential, st
 from tqdm import tqdm
 
 from deep_pianist_identification import utils
+from deep_pianist_identification.extractors import RollExtractor, quantize, ExtractorError
+from deep_pianist_identification.plotting import HeatmapWhiteboxFeaturePianoRoll
 
 # These are the parameters we'll sample from when optimizing different types of model
 RF_OPTIMIZE_PARAMS = dict(
@@ -701,3 +706,135 @@ def parse_arguments(parser) -> dict:
     # Parse all arguments and return
     args = vars(parser.parse_args())
     return args
+
+
+class MIDIOutputManager:
+    """Takes in a single MIDI clip and performer n-grams, and creates outputs that match every n-gram"""
+
+    def __init__(
+            self,
+            midi_path: str,
+            performer_name: str,
+            desired_ngram: str
+    ):
+        self.midi_path = midi_path
+        self.input_midi = PrettyMIDI(midi_path)
+        self.performer_name = performer_name
+        self.desired_ngram = desired_ngram
+
+    @staticmethod
+    def apply_skyline(quantized_notes):
+        """For all notes with the same (quantized) start time, keep only the highest pitch note"""
+        note_starts = itemgetter(0)
+        # Group all the MIDI events by the (quantized) start time
+        grouper = groupby(sorted(quantized_notes, key=note_starts), note_starts)
+        # Iterate through each group and keep only the note with the highest pitch
+        for quantized_note_start, subiter in grouper:
+            yield max(subiter, key=itemgetter(2))
+
+    @staticmethod
+    def quantize_notes(input_midi: PrettyMIDI):
+        quantized_notes = []
+        # Iterate through all notes
+        for note in input_midi.instruments[0].notes:
+            note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
+            # If the note is above our lower bound
+            if note_pitch >= utils.MIDI_OFFSET:
+                # Snap note start and end with the given time resolution
+                new_note_start = quantize(note_start, 1 / utils.FPS)
+                new_note_end = quantize(note_end, 1 / utils.FPS)
+                # Set the velocity to maximum to binarize
+                quantized_notes.append((new_note_start, new_note_end, note_pitch, note_velocity, note_start, note_end))
+        return quantized_notes
+
+    @staticmethod
+    def convert_to_interval_classes(input_midi: list[tuple]):
+        interval_classes = []
+        for n1, n2 in zip(input_midi, input_midi[1:]):
+            ic = n2[2] - n1[2]
+            if abs(ic) > MAX_LEAP:
+                continue
+            # actual start, actual end, interval class
+            interval_classes.append((n2[4], n2[5], ic))
+        return interval_classes
+
+    @staticmethod
+    def get_desired_ngram_phrases(ng: list[int], interval_classes, span_notes: int = 2):
+        ng_len = len(ng)
+        matches, phrase_spans = [], []
+        for ic_start_idx in range(len(interval_classes)):
+            ic_end_idx = ic_start_idx + ng_len
+            desired_phrase = interval_classes[ic_start_idx:ic_end_idx]
+            all_ics = [i[2] for i in desired_phrase]
+            if all_ics == ng:
+                idx_before = ic_start_idx - span_notes
+                idx_after = ic_end_idx + span_notes
+                if idx_before < 0:
+                    idx_before = 0
+                if idx_after >= len(interval_classes):
+                    idx_after = len(interval_classes) - 1
+                note_before_phrase = interval_classes[idx_before]
+                note_after_phrase = interval_classes[idx_after]
+                phrase_span = note_before_phrase[0], note_after_phrase[1]
+                phrase_spans.append(phrase_span)
+        return phrase_spans
+
+    def process_match(self, phrase_start: float, phrase_end: float) -> PrettyMIDI:
+        # Get the notes from the *original* MIDI that are within the bounds
+        midi_in_bounds = [n for n in self.input_midi.instruments[0].notes if phrase_start <= n.start <= phrase_end]
+        # Get first onset and offset time
+        earliest_onset = min(midi_in_bounds, key=lambda x: x.start).start
+        # Adjust all note onset and offset times to fit within boundaries
+        newmidi = PrettyMIDI()
+        newinstr = Instrument(self.input_midi.instruments[0].program)
+        newinstr.notes.extend(
+            [Note(start=n.start - earliest_onset, end=n.end - earliest_onset, pitch=n.pitch, velocity=n.velocity) for
+             n in midi_in_bounds])
+        newmidi.instruments = [newinstr]
+        return newmidi
+
+    def create_outputs(self, processed_midi: PrettyMIDI):
+        # Get the performer-ngram folder
+        fp = os.path.join(
+            utils.get_project_root(),
+            'reports/figures/whitebox/clip_outputs',
+            f'{self.performer_name.lower().replace(" ", "_")}_{self.desired_ngram[2:]}'
+        )
+        # Create if it doesn't already exist
+        if not os.path.isdir(fp):
+            os.makedirs(fp)
+        # Create the folder to save outputs for this clip-ngram combination in
+        n_already_saved = len(os.listdir(fp))
+        newfp = os.path.join(fp, f'phrase_{str(n_already_saved).zfill(3)}')
+        assert not os.path.isdir(newfp)
+        os.makedirs(newfp)
+        # Create the static matplotlib plot
+        pl = HeatmapWhiteboxFeaturePianoRoll(
+            processed_midi,
+            self.performer_name,
+            self.desired_ngram,
+            os.path.sep.join(self.midi_path.split(os.path.sep)[-2:])
+        )
+        pl.create_plot()
+        pl.save_fig(os.path.join(newfp, 'static.png'))
+
+        # Write the MIDI
+        processed_midi.write(os.path.join(newfp, 'midi.mid'))
+
+    def run(self):
+        # Validate the input MIDI, and skip any cases where e.g., we don't have notes
+        try:
+            validated = RollExtractor(self.input_midi).output_midi
+        except ExtractorError:
+            return
+        quant = self.quantize_notes(validated)
+        skylined = list(self.apply_skyline(quant))
+        ics = self.convert_to_interval_classes(skylined)
+        matched_phrases = self.get_desired_ngram_phrases(eval(self.desired_ngram[2:]), ics)
+        # Skip over clip/ngram combinations where the ngram doesn't appear
+        if len(matched_phrases) == 0:
+            return
+        # Otherwise, process each match to get the MIDI within the boundaries
+        for phrase_start, phrase_end in matched_phrases:
+            processed = self.process_match(phrase_start, phrase_end)
+            self.create_outputs(processed)
