@@ -166,13 +166,26 @@ class BarPlotMaskedConceptsAccuracy(BasePlot):
 
 
 class StripplotTopKFeatures(BasePlot):
-    ERROR_KWS = dict(
-        lw=LINEWIDTH, color=BLACK, capsize=8, zorder=0,
-        elinewidth=LINEWIDTH, ls='none'
-    )
-    SCATTER_KWS = dict(
-        legend=False, s=200, edgecolor=BLACK, zorder=10,
-    )
+    """Creates a strip/scatter plot showing the top/bottom-K features for a given performer
+
+    Examples:
+        >>> t = dict(
+        >>>     top_ors=np.array([1.2, 1.15, 1.10, 1.05, 1.01]),    # The top K odds ratios for this performer
+        >>>     bottom_ors=np.array([0.8, 0.85, 0.9, 0.95, 0.975]),    # The bottom K odds ratios
+        >>>     top_std=np.array([0.01, 0.01, 0.01, 0.01, 0.01]),    # The corresponding top K standard deviations
+        >>>     bottom_std=np.array([0.01, 0.01, 0.01, 0.01, 0.01]),    # Bottom k standard deviations
+        >>>     # These arrays contain the names of the n-grams
+        >>>     top_names=np.array(["M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]"]),
+        >>>     bottom_names=np.array(["M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]"])
+        >>> )
+        >>> plo = StripplotTopKFeatures(t, "Testy McTestFace")
+        >>> plo.create_plot()
+        >>> plo.save_fig()
+
+    """
+
+    ERROR_KWS = dict(lw=LINEWIDTH, color=BLACK, capsize=8, zorder=0, elinewidth=LINEWIDTH, ls='none')
+    SCATTER_KWS = dict(legend=False, s=200, edgecolor=BLACK, zorder=10)
 
     def __init__(
             self,
@@ -186,30 +199,53 @@ class StripplotTopKFeatures(BasePlot):
         self.concept_name = concept_name
         self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH // 2))
 
-    def _add_notation(self, ngram, y):
+    def _add_notation(self, ngram: str, y: float) -> None:
+        """Adds a given feature/ngram as notation onto the axis with a given y coordinate"""
+        # This just holds all the note instances we'll create
         notes = Stream()
+        # We'll express all notation with relation to middle C
         notes.append(Note(note_number_to_name(utils.MIDDLE_C)))
+        # Evaluate the ngram as a list of integers then iterate through all notes
         for n in eval(ngram):
+            # Get the previous note as a name ("C5") and convert to a MIDI number
             prev_note = str(notes[-1].pitch)
             prev_number = note_name_to_number(prev_note)
+            # Add the current interval class to the previous note number
             next_number = prev_number + n
+            # If we're plotting chords, we want to express all chords on the same octave
             if self.concept_name == "harmony":
+                # So keep subtracting an octave from the note until it's within the same octave as middle C
                 while next_number >= utils.MIDDLE_C + utils.OCTAVE:
                     next_number -= utils.OCTAVE
+            # Music21 expects note names, so convert to a name and append to the list
             next_note = Note(note_number_to_name(next_number))
             notes.append(next_note)
+        # Converting the stream to a chord and then back will remove all rhythmic information
         if self.concept_name == "harmony":
             notes = Stream(Chord(notes))
 
-        notes.write("musicxml.png", "tmp.png")
+        # Export the notation as an image
+        try:
+            notes.write("musicxml.png", "tmp.png")
+        except OSError:
+            # When running in a screen instance, this line may fail with a cryptic QT error
+            # Something like `qt.qpa.plugin: Could not load the Qt platform plugin "xcb"`
+            # The solution is to set the environment variable `QT_QPA_PLATFORM=offscreen` and retry
+            os.environ["QT_QPA_PLATFORM"] = "offscreen"
+            notes.write("musicxml.png", "tmp.png")
+
+        # Read the image in to matplotlib and add to the axes
         im = plt.imread("tmp-1.png")
         imagebox = OffsetImage(im, zoom=0.5)
         ab = AnnotationBbox(imagebox, (1.2, y), xycoords='axes fraction', frameon=False)
         self.ax.add_artist(ab)
+        # Remove the temporary files we've created
         os.remove("tmp-1.png")
         os.remove("tmp.musicxml")
 
-    def add_notation(self, direction: str, ngram_names):
+    def add_notation(self, direction: str, ngram_names: list[str]):
+        """Adds all features as notation onto the axis at a given position"""
+        # Hard-coding our y-axis positions is maybe not the best solution for scalability, but works for now
         if direction == 'bottom':
             ys = [0.95, 0.855, 0.765, 0.675, 0.585]
         else:
@@ -223,20 +259,24 @@ class StripplotTopKFeatures(BasePlot):
             if direction == 'top':
                 sorters = sorters[::-1]
             names = np.array([i[2:] for i in self.concept_dict[f"{direction}_names"]])[sorters]
+            # Creating the errorbar, showing standard deviation
             self.ax.errorbar(
                 self.concept_dict[f"{direction}_ors"][sorters], names,
                 xerr=self.concept_dict[f"{direction}_std"][sorters], **self.ERROR_KWS
             )
+            # Creating the scatter plot
             sns.scatterplot(
                 x=self.concept_dict[f"{direction}_ors"][sorters], y=names,
                 facecolor=GREEN if direction == 'top' else RED,
                 **self.SCATTER_KWS, ax=self.ax
             )
             self.add_notation(direction, names)
+            # All this line does is add an extra empty "value" to separate the top and bottom k features better visually
             if direction == 'bottom':
                 sns.scatterplot(x=np.array([1.]), s=0, y=np.array(['']), ax=self.ax)
 
     def _format_ax(self):
+        """Setting plot aesthetics on an axis-level basis"""
         self.ax.tick_params(right=True)
         self.ax.set(title=f'{self.pianist_name}, {self.concept_name} features', xlabel='Odds ratio', ylabel='Feature')
         self.ax.grid(axis='x', zorder=0, **GRID_KWS)
@@ -246,17 +286,28 @@ class StripplotTopKFeatures(BasePlot):
         self.ax.tick_params(axis='both', width=TICKWIDTH)
 
     def _format_fig(self):
+        """Setting plot aeshetics on a figure-level basis"""
         self.fig.subplots_adjust(left=0.1, top=0.925, bottom=0.1, right=0.75)
 
     def save_fig(self):
-        fold = os.path.join(
-            utils.get_project_root(),
-            'reports/figures',
-            'whitebox',
-        )
+        fold = os.path.join(utils.get_project_root(), 'reports/figures', 'whitebox')
         if not os.path.isdir(fold):
             os.makedirs(fold)
         fp = os.path.join(
             fold, f'topk_stripplot_{self.pianist_name.lower().replace(" ", "_")}_{self.concept_name}.png'
         )
         self.fig.savefig(fp, **SAVE_KWS)
+
+
+if __name__ == "__main__":
+    # Test the StripplotTopKFeatures plotting class
+    tmp = dict(
+        top_ors=np.array([1.2, 1.15, 1.10, 1.05, 1.01]),
+        bottom_ors=np.array([0.8, 0.85, 0.9, 0.95, 0.975]),
+        top_std=np.array([0.01, 0.01, 0.01, 0.01, 0.01]),
+        bottom_std=np.array([0.01, 0.01, 0.01, 0.01, 0.01]),
+        top_names=np.array(["M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]"]),
+        bottom_names=np.array(["M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]"])
+    )
+    sp = StripplotTopKFeatures(tmp, "Tempy McTempface", "melody")
+    sp.create_plot()
