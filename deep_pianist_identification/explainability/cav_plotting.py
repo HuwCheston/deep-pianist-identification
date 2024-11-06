@@ -31,17 +31,6 @@ BIRTH_YEARS = np.genfromtxt(
 )
 
 
-def fmt_heatmap_axis(heatmap_ax: plt.Axes):
-    for a in [heatmap_ax, *heatmap_ax.figure.axes]:
-        for spine in a.spines.values():
-            spine.set_visible(True)
-            spine.set_color(plotting.BLACK)
-            spine.set_linewidth(plotting.LINEWIDTH)
-        plt.setp(a.spines.values(), linewidth=plotting.LINEWIDTH, color=plotting.BLACK)
-        a.tick_params(axis='both', width=plotting.TICKWIDTH, color=plotting.BLACK)
-    heatmap_ax.invert_yaxis()
-
-
 class HeatmapPianistCAV(plotting.BasePlot):
     def __init__(self, corr_df: pd.DataFrame, cav_type: str = "Voicings"):
         super().__init__()
@@ -72,7 +61,7 @@ class HeatmapPianistCAV(plotting.BasePlot):
 
     def _format_ax(self):
         # Set aesthetics for both colorbar and main axis
-        fmt_heatmap_axis(self.ax)
+        plotting.fmt_heatmap_axis(self.ax)
         self.ax.set(
             xlabel=f"{self.cav_type} CAV (→→→ $increasing$ $complexity$ →→→)",
             ylabel="Pianist (→→→ $increasing$ $birth$ $year$ →→→)"
@@ -288,7 +277,7 @@ class HeatmapCAVKernelSensitivity(plotting.BasePlot):
                 edgecolor=plotting.BLACK
             ),
         )
-        fmt_heatmap_axis(self.ax)
+        plotting.fmt_heatmap_axis(self.ax)
 
     def save_fig(self):
         # Get the directory to save the heatmap in

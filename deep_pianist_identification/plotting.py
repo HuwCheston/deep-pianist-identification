@@ -49,6 +49,17 @@ N_BINS = 50
 PLOT_AFTER_N_EPOCHS = 5
 
 
+def fmt_heatmap_axis(heatmap_ax: plt.Axes):
+    for a in [heatmap_ax, *heatmap_ax.figure.axes]:
+        for spine in a.spines.values():
+            spine.set_visible(True)
+            spine.set_color(BLACK)
+            spine.set_linewidth(LINEWIDTH)
+        plt.setp(a.spines.values(), linewidth=LINEWIDTH, color=BLACK)
+        a.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
+    heatmap_ax.invert_yaxis()
+
+
 class BasePlot:
     """Base plotting class from which all others inherit"""
     mpl.rcParams.update(mpl.rcParamsDefault)
@@ -236,7 +247,7 @@ class StripplotTopKFeatures(BasePlot):
 
         # Read the image in to matplotlib and add to the axes
         im = plt.imread("tmp-1.png")
-        imagebox = OffsetImage(im, zoom=0.5)
+        imagebox = OffsetImage(im, zoom=0.4)
         ab = AnnotationBbox(imagebox, (1.2, y), xycoords='axes fraction', frameon=False)
         self.ax.add_artist(ab)
         # Remove the temporary files we've created
@@ -290,13 +301,65 @@ class StripplotTopKFeatures(BasePlot):
         self.fig.subplots_adjust(left=0.1, top=0.925, bottom=0.1, right=0.75)
 
     def save_fig(self):
-        fold = os.path.join(utils.get_project_root(), 'reports/figures', 'whitebox')
+        fold = os.path.join(utils.get_project_root(), 'reports/figures', 'whitebox/performer_strip_plots')
         if not os.path.isdir(fold):
             os.makedirs(fold)
         fp = os.path.join(
             fold, f'topk_stripplot_{self.pianist_name.lower().replace(" ", "_")}_{self.concept_name}.png'
         )
         self.fig.savefig(fp, **SAVE_KWS)
+
+
+class HeatmapWhiteboxFeaturePianoRoll(BasePlot):
+    def __init__(
+            self,
+            feature_excerpt,
+            performer_name: str,
+            feature_name: str,
+            clip_name: str
+    ):
+        super().__init__()
+        self.feature_excerpt = feature_excerpt
+        self.performer_name = performer_name
+        self.feature_name = feature_name
+        self.clip_name = clip_name
+        self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH // 3))
+
+    def _create_plot(self):
+        feature_roll = self.feature_excerpt.get_piano_roll(fs=utils.FPS)
+        feature_roll[feature_roll == 0] = np.nan
+        sns.heatmap(
+            feature_roll,
+            ax=self.ax,
+            alpha=1.0,
+            cbar_kws={'label': 'Velocity', 'pad': 0.01},
+            cmap="rocket",
+            vmin=0,
+            vmax=utils.MAX_VELOCITY
+        )
+
+    def _format_ax(self):
+        self.ax.invert_yaxis()
+        self.ax.set(
+            ylim=(utils.MIDI_OFFSET, utils.PIANO_KEYS + utils.MIDI_OFFSET),
+            title=self.clip_name,
+            xlabel="",
+            ylabel="",
+            yticks=range(0, utils.PIANO_KEYS, 12),
+            yticklabels=[note_number_to_name(i + utils.MIDI_OFFSET) for i in range(0, utils.PIANO_KEYS, 12)],
+        )
+        fmt_heatmap_axis(self.ax)
+
+    def _format_fig(self):
+        # Figure aesthetics
+        self.fig.suptitle(f"{self.performer_name} feature: {self.feature_name}")
+        self.fig.supxlabel("Time (seconds)")
+        self.fig.supylabel("Note")
+        self.fig.tight_layout()
+
+    def save_fig(self, output_loc):
+        self.fig.savefig(output_loc, **SAVE_KWS)
+        plt.close('all')
 
 
 if __name__ == "__main__":
