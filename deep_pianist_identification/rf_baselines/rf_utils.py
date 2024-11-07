@@ -25,7 +25,7 @@ from loguru import logger
 from pretty_midi import PrettyMIDI, Instrument, Note
 from sklearn.ensemble import RandomForestClassifier, HistGradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, top_k_accuracy_score
 from sklearn.model_selection import ParameterSampler
 from sklearn.naive_bayes import MultinomialNB, GaussianNB
 from sklearn.preprocessing import StandardScaler
@@ -101,6 +101,7 @@ N_BOOT_FEATURES = 2000  # number of features to sample when bootstrapping permut
 MIN_COUNT = 10
 MAX_COUNT = 1000
 K = 5  # When plotting, we'll get this number of features per performer (bottom and top)
+ACC_TOP_KS = [1, 2, 3, 5, 10]  # We'll print the model top-k accuracy at these levels
 
 MAX_LEAP = 15  # If we leap by more than this number of semitones (once in an n-gram, twice in a chord), drop it
 NGRAMS = [2, 3]  # The ngrams to consider when extracting melody (horizontal) or chords (vertical)
@@ -520,11 +521,16 @@ def fit_classifier(
     # Get the optimized test accuracy
     test_y_pred = clf_opt.predict(test_x)
     test_acc = accuracy_score(test_y, test_y_pred)
-    logger.info(f"... test accuracy: {test_acc:.3f}")
+    logger.info(f"... test accuracy: {test_acc:.6f}")
     # Get the optimized validation accuracy
     valid_y_pred = clf_opt.predict(valid_x)
     valid_acc = accuracy_score(valid_y, valid_y_pred)
-    logger.info(f"... validation accuracy: {valid_acc:.3f}")
+    logger.info(f"... validation accuracy: {valid_acc:.6f}")
+    # Get the top-k accuracy
+    valid_y_proba = clf_opt.predict_proba(valid_x)
+    for k in ACC_TOP_KS:
+        topk_acc = top_k_accuracy_score(valid_y, valid_y_proba, k=k)
+        logger.info(f'... top-{k} validation accuracy: {topk_acc:.6f}')
     # Return the fitted classifier for e.g., permutation importance testing
     return clf_opt, valid_acc, optimized_params
 
@@ -641,6 +647,7 @@ def get_classifier_weights(
         # Return the coefficients
         return fitter(x_samp, y_samp)
 
+    # TODO: rather than bootstrapping, why not just take the standard errors?
     # Convert to a dataframe as this makes bootstrapping a lot easier
     full_x_df = pd.DataFrame(all_x, columns=feature_names)
     full_y_df = pd.Series(all_y)

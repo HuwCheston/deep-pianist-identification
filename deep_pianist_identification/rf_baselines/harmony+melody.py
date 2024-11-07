@@ -115,6 +115,7 @@ def rf_melody_harmony(
             full_x, full_y, all_features, best_params, classifier_type, n_boot=n_iter
         )
         # Create the dictionary of top (and bottom) K features for both harmony and melody
+        logger.info('... getting top-/bottom-K features for all performers')
         topk_dict = rf_utils.get_topk_features(weights, boot_weights, all_features, class_mapping)
         logger.info('... creating performer strip plots')
         # Iterate through all performers and concepts

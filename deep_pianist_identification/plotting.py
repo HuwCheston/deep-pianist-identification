@@ -308,6 +308,7 @@ class StripplotTopKFeatures(BasePlot):
             fold, f'topk_stripplot_{self.pianist_name.lower().replace(" ", "_")}_{self.concept_name}.png'
         )
         self.fig.savefig(fp, **SAVE_KWS)
+        plt.close('all')
 
 
 class HeatmapWhiteboxFeaturePianoRoll(BasePlot):
