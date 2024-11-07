@@ -174,7 +174,11 @@ def create_plots(dataset, class_mapping, model):
     for idx in range(len(dataset)):
         _, target_class, target_dataset, clip_idx = dataset.clips[idx]
         target_pianist = class_mapping[target_class]
-        roll, _, clip_path = dataset.__getitem__(idx)
+        ret = dataset.__getitem__(idx)
+        # Skip over cases where get an ExtractorError
+        if ret is None:
+            continue
+        roll, _, clip_path = ret
         clip_path = f'{clip_path}_clip_{str(clip_idx).zfill(3)}'
         hm = HeatmapLIMEPianoRoll(roll[0], model, target_pianist, n_features=NUM_FEATURES)
         hm.create_plot()
