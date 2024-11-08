@@ -777,7 +777,7 @@ def get_database_coef_corrs(
         act_pcorr = np.corrcoef(jtd_perf_coefs, pijama_perf_coefs)[0, 1]
         # Get the bootstrapped correlations with multiprocessing
         with Parallel(n_jobs=-1, verbose=5) as par:
-            boot_corrs = par(delayed(_booter)() for _ in range(n_boot))
+            boot_corrs = par(delayed(_booter)(jtd_perf_coefs, pijama_perf_coefs) for _ in range(n_boot))
         # Get the upper and lower bounds from the bootstrapped array
         boot_arr = np.array(boot_corrs)
         high, low = np.percentile(boot_arr, 97.5), np.percentile(boot_arr, 2.5)
