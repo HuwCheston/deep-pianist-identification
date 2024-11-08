@@ -6,12 +6,13 @@
 import os
 
 import numpy as np
+import pandas as pd
 from loguru import logger
 from tqdm import tqdm
 
 import deep_pianist_identification.rf_baselines.rf_utils as rf_utils
 from deep_pianist_identification import utils
-from deep_pianist_identification.plotting import StripplotTopKFeatures
+from deep_pianist_identification.plotting import StripplotTopKFeatures, BarPlotWhiteboxDatabaseCoeficients
 from deep_pianist_identification.rf_baselines.harmony import get_harmony_features
 from deep_pianist_identification.rf_baselines.melody import get_melody_features
 
@@ -100,12 +101,48 @@ def rf_melody_harmony(
     )
     # Get feature importance scores for individual performers
     if classifier_type == "lr" or classifier_type == "svm":
-        logger.info('---PERFORMER FEATURE IMPORTANCE---')
         # Get array of all features, with identifying string at the start
         all_features = np.array(['M_' + f for f in mel_features] + ['H_' + f for f in har_features])
         # Combine train, test and validation datasets together
         full_x = np.vstack([train_x_arr, test_x_arr, valid_x_arr])
         full_y = np.hstack([train_y_mel, test_y_mel, valid_y_mel])
+
+        logger.info('---DATASET FEATURE CORRELATIONS---')
+        dataset_mapping = rf_utils.get_database_mapping(train_clips, test_clips, validation_clips)
+        full_x_mel = np.vstack([train_x_arr_mel, test_x_arr_mel, valid_x_arr_mel])
+        full_x_har = np.vstack([train_x_arr_har, test_x_arr_har, valid_x_arr_har])
+        # Get the model coefficients for both melody and harmony
+        jtd_mel_coef, pijama_mel_coef = rf_utils.get_database_coefs(
+            full_x_mel,
+            full_y,
+            dataset_mapping,
+            classifier_type=classifier_type,
+            classifier_params=best_params,
+            scale=scale
+        )
+        jtd_har_coef, pijama_har_coef = rf_utils.get_database_coefs(
+            full_x_har,
+            full_y,
+            dataset_mapping,
+            classifier_type=classifier_type,
+            classifier_params=best_params,
+            scale=scale
+        )
+        # Combine these to get the melody and harmony correlations (one value per performer)
+        mel_corr = rf_utils.get_database_coef_corrs(jtd_mel_coef, pijama_mel_coef, class_mapping)
+        har_corr = rf_utils.get_database_coef_corrs(jtd_har_coef, pijama_har_coef, class_mapping)
+        # Set an indexing value and concatenate row-wise
+        mel_corr['feature'] = 'Melody'
+        har_corr['feature'] = 'Harmony'
+        all_corrs = pd.concat([mel_corr, har_corr], axis=0).reset_index(drop=True)
+        # Create the bar plot
+        bp = BarPlotWhiteboxDatabaseCoeficients(all_corrs)
+        bp.create_plot()
+        # Save the plot
+        outpath = os.path.join(utils.get_project_root(), 'reports/figures/whitebox/barplot_database_correlations.png')
+        bp.save_fig(outpath)
+
+        logger.info('---PERFORMER FEATURE IMPORTANCE---')
         # Scale the data (if it requires this)
         if scale:
             full_x = rf_utils.scale_feature(full_x)

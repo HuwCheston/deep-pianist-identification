@@ -717,6 +717,100 @@ def parse_arguments(parser) -> dict:
     return args
 
 
+def get_database_coefs(
+        x_arr: np.array,
+        y_arr: np.array,
+        dataset_mapping: np.array,
+        classifier_type: str,
+        classifier_params: dict = None,
+        scale: bool = True,
+) -> tuple[np.array, np.array]:
+    """Gets coefficients for two models fitted only to the data from each source database"""
+    # Get values for JTD
+    jtd_x = np.array([i for num, i in enumerate(x_arr) if dataset_mapping[num] == 1])
+    jtd_y = np.array([i for num, i in enumerate(y_arr) if dataset_mapping[num] == 1])
+    # Get values for pijama
+    pijama_x = np.array([i for num, i in enumerate(x_arr) if dataset_mapping[num] != 1])
+    pijama_y = np.array([i for num, i in enumerate(y_arr) if dataset_mapping[num] != 1])
+    # Check that the total number of rows adds up to the initial number
+    assert jtd_x.shape[0] + pijama_x.shape[0] == x_arr.shape[0]
+    # Scale if required
+    if scale:
+        sscale = StandardScaler()
+        jtd_x = sscale.fit_transform(jtd_x)
+        pijama_x = sscale.fit_transform(pijama_x)
+    # Get params for fitting the model
+    if classifier_params is None:
+        classifier_params = {}
+    # Create the model instances
+    classifier, _ = get_classifier_and_params(classifier_type)
+    jtd_md = classifier(**classifier_params)
+    pijama_md = classifier(**classifier_params)
+    # Fit the models
+    jtd_md.fit(jtd_x, jtd_y)
+    pijama_md.fit(pijama_x, pijama_y)
+    # Return the coefficients
+    return jtd_md.coef_, pijama_md.coef_
+
+
+def get_database_coef_corrs(
+        jtd_coefs: np.array,
+        pijama_coefs: np.array,
+        class_mapping: dict,
+        n_boot: int = N_ITER
+) -> pd.DataFrame:
+    """Gets performer-wise correlation between coefficients obtained from both source databases"""
+
+    def _booter(j, p):
+        # Get the indexes for this iteration
+        bi = np.random.choice(np.arange(len(j)), len(j), replace=True)
+        # Get the correlation with these bootstrap indexes
+        return np.corrcoef(j[bi], p[bi])[0, 1]
+
+    coef_res = []
+    # Iterate through each performer
+    for i in tqdm(range(jtd_coefs.shape[0]), desc='Getting correlations...'):
+        # Get the coefficients for this performer
+        jtd_perf_coefs = jtd_coefs[i, :]
+        pijama_perf_coefs = pijama_coefs[i, :]
+        # Get the actual correlation
+        act_pcorr = np.corrcoef(jtd_perf_coefs, pijama_perf_coefs)[0, 1]
+        # Get the bootstrapped correlations with multiprocessing
+        with Parallel(n_jobs=-1, verbose=5) as par:
+            boot_corrs = par(delayed(_booter)() for _ in range(n_boot))
+        # Get the upper and lower bounds from the bootstrapped array
+        boot_arr = np.array(boot_corrs)
+        high, low = np.percentile(boot_arr, 97.5), np.percentile(boot_arr, 2.5)
+        # Create a dictionary with everything in and append
+        perf_res = dict(
+            perf_name=class_mapping[i],
+            corr=act_pcorr,
+            high=high - act_pcorr,
+            low=act_pcorr - low
+        )
+        coef_res.append(perf_res)
+    # Return a dataframe sorted by correlation
+    return (
+        pd.DataFrame(coef_res)
+        .sort_values(by='corr', ascending=False)
+        .reset_index(drop=True)
+    )
+
+
+def get_database_mapping(
+        train_clips: list[tuple],
+        test_clips: list[tuple],
+        valid_clips: list[tuple]
+) -> np.array:
+    """Creates an array with 1 for recordings in JTD and 0 for PiJAMA"""
+    # Create arrays for each individual clip
+    train_datasets = np.array([1 if 'jtd' in i[0] else 0 for i in train_clips])
+    test_datasets = np.array([1 if 'jtd' in i[0] else 0 for i in test_clips])
+    valid_datasets = np.array([1 if 'jtd' in i[0] else 0 for i in valid_clips])
+    # Concatenate and return
+    return np.hstack([train_datasets, test_datasets, valid_datasets])
+
+
 class MIDIOutputManager:
     """Takes in a single MIDI clip and performer n-grams, and creates outputs that match every n-gram"""
 

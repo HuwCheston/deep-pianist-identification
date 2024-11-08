@@ -363,6 +363,54 @@ class HeatmapWhiteboxFeaturePianoRoll(BasePlot):
         plt.close('all')
 
 
+class BarPlotWhiteboxDatabaseCoeficients(BasePlot):
+    """Bar plot showing the performer correlations obtained from both source databases for a whitebox model"""
+    BAR_KWS = dict(palette="tab10", edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, legend=False, zorder=10)
+    ERROR_KWS = dict(lw=LINEWIDTH, color=BLACK, capsize=8, zorder=100, elinewidth=LINEWIDTH, ls='none')
+
+    def __init__(self, coef_df):
+        super().__init__()
+        self.df = self._format_df(coef_df)
+        self.fig, self.ax = plt.subplots(1, 2, figsize=(WIDTH, WIDTH // 2), sharex=True, sharey=True)
+
+    def _format_df(self, df):
+        mel_df = (
+            df[df['feature'] == 'Melody']
+            .reset_index(drop=True)
+            .sort_values(by='corr', ascending=False)
+        )
+        sorters = {k: num for num, k in enumerate(mel_df['perf_name'].tolist())}
+        har_df = (
+            df[df['feature'] == 'Harmony']
+            .reset_index(drop=True)
+            .sort_values(by='perf_name', key=lambda x: x.map(sorters))
+            .reset_index(drop=True)
+        )
+        return pd.concat([mel_df, har_df], axis=0).reset_index(drop=True)
+
+    def _create_plot(self):
+        for concept, ax in zip(['Melody', 'Harmony'], self.ax.flatten()):
+            sub = self.df[self.df['feature'] == concept].reset_index(drop=True)
+            g = sns.barplot(data=sub, x='corr', y='perf_name', hue='perf_name', ax=ax, **self.BAR_KWS)
+            ax.errorbar(sub['corr'], sub['perf_name'], xerr=[sub['low'], sub['high']], **self.ERROR_KWS)
+
+    def _format_ax(self):
+        for concept, ax in zip(['Melody', 'Harmony'], self.ax.flatten()):
+            ax.axvline(0, 0, 1, linewidth=LINEWIDTH, color=BLACK)
+            ax.set(xlabel='', ylabel='', title=concept)
+            ax.grid(axis='x', zorder=-1, **GRID_KWS)
+            plt.setp(ax.spines.values(), linewidth=LINEWIDTH)
+            ax.tick_params(axis='both', width=TICKWIDTH)
+
+    def _format_fig(self):
+        self.fig.supxlabel('Coefficient $r$')
+        self.fig.supylabel('Pianist')
+        self.fig.tight_layout()
+
+    def save_fig(self, outpath: str):
+        self.fig.savefig(outpath, **SAVE_KWS)
+
+
 if __name__ == "__main__":
     # Test the StripplotTopKFeatures plotting class
     tmp = dict(
