@@ -17,8 +17,9 @@ from torchmetrics.classification import Accuracy
 from tqdm import tqdm
 
 from deep_pianist_identification import utils
+from deep_pianist_identification.dataloader import remove_bad_clips_from_batch
 from deep_pianist_identification.encoders import CRNNet
-from deep_pianist_identification.extractors import get_piano_roll, normalize_array
+from deep_pianist_identification.extractors import RollExtractor, normalize_array, ExtractorError
 from deep_pianist_identification.training import groupby_tracks, get_tracking_uri
 
 # Dataset constants
@@ -96,39 +97,23 @@ class KongLoader(Dataset):
     def __len__(self):
         return len(self.clips)
 
-    def prepare_piano_roll(
-            self,
-            pm_obj: PrettyMIDI,
-            clip_start: int,
-            clip_end: int
-    ) -> np.ndarray:
-        notes_to_keep = []
-        # Iterate through all notes in the object
-        for n in pm_obj.instruments[0].notes:
-            # If the note is within the boundaries of the clip
-            if n.start >= clip_start and n.end <= clip_end:
-                # Unpack the note
-                start, end, pitch, velocity = n.start, n.end, n.pitch, n.velocity
-                # Subtract offsets -- no need to do pitch, we do this inside `get_piano_roll`
-                start -= clip_start
-                end -= clip_start
-                # Append as a tuple of (onset, offset, pitch, velocity)
-                notes_to_keep.append((start, end, pitch, velocity))
-        # Convert to an (88, 3000) piano roll
-        roll = get_piano_roll(notes_to_keep)
-        # Normalize the array
-        if self.normalize_velocity:
-            roll = normalize_array(roll)
-        return roll
-
     def __getitem__(self, idx: int) -> tuple:
         # Unpack the tuple
-        clip_name, composer, clip_start, clip_end = self.clips[idx]
+        clip_name, composer, clip_start, _ = self.clips[idx]
         # Get the index of the composer from the mapping
         composer_mapped = COMPOSER_MAPPING[composer]
         # Create the pretty MIDI object and convert to a piano roll
         pm_obj = PrettyMIDI(os.path.join(DATA_LOC, clip_name))
-        roll = self.prepare_piano_roll(pm_obj, clip_start, clip_end)
+        # Extract the piano roll
+        try:
+            roll = RollExtractor(pm_obj, clip_start=clip_start).roll
+        # Will be caught and removed in dataloader
+        except ExtractorError:
+            logger.error(f'Failed to create piano roll for {clip_name} at start {clip_start}, skipping!')
+            return None
+        # Normalize the array if required
+        if self.normalize_velocity:
+            roll = normalize_array(roll)
         # Add an extra dimension to the piano roll
         added = np.expand_dims(roll, axis=0)
         # As with the main dataloader, we return the piano roll, the target composer, and the overall track (for agg)
@@ -156,19 +141,22 @@ class KongTrainer:
             KongLoader('train', normalize_velocity=True),
             batch_size=BATCH_SIZE,
             shuffle=True,
-            drop_last=False
+            drop_last=False,
+            collate_fn=remove_bad_clips_from_batch
         )
         self.test_loader = DataLoader(
             KongLoader('test', normalize_velocity=True),
             batch_size=BATCH_SIZE,
             shuffle=True,
-            drop_last=False
+            drop_last=False,
+            collate_fn=remove_bad_clips_from_batch
         )
         self.valid_loader = DataLoader(
             KongLoader('valid', normalize_velocity=True),
             batch_size=BATCH_SIZE,
             shuffle=True,
-            drop_last=False
+            drop_last=False,
+            collate_fn=remove_bad_clips_from_batch
         )
         # Initialise loss and accuracy metrics
         logger.debug('Initializing metrics')
