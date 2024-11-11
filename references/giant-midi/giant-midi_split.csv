@@ -1,0 +1,1305 @@
+,track,composer,mapping,duration,split
+0,"Bach, Carl Philipp Emanuel, 12 Variations on 'Colin a peine à seize ans', H.226, HezSiUd4RZw.mid","Bach, Carl Philipp",0,331.94921875,train
+1,"Bach, Carl Philipp Emanuel, 24 Variations on 'Ich schlief da träumte mir', H.69, b9Y4N6tKYXo.mid","Bach, Carl Philipp",0,891.5755208333333,test
+2,"Bach, Carl Philipp Emanuel, Abschied von meinem Silbermannischen Claviere in einem Rondo, H.272, M-arhB04bUo.mid","Bach, Carl Philipp",0,427.05338541666663,test
+3,"Bach, Carl Philipp Emanuel, Alla polacca in D major, H.217, mSk3nDnMZoI.mid","Bach, Carl Philipp",0,124.52994791666666,train
+4,"Bach, Carl Philipp Emanuel, Clavierstück für die rechte oder linke Hand allein, H.241, 1G3bMTCddF8.mid","Bach, Carl Philipp",0,47.78125,train
+5,"Bach, Carl Philipp Emanuel, Fantasia in C major, H.284, I6Can09AU-0.mid","Bach, Carl Philipp",0,460.56901041666663,train
+6,"Bach, Carl Philipp Emanuel, Fantasia in C major, H.291, rIJ_G2qUBlg.mid","Bach, Carl Philipp",0,285.85416666666663,train
+7,"Bach, Carl Philipp Emanuel, Fantasia in D minor, H.195, nCBfeqDlKb0.mid","Bach, Carl Philipp",0,22.834635416666664,train
+8,"Bach, Carl Philipp Emanuel, Fantasia in D minor, H.224, U7Qg11-Rlug.mid","Bach, Carl Philipp",0,25.529947916666664,train
+9,"Bach, Carl Philipp Emanuel, Fantasia in F major, H.279, 3kzdnge3vr8.mid","Bach, Carl Philipp",0,226.37890625,train
+10,"Bach, Carl Philipp Emanuel, Fantasia in F-sharp minor, H.300, 5zz_5kaWf_w.mid","Bach, Carl Philipp",0,694.1848958333333,train
+11,"Bach, Carl Philipp Emanuel, Fantasia in G major, H.223, 7lYcLq9_SVg.mid","Bach, Carl Philipp",0,23.70703125,train
+12,"Bach, Carl Philipp Emanuel, Fantasia in G minor, H.225, JsVw2wD_nwY.mid","Bach, Carl Philipp",0,179.62890625,train
+13,"Bach, Carl Philipp Emanuel, Keyboard Sonata in A major, H.174, AMMFLi9E_lg.mid","Bach, Carl Philipp",0,233.38932291666666,train
+14,"Bach, Carl Philipp Emanuel, Keyboard Sonata in A major, H.186, XaBiZbgHHt0.mid","Bach, Carl Philipp",0,247.61588541666666,valid
+15,"Bach, Carl Philipp Emanuel, Keyboard Sonata in A major, H.270, Kwf1jCPp8tc.mid","Bach, Carl Philipp",0,364.51953125,train
+16,"Bach, Carl Philipp Emanuel, Keyboard Sonata in A minor, H.131, kmHKUvaVuTY.mid","Bach, Carl Philipp",0,304.66276041666663,train
+17,"Bach, Carl Philipp Emanuel, Keyboard Sonata in A minor, H.61, HJ-JrNHBuF0.mid","Bach, Carl Philipp",0,122.39192708333333,train
+18,"Bach, Carl Philipp Emanuel, Keyboard Sonata in B minor, H.132, hb7yVsHEc7U.mid","Bach, Carl Philipp",0,198.71875,train
+19,"Bach, Carl Philipp Emanuel, Keyboard Sonata in B minor, H.245, VWaA0i-J_2g.mid","Bach, Carl Philipp",0,224.50911458333331,train
+20,"Bach, Carl Philipp Emanuel, Keyboard Sonata in B minor, H.32.5, hb7yVsHEc7U.mid","Bach, Carl Philipp",0,198.71875,test
+21,"Bach, Carl Philipp Emanuel, Keyboard Sonata in B-flat major, H.116, 8Df7LYJ8lQI.mid","Bach, Carl Philipp",0,168.10286458333331,valid
+22,"Bach, Carl Philipp Emanuel, Keyboard Sonata in B-flat major, H.2, OB6XzNGpfpQ.mid","Bach, Carl Philipp",0,332.72916666666663,train
+23,"Bach, Carl Philipp Emanuel, Keyboard Sonata in B-flat major, H.211, jF3uV48IpFY.mid","Bach, Carl Philipp",0,345.35026041666663,test
+24,"Bach, Carl Philipp Emanuel, Keyboard Sonata in B-flat major, H.51, 0y_s9afepoM.mid","Bach, Carl Philipp",0,382.1263020833333,train
+25,"Bach, Carl Philipp Emanuel, Keyboard Sonata in C major, H.41, RNmL3JkKlF4.mid","Bach, Carl Philipp",0,285.5755208333333,train
+26,"Bach, Carl Philipp Emanuel, Keyboard Sonata in C major, H.59, go9LRqie-kM.mid","Bach, Carl Philipp",0,165.27864583333331,train
+27,"Bach, Carl Philipp Emanuel, Keyboard Sonata in C minor, H.121, 6IGXjAH7ziU.mid","Bach, Carl Philipp",0,250.30989583333331,train
+28,"Bach, Carl Philipp Emanuel, Keyboard Sonata in C minor, H.209, -IyD8WjNEJY.mid","Bach, Carl Philipp",0,186.94791666666666,train
+29,"Bach, Carl Philipp Emanuel, Keyboard Sonata in D major, H.177, OXbo42cAi_U.mid","Bach, Carl Philipp",0,189.57942708333331,valid
+30,"Bach, Carl Philipp Emanuel, Keyboard Sonata in D minor, H.105, unFrbHAC0Mk.mid","Bach, Carl Philipp",0,123.80208333333333,train
+31,"Bach, Carl Philipp Emanuel, Keyboard Sonata in D minor, H.128, 8elELfFbLbc.mid","Bach, Carl Philipp",0,187.55078125,train
+32,"Bach, Carl Philipp Emanuel, Keyboard Sonata in D minor, H.208, ds-n-ZXrejc.mid","Bach, Carl Philipp",0,214.00911458333331,train
+33,"Bach, Carl Philipp Emanuel, Keyboard Sonata in D minor, H.38, etjURJbHCYA.mid","Bach, Carl Philipp",0,290.83984375,train
+34,"Bach, Carl Philipp Emanuel, Keyboard Sonata in D minor, H.53, frRdp5wbYjI.mid","Bach, Carl Philipp",0,302.7122395833333,train
+35,"Bach, Carl Philipp Emanuel, Keyboard Sonata in D minor, H.60, _L_sBdOzRgY.mid","Bach, Carl Philipp",0,242.04166666666666,train
+36,"Bach, Carl Philipp Emanuel, Keyboard Sonata in E major, H.117, 2o6clX5mXs8.mid","Bach, Carl Philipp",0,295.13932291666663,train
+37,"Bach, Carl Philipp Emanuel, Keyboard Sonata in E major, H.213, DDa8rQV6M8M.mid","Bach, Carl Philipp",0,576.8190104166666,valid
+38,"Bach, Carl Philipp Emanuel, Keyboard Sonata in E major, H.39, f9yCLAbCVDA.mid","Bach, Carl Philipp",0,267.5,train
+39,"Bach, Carl Philipp Emanuel, Keyboard Sonata in E major, H.83, HKDMLyyueTA.mid","Bach, Carl Philipp",0,198.609375,train
+40,"Bach, Carl Philipp Emanuel, Keyboard Sonata in E minor, H.176, 2dfBKKBzWFk.mid","Bach, Carl Philipp",0,124.29817708333333,train
+41,"Bach, Carl Philipp Emanuel, Keyboard Sonata in E minor, H.281, _P28iGNDF3Y.mid","Bach, Carl Philipp",0,517.7591145833333,train
+42,"Bach, Carl Philipp Emanuel, Keyboard Sonata in E minor, H.287, q3sPQA8OtXo.mid","Bach, Carl Philipp",0,166.07291666666666,train
+43,"Bach, Carl Philipp Emanuel, Keyboard Sonata in E minor, H.66, lCHNtG2hso0.mid","Bach, Carl Philipp",0,179.07942708333331,train
+44,"Bach, Carl Philipp Emanuel, Keyboard Sonata in F major, H.130, xLztVYYmqNo.mid","Bach, Carl Philipp",0,418.1888020833333,train
+45,"Bach, Carl Philipp Emanuel, Keyboard Sonata in F major, H.240, vIGTVGNeia8.mid","Bach, Carl Philipp",0,166.83072916666666,train
+46,"Bach, Carl Philipp Emanuel, Keyboard Sonata in F major, H.52, 1mBL2wasLnU.mid","Bach, Carl Philipp",0,223.89322916666666,train
+47,"Bach, Carl Philipp Emanuel, Keyboard Sonata in F major, H.55, zRPTf8eGLWc.mid","Bach, Carl Philipp",0,112.5,train
+48,"Bach, Carl Philipp Emanuel, Keyboard Sonata in F major, H.58, aaaAPtVqnuo.mid","Bach, Carl Philipp",0,220.90364583333331,train
+49,"Bach, Carl Philipp Emanuel, Keyboard Sonata in F minor, H.40, dOMUK-RKh7Q.mid","Bach, Carl Philipp",0,694.6796875,train
+50,"Bach, Carl Philipp Emanuel, Keyboard Sonata in G major, H.15, T1mpDBQxyWI.mid","Bach, Carl Philipp",0,216.95703125,train
+51,"Bach, Carl Philipp Emanuel, Keyboard Sonata in G major, H.187, WnqGOu4UVtk.mid","Bach, Carl Philipp",0,535.0299479166666,test
+52,"Bach, Carl Philipp Emanuel, Keyboard Sonata in G minor, H.118, YANzC1iV1Zo.mid","Bach, Carl Philipp",0,153.69921875,valid
+53,"Bach, Carl Philipp Emanuel, Keyboard Sonata in G minor, H.21, Y69rFp8RlJ0.mid","Bach, Carl Philipp",0,165.41276041666666,train
+54,"Bach, Carl Philipp Emanuel, Keyboard Sonata in G minor, H.210, KGo32UvyYn4.mid","Bach, Carl Philipp",0,191.17447916666666,train
+55,"Bach, Carl Philipp Emanuel, L'Aly Rupalich, H.95, aAlzWoLOidk.mid","Bach, Carl Philipp",0,154.7890625,train
+56,"Bach, Carl Philipp Emanuel, L'Auguste, H.122, ANZovAqNURY.mid","Bach, Carl Philipp",0,100.47916666666666,train
+57,"Bach, Carl Philipp Emanuel, L'Ernestine, H.124, RTR_K-tZqpY.mid","Bach, Carl Philipp",0,110.86328125,train
+58,"Bach, Carl Philipp Emanuel, La Bergius, H.90, wdyKGjRWMLk.mid","Bach, Carl Philipp",0,132.88932291666666,train
+59,"Bach, Carl Philipp Emanuel, La Borchward, H.79, WCV-GnANO3k.mid","Bach, Carl Philipp",0,80.6796875,valid
+60,"Bach, Carl Philipp Emanuel, La Capricieuse, H.113, QcC7KiHOg7w.mid","Bach, Carl Philipp",0,92.09375,valid
+61,"Bach, Carl Philipp Emanuel, La Caroline, H.98, vcraR6hhB-o.mid","Bach, Carl Philipp",0,82.97005208333333,train
+62,"Bach, Carl Philipp Emanuel, La Complaisante, H.109, 3DhBpPThQfc.mid","Bach, Carl Philipp",0,172.5,train
+63,"Bach, Carl Philipp Emanuel, La Gabriel, H.97, LQwaK1liOXA.mid","Bach, Carl Philipp",0,164.34114583333331,valid
+64,"Bach, Carl Philipp Emanuel, La Gause, H.82, v2nD0hIp_FI.mid","Bach, Carl Philipp",0,82.71875,train
+65,"Bach, Carl Philipp Emanuel, La Gleim, H.89, WF6xDo6kmmY.mid","Bach, Carl Philipp",0,148.2734375,train
+66,"Bach, Carl Philipp Emanuel, La Louise, H.114, 8RgQNEzt0aE.mid","Bach, Carl Philipp",0,182.54947916666666,train
+67,"Bach, Carl Philipp Emanuel, La Philippine, H.96, m9P5FMfLR_Q.mid","Bach, Carl Philipp",0,99.68489583333333,train
+68,"Bach, Carl Philipp Emanuel, La Pott, H.80, x0fRhobYDsU.mid","Bach, Carl Philipp",0,87.12890625,train
+69,"Bach, Carl Philipp Emanuel, La Prinzette, H.91, IHotZU2Tw1E.mid","Bach, Carl Philipp",0,132.2421875,train
+70,"Bach, Carl Philipp Emanuel, La Stahl, H.94, qbBxC5Q2Y2M.mid","Bach, Carl Philipp",0,246.796875,train
+71,"Bach, Carl Philipp Emanuel, Les langueurs tendres, H.110, H942pDBL_gs.mid","Bach, Carl Philipp",0,70.61588541666666,test
+72,"Bach, Carl Philipp Emanuel, Menuet in C major, H.216, ZFpaSPueVeY.mid","Bach, Carl Philipp",0,119.1796875,train
+73,"Bach, Carl Philipp Emanuel, Menuet in F major, H.218, UTtgkpZADqs.mid","Bach, Carl Philipp",0,191.859375,train
+74,"Bach, Carl Philipp Emanuel, Presto in C minor, H.230, vm4l9ovabVQ.mid","Bach, Carl Philipp",0,68.53645833333333,valid
+75,"Bach, Carl Philipp Emanuel, Rondo in A minor, H.262, D-jdMJ00inY.mid","Bach, Carl Philipp",0,383.9934895833333,train
+76,"Bach, Carl Philipp Emanuel, Rondo in C major, H.260, TOhbgKj68ZM.mid","Bach, Carl Philipp",0,377.08203125,train
+77,"Bach, Carl Philipp Emanuel, Rondo in E-flat major, H.288, QlNCH-Jp61M.mid","Bach, Carl Philipp",0,271.8997395833333,test
+78,"Bach, Carl Philipp Emanuel, Rondo in F major, H.266, fCIIW-9C1Qg.mid","Bach, Carl Philipp",0,338.3372395833333,train
+79,"Bach, Carl Philipp Emanuel, Rondo in G major, H.271, 996yMEb6v_s.mid","Bach, Carl Philipp",0,283.4973958333333,train
+80,"Bach, Carl Philipp Emanuel, Solfeggio in A major, H.222, DZ9SFyeV1Dk.mid","Bach, Carl Philipp",0,37.725260416666664,test
+81,"Bach, Carl Philipp Emanuel, Solfeggio in C minor, H.220, 9rDGc69FQcY.mid","Bach, Carl Philipp",0,67.32942708333333,train
+82,"Bach, Carl Philipp Emanuel, Solfeggio in E-flat major, H.221, fCjbApF1NTo.mid","Bach, Carl Philipp",0,40.86458333333333,train
+83,"Bach, Johann Sebastian, 15 Sinfonias, BWV 787-801, ntLGHRX5XOE.mid","Bach, Johann Sebastian",1,1479.9088541666665,train
+84,"Bach, Johann Sebastian, Air in F major, BWV Anh.131, ofljU7lmZMA.mid","Bach, Johann Sebastian",1,62.5,train
+85,"Bach, Johann Sebastian, Allemande in C minor, BWV 834, 0lx-kPXgPw8.mid","Bach, Johann Sebastian",1,284.1497395833333,train
+86,"Bach, Johann Sebastian, Allemande in G minor, BWV 836, mCCux8jvhkA.mid","Bach, Johann Sebastian",1,158.96875,train
+87,"Bach, Johann Sebastian, Als der gütige Gott vollenden wollt sein Wort, BWV 264, I69tdLLbIyw.mid","Bach, Johann Sebastian",1,36.38411458333333,valid
+88,"Bach, Johann Sebastian, Andante in G minor, BWV 969, IN5Ma07uT5M.mid","Bach, Johann Sebastian",1,106.63932291666666,train
+89,"Bach, Johann Sebastian, Applicatio in C major, BWV 994, eT0Qcf4C0fI.mid","Bach, Johann Sebastian",1,71.56901041666666,train
+90,"Bach, Johann Sebastian, Aria variata in A minor, BWV 989, cpgCkQXmz8g.mid","Bach, Johann Sebastian",1,576.7591145833333,train
+91,"Bach, Johann Sebastian, Capriccio in B-flat major, BWV 992, 5Y6D4Y17SVo.mid","Bach, Johann Sebastian",1,668.1614583333333,valid
+92,"Bach, Johann Sebastian, Chromatic Fantasia and Fugue, BWV 903, lHTMq-5B9Co.mid","Bach, Johann Sebastian",1,720.44921875,train
+93,"Bach, Johann Sebastian, Das wohltemperierte Klavier I, BWV 846-869, Ugc5FZsycAw.mid","Bach, Johann Sebastian",1,6390.94921875,train
+94,"Bach, Johann Sebastian, Die Nacht ist kommen, BWV 296, _Jv3YYjHnqc.mid","Bach, Johann Sebastian",1,57.25,test
+95,"Bach, Johann Sebastian, Duetto No.1 in E minor, BWV 802, XJDb00Go7vE.mid","Bach, Johann Sebastian",1,159.88671875,train
+96,"Bach, Johann Sebastian, Duetto No.2 in F major, BWV 803, Dy_7dXtdPzc.mid","Bach, Johann Sebastian",1,172.5,train
+97,"Bach, Johann Sebastian, Duetto No.3 in G major, BWV 804, 7Dc3en1ntpM.mid","Bach, Johann Sebastian",1,156.29947916666666,test
+98,"Bach, Johann Sebastian, Duetto No.4 in A minor, BWV 805, UeXbygrzXrQ.mid","Bach, Johann Sebastian",1,362.45572916666663,train
+99,"Bach, Johann Sebastian, English Suite No.1 in A major, BWV 806, xS0lss7ogNI.mid","Bach, Johann Sebastian",1,1211.2291666666665,train
+100,"Bach, Johann Sebastian, English Suite No.2 in A minor, BWV 807, dTEYwfgWFD0.mid","Bach, Johann Sebastian",1,1128.1588541666665,train
+101,"Bach, Johann Sebastian, English Suite No.3 in G minor, BWV 808, H9gzsY9jIx4.mid","Bach, Johann Sebastian",1,1016.2734375,train
+102,"Bach, Johann Sebastian, English Suite No.5 in E minor, BWV 810, _HKagOA4SFM.mid","Bach, Johann Sebastian",1,1178.25,train
+103,"Bach, Johann Sebastian, English Suite No.6 in D minor, BWV 811, IY0KTBQD3bQ.mid","Bach, Johann Sebastian",1,1426.6692708333333,train
+104,"Bach, Johann Sebastian, Fantasia and Fugue in A minor, BWV 904, Ln99yU7WNr0.mid","Bach, Johann Sebastian",1,537.125,train
+105,"Bach, Johann Sebastian, Fantasia and Fugue in A minor, BWV 944, 6n3n6Ouw_4c.mid","Bach, Johann Sebastian",1,254.73177083333331,test
+106,"Bach, Johann Sebastian, Fantasia and Fugue in C minor, BWV 906, dT7FnwO40cQ.mid","Bach, Johann Sebastian",1,263.46875,train
+107,"Bach, Johann Sebastian, Fantasia and Fugue in D minor, BWV 905, wdd10j7RIao.mid","Bach, Johann Sebastian",1,328.0989583333333,train
+108,"Bach, Johann Sebastian, Fantasia in C minor, BWV 919, 2-eh1_yu6Vg.mid","Bach, Johann Sebastian",1,129.38411458333331,train
+109,"Bach, Johann Sebastian, Fantasia in D minor, BWV 903a, -GLrRLJu2BE.mid","Bach, Johann Sebastian",1,375.26171875,train
+110,"Bach, Johann Sebastian, Fantasia in G minor, BWV 920, 2EGv3LpoAJw.mid","Bach, Johann Sebastian",1,492.44921875,valid
+111,"Bach, Johann Sebastian, French Suite No.2 in C minor, BWV 813, FU0jr1obOao.mid","Bach, Johann Sebastian",1,851.3984375,train
+112,"Bach, Johann Sebastian, French Suite No.4 in E-flat major, BWV 815, Z1fZ54Ho1nw.mid","Bach, Johann Sebastian",1,695.8294270833333,train
+113,"Bach, Johann Sebastian, French Suite No.5 in G major, BWV 816, f_U0lm6HZMk.mid","Bach, Johann Sebastian",1,971.0390625,train
+114,"Bach, Johann Sebastian, French Suite No.6 in E major, BWV 817, kkNPezHTWzU.mid","Bach, Johann Sebastian",1,918.0,train
+115,"Bach, Johann Sebastian, Fugue (on the theme 'B-A-C-H') in C minor, BWV Anh.110, LX1NdbKI9BE.mid","Bach, Johann Sebastian",1,276.1796875,test
+116,"Bach, Johann Sebastian, Fugue in B-flat major, BWV Anh.105, uBuSTf464T0.mid","Bach, Johann Sebastian",1,92.86979166666666,test
+117,"Bach, Johann Sebastian, Fugue in B-flat major, BWV Anh.45, yPxxH2EOQu8.mid","Bach, Johann Sebastian",1,115.21875,train
+118,"Bach, Johann Sebastian, Fugue in C major, BWV 953, Lb3tUPg7p_s.mid","Bach, Johann Sebastian",1,89.75390625,train
+119,"Bach, Johann Sebastian, Fugue in E minor, BWV 960, ZltFnDMfusw.mid","Bach, Johann Sebastian",1,131.9296875,test
+120,"Bach, Johann Sebastian, Fugue in F-sharp major, BWV Anh.97, PY4xmntLt88.mid","Bach, Johann Sebastian",1,133.83984375,train
+121,"Bach, Johann Sebastian, Goldberg-Variationen, BWV 988, 15ezpwCHtJs.mid","Bach, Johann Sebastian",1,4935.87109375,train
+122,"Bach, Johann Sebastian, Herr, ich habe missgehandelt, BWV 331, r9UOPtkJido.mid","Bach, Johann Sebastian",1,214.62890625,train
+123,"Bach, Johann Sebastian, Invention in A major, BWV 783, qmorlhskYNI.mid","Bach, Johann Sebastian",1,76.69921875,valid
+124,"Bach, Johann Sebastian, Invention in A minor, BWV 784, TxtD9nBmNHI.mid","Bach, Johann Sebastian",1,71.97916666666666,train
+125,"Bach, Johann Sebastian, Invention in B minor, BWV 786, 6ZlsbHOsRiY.mid","Bach, Johann Sebastian",1,64.75,train
+126,"Bach, Johann Sebastian, Invention in B-flat major, BWV 785, 3p_0SLgf7yU.mid","Bach, Johann Sebastian",1,98.34895833333333,test
+127,"Bach, Johann Sebastian, Invention in C major, BWV 772, R4IzqJtD4dM.mid","Bach, Johann Sebastian",1,154.06510416666666,valid
+128,"Bach, Johann Sebastian, Invention in C minor, BWV 773, XCh0k-jsCiY.mid","Bach, Johann Sebastian",1,81.24348958333333,train
+129,"Bach, Johann Sebastian, Invention in D major, BWV 774, whfkzyoRau8.mid","Bach, Johann Sebastian",1,87.43880208333333,train
+130,"Bach, Johann Sebastian, Invention in D minor, BWV 775, 3JVYh1ZX78c.mid","Bach, Johann Sebastian",1,55.08984375,test
+131,"Bach, Johann Sebastian, Invention in E major, BWV 777, UuMdUG-eZtk.mid","Bach, Johann Sebastian",1,239.52994791666666,train
+132,"Bach, Johann Sebastian, Invention in E minor, BWV 778, iI5lzwX785Y.mid","Bach, Johann Sebastian",1,96.5390625,train
+133,"Bach, Johann Sebastian, Invention in E-flat major, BWV 776, 1Eya7xi4GoU.mid","Bach, Johann Sebastian",1,106.54947916666666,train
+134,"Bach, Johann Sebastian, Invention in F major, BWV 779, -wfkUYsbOxM.mid","Bach, Johann Sebastian",1,72.5,train
+135,"Bach, Johann Sebastian, Invention in F minor, BWV 780, 1ytvth9cXeo.mid","Bach, Johann Sebastian",1,112.5,train
+136,"Bach, Johann Sebastian, Invention in G major, BWV 781, jVHqIK13-nk.mid","Bach, Johann Sebastian",1,64.859375,train
+137,"Bach, Johann Sebastian, Invention in G minor, BWV 782, p6zdhYloTnI.mid","Bach, Johann Sebastian",1,104.02994791666666,train
+138,"Bach, Johann Sebastian, March in E-flat major, BWV Anh.127, -_6JYI6H1C8.mid","Bach, Johann Sebastian",1,111.90885416666666,train
+139,"Bach, Johann Sebastian, Minuet in A minor, BWV Anh.120, -v5tAtl2KjQ.mid","Bach, Johann Sebastian",1,96.7734375,train
+140,"Bach, Johann Sebastian, Minuet in B-flat-major, BWV Anh.118, uPOZKPBVhLM.mid","Bach, Johann Sebastian",1,87.0,train
+141,"Bach, Johann Sebastian, Minuet in F major, BWV Anh.113, -OqSGhlsdgQ.mid","Bach, Johann Sebastian",1,119.15885416666666,train
+142,"Bach, Johann Sebastian, Minuet in G major, BWV Anh.114, p1gGxpitLO8.mid","Bach, Johann Sebastian",1,96.79947916666666,train
+143,"Bach, Johann Sebastian, Musette in D major, BWV Anh.126, Fa8Wqn2fDaA.mid","Bach, Johann Sebastian",1,84.81901041666666,train
+144,"Bach, Johann Sebastian, Nun lob, mein Seel, den Herren, BWV 390, OqFDs-QqSho.mid","Bach, Johann Sebastian",1,289.6028645833333,valid
+145,"Bach, Johann Sebastian, Partita in A minor, BWV 827, kPQ42cP09pM.mid","Bach, Johann Sebastian",1,2185.5,valid
+146,"Bach, Johann Sebastian, Partita in B-flat major, BWV 825, feikrhaRFTk.mid","Bach, Johann Sebastian",1,2097.5065104166665,train
+147,"Bach, Johann Sebastian, Partita in C minor, BWV 826, VNG8Jmz5zqI.mid","Bach, Johann Sebastian",1,1164.3190104166665,valid
+148,"Bach, Johann Sebastian, Partita in D major, BWV 828, 61Hn85VU7d0.mid","Bach, Johann Sebastian",1,3000.0,train
+149,"Bach, Johann Sebastian, Partita in E minor, BWV 830, Hu0TihVQnaY.mid","Bach, Johann Sebastian",1,1808.15234375,train
+150,"Bach, Johann Sebastian, Partita in G major, BWV 829, aecenXn3obw.mid","Bach, Johann Sebastian",1,2411.673177083333,train
+151,"Bach, Johann Sebastian, Polonaise in D minor, BWV Anh.128, 1_kE609bA7g.mid","Bach, Johann Sebastian",1,87.5,train
+152,"Bach, Johann Sebastian, Polonaise in F major, BWV Anh.117a, W_ZWH7wGB1M.mid","Bach, Johann Sebastian",1,118.41927083333333,train
+153,"Bach, Johann Sebastian, Prelude and Fughetta in D minor, BWV 899, YyCQ61sisds.mid","Bach, Johann Sebastian",1,145.13541666666666,valid
+154,"Bach, Johann Sebastian, Prelude and Fughetta in E minor, BWV 900, 3M_Bf7iwPlA.mid","Bach, Johann Sebastian",1,220.79947916666666,test
+155,"Bach, Johann Sebastian, Prelude and Fughetta in G major, BWV 902, aYPld96pzR4.mid","Bach, Johann Sebastian",1,203.28385416666666,train
+156,"Bach, Johann Sebastian, Prelude and Fugue in A major, BWV 864, WKNfd8GzFjw.mid","Bach, Johann Sebastian",1,225.32942708333331,train
+157,"Bach, Johann Sebastian, Prelude and Fugue in A major, BWV 888, dBj7TNg4uWs.mid","Bach, Johann Sebastian",1,206.87630208333331,train
+158,"Bach, Johann Sebastian, Prelude and Fugue in A minor, BWV 889, aPSCHZnjw2k.mid","Bach, Johann Sebastian",1,360.1497395833333,train
+159,"Bach, Johann Sebastian, Prelude and Fugue in A minor, BWV 894, zYccvhhTmNw.mid","Bach, Johann Sebastian",1,617.8072916666666,train
+160,"Bach, Johann Sebastian, Prelude and Fugue in A-flat major, BWV 862, gCL5Zvnt0TU.mid","Bach, Johann Sebastian",1,244.11458333333331,train
+161,"Bach, Johann Sebastian, Prelude and Fugue in A-flat major, BWV 886, 5qfTOKrfzdU.mid","Bach, Johann Sebastian",1,349.6067708333333,train
+162,"Bach, Johann Sebastian, Prelude and Fugue in B major, BWV 868, bfjaxVZPpHc.mid","Bach, Johann Sebastian",1,195.52994791666666,train
+163,"Bach, Johann Sebastian, Prelude and Fugue in B major, BWV 892, OCnENbenhzw.mid","Bach, Johann Sebastian",1,369.65494791666663,test
+164,"Bach, Johann Sebastian, Prelude and Fugue in B minor, BWV 869, SmE6zH0kErM.mid","Bach, Johann Sebastian",1,691.4596354166666,train
+165,"Bach, Johann Sebastian, Prelude and Fugue in B minor, BWV 893, bp4Y8buWb3k.mid","Bach, Johann Sebastian",1,248.3046875,train
+166,"Bach, Johann Sebastian, Prelude and Fugue in B-flat major, BWV 866, Y9KHhjUwG14.mid","Bach, Johann Sebastian",1,184.0,train
+167,"Bach, Johann Sebastian, Prelude and Fugue in B-flat major, BWV 890, Bku5wYGkCFg.mid","Bach, Johann Sebastian",1,536.2291666666666,train
+168,"Bach, Johann Sebastian, Prelude and Fugue in B-flat minor, BWV 867, rHMp-iy-poo.mid","Bach, Johann Sebastian",1,368.38932291666663,train
+169,"Bach, Johann Sebastian, Prelude and Fugue in B-flat minor, BWV 891, DvMpEyeYyo4.mid","Bach, Johann Sebastian",1,451.35546875,train
+170,"Bach, Johann Sebastian, Prelude and Fugue in C major, BWV 846, 0KQW2YnCUrE.mid","Bach, Johann Sebastian",1,315.70182291666663,test
+171,"Bach, Johann Sebastian, Prelude and Fugue in C major, BWV 870, F1lajYAtdGg.mid","Bach, Johann Sebastian",1,251.38932291666666,valid
+172,"Bach, Johann Sebastian, Prelude and Fugue in C minor, BWV 847, R0nZjkh-U7I.mid","Bach, Johann Sebastian",1,190.45182291666666,train
+173,"Bach, Johann Sebastian, Prelude and Fugue in C minor, BWV 871, nTY1tN7aoCw.mid","Bach, Johann Sebastian",1,270.75390625,train
+174,"Bach, Johann Sebastian, Prelude and Fugue in C-sharp major, BWV 848, Z-c8WG2GTaI.mid","Bach, Johann Sebastian",1,195.12890625,train
+175,"Bach, Johann Sebastian, Prelude and Fugue in C-sharp major, BWV 872, QEqBamNZDEE.mid","Bach, Johann Sebastian",1,235.58984375,train
+176,"Bach, Johann Sebastian, Prelude and Fugue in C-sharp minor, BWV 849, zdD_QygwRuY.mid","Bach, Johann Sebastian",1,579.4596354166666,train
+177,"Bach, Johann Sebastian, Prelude and Fugue in C-sharp minor, BWV 873, 0xW-dH0a23s.mid","Bach, Johann Sebastian",1,350.9114583333333,train
+178,"Bach, Johann Sebastian, Prelude and Fugue in D major, BWV 850, K_85VWhfSRA.mid","Bach, Johann Sebastian",1,178.65494791666666,train
+179,"Bach, Johann Sebastian, Prelude and Fugue in D major, BWV 874, nJZ_DHdG27Q.mid","Bach, Johann Sebastian",1,505.15885416666663,train
+180,"Bach, Johann Sebastian, Prelude and Fugue in D minor, BWV 851, UNMeJXzIajU.mid","Bach, Johann Sebastian",1,213.86067708333331,train
+181,"Bach, Johann Sebastian, Prelude and Fugue in D minor, BWV 875, 0RZ5N6hVYA8.mid","Bach, Johann Sebastian",1,222.80989583333331,valid
+182,"Bach, Johann Sebastian, Prelude and Fugue in E major, BWV 854, 02zSKrRQRjM.mid","Bach, Johann Sebastian",1,147.5,train
+183,"Bach, Johann Sebastian, Prelude and Fugue in E major, BWV 878, N8SsvLjnwf4.mid","Bach, Johann Sebastian",1,472.7239583333333,train
+184,"Bach, Johann Sebastian, Prelude and Fugue in E minor, BWV 855, PgKQLV7hfv4.mid","Bach, Johann Sebastian",1,204.55989583333331,train
+185,"Bach, Johann Sebastian, Prelude and Fugue in E minor, BWV 879, ldNuMYFVcvE.mid","Bach, Johann Sebastian",1,421.0989583333333,train
+186,"Bach, Johann Sebastian, Prelude and Fugue in E-flat major, BWV 852, WkybC_k5GiQ.mid","Bach, Johann Sebastian",1,325.45963541666663,train
+187,"Bach, Johann Sebastian, Prelude and Fugue in E-flat major, BWV 876, 4p05T6WeAY0.mid","Bach, Johann Sebastian",1,234.51432291666666,train
+188,"Bach, Johann Sebastian, Prelude and Fugue in E-flat minor, BWV 853, xFTvjRpaU38.mid","Bach, Johann Sebastian",1,650.8294270833333,train
+189,"Bach, Johann Sebastian, Prelude and Fugue in E-flat minor, BWV 877, BHZvrFruBF8.mid","Bach, Johann Sebastian",1,465.7395833333333,train
+190,"Bach, Johann Sebastian, Prelude and Fugue in F major, BWV 880, JPKNAbVDjA0.mid","Bach, Johann Sebastian",1,315.86979166666663,train
+191,"Bach, Johann Sebastian, Prelude and Fugue in F minor, BWV 857, X9Z_FVjMSWc.mid","Bach, Johann Sebastian",1,450.9453125,train
+192,"Bach, Johann Sebastian, Prelude and Fugue in F minor, BWV 881, oZQQxIXiqN8.mid","Bach, Johann Sebastian",1,350.76822916666663,train
+193,"Bach, Johann Sebastian, Prelude and Fugue in F-sharp major, BWV 858, lJCpUW1Q1yc.mid","Bach, Johann Sebastian",1,217.91276041666666,train
+194,"Bach, Johann Sebastian, Prelude and Fugue in F-sharp major, BWV 882, Jc9cDqnAlZo.mid","Bach, Johann Sebastian",1,315.8997395833333,train
+195,"Bach, Johann Sebastian, Prelude and Fugue in F-sharp minor, BWV 859, RjAQLU23keI.mid","Bach, Johann Sebastian",1,308.94791666666663,train
+196,"Bach, Johann Sebastian, Prelude and Fugue in F-sharp minor, BWV 883, 1lvTBkXf468.mid","Bach, Johann Sebastian",1,465.26953125,train
+197,"Bach, Johann Sebastian, Prelude and Fugue in G major, BWV 860, gNlXYLsC_Vs.mid","Bach, Johann Sebastian",1,190.40494791666666,train
+198,"Bach, Johann Sebastian, Prelude and Fugue in G major, BWV 884, cwrH49CnzwQ.mid","Bach, Johann Sebastian",1,233.41276041666666,train
+199,"Bach, Johann Sebastian, Prelude and Fugue in G minor, BWV 861, AZKif28jMUg.mid","Bach, Johann Sebastian",1,288.234375,train
+200,"Bach, Johann Sebastian, Prelude and Fugue in G minor, BWV 885, 9XCS5COS8Fs.mid","Bach, Johann Sebastian",1,363.90494791666663,train
+201,"Bach, Johann Sebastian, Prelude and Fugue in G-sharp minor, BWV 863, 9tezjkEkzW4.mid","Bach, Johann Sebastian",1,221.859375,test
+202,"Bach, Johann Sebastian, Prelude and Fugue in G-sharp minor, BWV 887, WLzcq-5jNy4.mid","Bach, Johann Sebastian",1,587.5989583333333,train
+203,"Bach, Johann Sebastian, Prelude and Fugue on 'B-A-C-H', BWV 898, 1wovG2n62qU.mid","Bach, Johann Sebastian",1,317.69791666666663,train
+204,"Bach, Johann Sebastian, Prelude in A minor, BWV 922, 88dJlWFuTYg.mid","Bach, Johann Sebastian",1,498.63932291666663,train
+205,"Bach, Johann Sebastian, Prelude in C minor, BWV 921, mn6b-hD_af8.mid","Bach, Johann Sebastian",1,233.10286458333331,valid
+206,"Bach, Johann Sebastian, Prelude in C minor, BWV 999, jmJ0gv2xNUo.mid","Bach, Johann Sebastian",1,112.24479166666666,test
+207,"Bach, Johann Sebastian, Prelude in D major, BWV 925, d4J6MNqdbr0.mid","Bach, Johann Sebastian",1,74.359375,train
+208,"Bach, Johann Sebastian, Sinfonia in A major, BWV 798, 4Criw3iCUpw.mid","Bach, Johann Sebastian",1,77.97916666666666,train
+209,"Bach, Johann Sebastian, Sinfonia in A minor, BWV 799, PtIRqWiihT0.mid","Bach, Johann Sebastian",1,130.80989583333331,train
+210,"Bach, Johann Sebastian, Sinfonia in B minor, BWV 801, RhT0ng7wgjw.mid","Bach, Johann Sebastian",1,75.64322916666666,train
+211,"Bach, Johann Sebastian, Sinfonia in B-flat major, BWV 800, LC2jVWe85X0.mid","Bach, Johann Sebastian",1,66.04427083333333,test
+212,"Bach, Johann Sebastian, Sinfonia in C major, BWV 787, 0YsHo4-HLlM.mid","Bach, Johann Sebastian",1,79.07942708333333,train
+213,"Bach, Johann Sebastian, Sinfonia in C minor, BWV 788, 4nOY7cvHFcI.mid","Bach, Johann Sebastian",1,117.80989583333333,train
+214,"Bach, Johann Sebastian, Sinfonia in D major, BWV 789, 6h-vn-Koutc.mid","Bach, Johann Sebastian",1,82.76953125,train
+215,"Bach, Johann Sebastian, Sinfonia in D minor, BWV 790, yB53rd_nFBQ.mid","Bach, Johann Sebastian",1,125.54947916666666,train
+216,"Bach, Johann Sebastian, Sinfonia in E major, BWV 792, E_AdANlUWd4.mid","Bach, Johann Sebastian",1,85.66276041666666,train
+217,"Bach, Johann Sebastian, Sinfonia in E minor, BWV 793, TMkoMyjSZRc.mid","Bach, Johann Sebastian",1,130.34114583333331,valid
+218,"Bach, Johann Sebastian, Sinfonia in F major, BWV 794, iE5aRQ87fSA.mid","Bach, Johann Sebastian",1,71.0390625,test
+219,"Bach, Johann Sebastian, Sinfonia in F minor, BWV 795, qF8-ijUYWU0.mid","Bach, Johann Sebastian",1,254.69140625,train
+220,"Bach, Johann Sebastian, Sinfonia in G major, BWV 796, q8mPidNQI3s.mid","Bach, Johann Sebastian",1,63.52473958333333,train
+221,"Bach, Johann Sebastian, Sonata in C major, BWV 966, uzxi8MbDqfM.mid","Bach, Johann Sebastian",1,623.3190104166666,train
+222,"Bach, Johann Sebastian, Sonata in D major, BWV 963, 4tb4_ngGAzE.mid","Bach, Johann Sebastian",1,654.5846354166666,valid
+223,"Bach, Johann Sebastian, Suite in F minor, BWV 823, merdbEC9wbA.mid","Bach, Johann Sebastian",1,369.8567708333333,train
+224,"Bach, Johann Sebastian, Toccata in C minor, BWV 911, Fr5e2c9AJvA.mid","Bach, Johann Sebastian",1,671.12890625,train
+225,"Bach, Johann Sebastian, Toccata in D major, BWV 912, I8tDTeajtCs.mid","Bach, Johann Sebastian",1,717.7395833333333,train
+226,"Bach, Johann Sebastian, Toccata in D minor, BWV 913, 2I43qGbYSc4.mid","Bach, Johann Sebastian",1,1014.21875,train
+227,"Bach, Johann Sebastian, Toccata in F-sharp minor, BWV 910, KsKOAaVHp_o.mid","Bach, Johann Sebastian",1,701.1497395833333,train
+228,"Bach, Johann Sebastian, Toccata in G major, BWV 916, vPG1HlJ1_UE.mid","Bach, Johann Sebastian",1,450.1888020833333,train
+229,"Bach, Johann Sebastian, Toccata in G minor, BWV 915, XeRe4AeXWQ8.mid","Bach, Johann Sebastian",1,522.5247395833333,valid
+230,"Bach, Wilhelm Friedemann, Allemande in G minor, BWV 836 (Bach, Johann Sebastian), mCCux8jvhkA.mid","Bach, Johann Sebastian",1,158.96875,train
+231,"Bateman, William O., Beethoven's dream, gBxTIjBVYYQ.mid",Beethoven,2,123.37239583333333,test
+232,"Bedetti, Tiziano, Variazioni su un Tema di Mozart, Qnx92Czy8RM.mid",Mozart,7,430.6888020833333,train
+233,"Beethoven, Ludwig van, 10 National Airs with Variations, Op.107, IiopYMSZsl8.mid",Beethoven,2,350.17447916666663,valid
+234,"Beethoven, Ludwig van, 10 Variations on 'La stessa, la stessissima', WoO 73, qJVc02EboT0.mid",Beethoven,2,584.21875,train
+235,"Beethoven, Ludwig van, 11 Bagatelles, Op.119, Qjk2zYjwaJc.mid",Beethoven,2,908.76953125,train
+236,"Beethoven, Ludwig van, 12 German Dances, WoO 13, N0nU0NPS-7c.mid",Beethoven,2,814.44921875,train
+237,"Beethoven, Ludwig van, 12 Variations on 'Menuet a la Vigano', WoO 68, LFZxrkiWvMU.mid",Beethoven,2,856.8997395833333,train
+238,"Beethoven, Ludwig van, 12 Variations on the Russian Dance from 'Das Waldmädchen', WoO 71, 8hWGX1wp5V4.mid",Beethoven,2,683.5221354166666,test
+239,"Beethoven, Ludwig van, 13 Variations on 'Es war einmal ein alter Mann', WoO 66, dftxqkJMm2w.mid",Beethoven,2,733.0989583333333,train
+240,"Beethoven, Ludwig van, 2 Preludes, Op.39, 7v3W4usHcsE.mid",Beethoven,2,452.5,train
+241,"Beethoven, Ludwig van, 2 Rondos, Op.51, fL4VenZ4PFw.mid",Beethoven,2,335.8828125,train
+242,"Beethoven, Ludwig van, 24 Variations on 'Venni Amore', WoO 65, ZzM4s4_5WtQ.mid",Beethoven,2,1009.4088541666666,valid
+243,"Beethoven, Ludwig van, 3 Marches, Op.45, wxR-khJsx3s.mid",Beethoven,2,752.1393229166666,valid
+244,"Beethoven, Ludwig van, 32 Variations in C minor, WoO 80, U-qdxKyR9PU.mid",Beethoven,2,1964.1731770833333,train
+245,"Beethoven, Ludwig van, 5 Variations on 'Rule Britannia', WoO 79, ocwc9PHwZWY.mid",Beethoven,2,266.0,train
+246,"Beethoven, Ludwig van, 6 Bagatelles, Op.126, Zdb5s4wp7rk.mid",Beethoven,2,1215.2096354166665,train
+247,"Beethoven, Ludwig van, 6 Ecossaises, WoO 83, IeQmsmpQ7HY.mid",Beethoven,2,153.68880208333331,test
+248,"Beethoven, Ludwig van, 6 Minuets, WoO 10, lm_OzGBZ4WI.mid",Beethoven,2,696.36328125,train
+249,"Beethoven, Ludwig van, 6 Variations in F major, Op.34, ca3X3sn0OnI.mid",Beethoven,2,863.3893229166666,train
+250,"Beethoven, Ludwig van, 6 Variations in G major, WoO 77, dPBk4zdrNfM.mid",Beethoven,2,69.98958333333333,train
+251,"Beethoven, Ludwig van, 6 Variations on 'Nel cor piu non mi sento', WoO 70, eXPq9FgrqJY.mid",Beethoven,2,328.2395833333333,train
+252,"Beethoven, Ludwig van, 6 Variations on a Swiss song, WoO 64, ZQDTfdwug0I.mid",Beethoven,2,166.79296875,train
+253,"Beethoven, Ludwig van, 6 Waltzes, Anh.14, _x99byyyOvU.mid",Beethoven,2,660.3098958333333,train
+254,"Beethoven, Ludwig van, 7 Bagatelles, Op.33, rlg8dK77bcQ.mid",Beethoven,2,1101.46484375,test
+255,"Beethoven, Ludwig van, 7 Ländler, WoO 11, org84wPWoOE.mid",Beethoven,2,258.40885416666663,train
+256,"Beethoven, Ludwig van, 7 Variations on 'God Save the King', WoO 78, NOds7jLtXnI.mid",Beethoven,2,525.19921875,train
+257,"Beethoven, Ludwig van, 7 Variations on 'Kind, willst du ruhig schlafen', WoO 75, wQdVtsw0pDk.mid",Beethoven,2,626.2096354166666,train
+258,"Beethoven, Ludwig van, 8 Variations on 'Ich hab ein kleines Hüttchen nur', Anh.10, VT2lcdx4VhE.mid",Beethoven,2,397.71875,train
+259,"Beethoven, Ludwig van, 8 Variations on 'Tändeln und Scherzen', WoO 76, u5PLVZC4eIY.mid",Beethoven,2,485.98307291666663,train
+260,"Beethoven, Ludwig van, 8 Variations on 'Une fièvre brûlante', WoO 72, yibghhX9TdA.mid",Beethoven,2,419.54947916666663,train
+261,"Beethoven, Ludwig van, 8 Variations on a Theme by Count Waldstein, WoO 67, QTcJHDcNbXI.mid",Beethoven,2,527.69921875,train
+262,"Beethoven, Ludwig van, 9 Variations on 'Quant'e piu bello', WoO 69, zoVOzt6NIAQ.mid",Beethoven,2,304.47916666666663,test
+263,"Beethoven, Ludwig van, 9 Variations on a March by Dressler, WoO 63, Tj8hoSolykM.mid",Beethoven,2,864.0885416666666,train
+264,"Beethoven, Ludwig van, Allegretto, WoO 53, oAoIpGsz-gw.mid",Beethoven,2,248.94921875,valid
+265,"Beethoven, Ludwig van, Allegretto, WoO 61, d7gJa9zU48A.mid",Beethoven,2,154.51953125,train
+266,"Beethoven, Ludwig van, Allemande, WoO 81, 2zfy0HePHus.mid",Beethoven,2,76.30989583333333,train
+267,"Beethoven, Ludwig van, Andante favori, WoO 57, BF84k8KguNY.mid",Beethoven,2,542.82421875,train
+268,"Beethoven, Ludwig van, Bagatelle in B-flat major, WoO 60, v74xJQCOjEE.mid",Beethoven,2,73.71875,train
+269,"Beethoven, Ludwig van, Bagatelle in F minor, DWA7NMKXhnI.mid",Beethoven,2,102.09895833333333,train
+270,"Beethoven, Ludwig van, Bagatelle, WoO 52, KAdvVNT939M.mid",Beethoven,2,199.41927083333331,valid
+271,"Beethoven, Ludwig van, Bagatelle, WoO 54, 7WY0oqG6nnA.mid",Beethoven,2,114.66927083333333,test
+272,"Beethoven, Ludwig van, Bagatelle, WoO 56, pAW5mFEgaBg.mid",Beethoven,2,81.5390625,train
+273,"Beethoven, Ludwig van, Bagatelle, WoO 61a, OoLwAQrVQUY.mid",Beethoven,2,32.5,test
+274,"Beethoven, Ludwig van, Ecossaise, WoO 86, lgQ8vLchtpY.mid",Beethoven,2,39.529947916666664,train
+275,"Beethoven, Ludwig van, Fantasia for Piano, Op.77, cr2SukqCdKs.mid",Beethoven,2,582.3294270833333,train
+276,"Beethoven, Ludwig van, Für Elise, WoO 59, noAU3qDS1dA.mid",Beethoven,2,173.70963541666666,train
+277,"Beethoven, Ludwig van, Minuet, WoO 82, xohs6WGC1NA.mid",Beethoven,2,197.64973958333331,train
+278,"Beethoven, Ludwig van, Piano Sonata No.1, Op.2 No.1, T6YTd9z8PQM.mid",Beethoven,2,1156.5299479166665,train
+279,"Beethoven, Ludwig van, Piano Sonata No.10, Op.14 No.2, fQqNsTUvqCY.mid",Beethoven,2,1761.2669270833333,test
+280,"Beethoven, Ludwig van, Piano Sonata No.11, Op.22, 0_5iQCV62S4.mid",Beethoven,2,3034.309895833333,train
+281,"Beethoven, Ludwig van, Piano Sonata No.12, Op.26, Ncs9nJNuFGA.mid",Beethoven,2,3460.40234375,valid
+282,"Beethoven, Ludwig van, Piano Sonata No.14, Op.27 No.2, CKt0bIE3eaI.mid",Beethoven,2,903.28515625,train
+283,"Beethoven, Ludwig van, Piano Sonata No.15, Op.28, IblxeFAcqrc.mid",Beethoven,2,1720.6692708333333,train
+284,"Beethoven, Ludwig van, Piano Sonata No.16, Op.31 No.1, q7LXQVxd6xA.mid",Beethoven,2,2635.848958333333,train
+285,"Beethoven, Ludwig van, Piano Sonata No.17, Op.31 No.2, fXDWRm-PU1Q.mid",Beethoven,2,1594.64453125,train
+286,"Beethoven, Ludwig van, Piano Sonata No.18, Op.31 No.3, P-Q5aBAw-T4.mid",Beethoven,2,1362.8098958333333,train
+287,"Beethoven, Ludwig van, Piano Sonata No.19, Op.49 No.1, yqnwJmzXkac.mid",Beethoven,2,1027.37890625,train
+288,"Beethoven, Ludwig van, Piano Sonata No.2, Op.2 No.2, mvEjHO_JOF0.mid",Beethoven,2,1306.46875,valid
+289,"Beethoven, Ludwig van, Piano Sonata No.20, Op.49 No.2, W7WpjF2VILE.mid",Beethoven,2,970.9088541666666,train
+290,"Beethoven, Ludwig van, Piano Sonata No.21, Op.53, CkzsUP4VmJI.mid",Beethoven,2,1442.6197916666665,train
+291,"Beethoven, Ludwig van, Piano Sonata No.22, Op.54, bbB6aqHGuKM.mid",Beethoven,2,2012.1497395833333,valid
+292,"Beethoven, Ludwig van, Piano Sonata No.23, Op.57, QImFm4Y_QPM.mid",Beethoven,2,1523.6588541666665,train
+293,"Beethoven, Ludwig van, Piano Sonata No.25, Op.79, 5Q1edoAh6JY.mid",Beethoven,2,594.8997395833333,train
+294,"Beethoven, Ludwig van, Piano Sonata No.27, Op.90, oLzQbyWfBnY.mid",Beethoven,2,810.2591145833333,train
+295,"Beethoven, Ludwig van, Piano Sonata No.28, Op.101, n74kKqwWViU.mid",Beethoven,2,3781.309895833333,train
+296,"Beethoven, Ludwig van, Piano Sonata No.29, Op.106, AAwRRLDpBVM.mid",Beethoven,2,2656.5,train
+297,"Beethoven, Ludwig van, Piano Sonata No.3, Op.2 No.3, 3asWeutbY0c.mid",Beethoven,2,3130.7890625,train
+298,"Beethoven, Ludwig van, Piano Sonata No.30, Op.109, 8JZGiY--2LM.mid",Beethoven,2,2251.87890625,train
+299,"Beethoven, Ludwig van, Piano Sonata No.4, Op.7, lLf3k5ez-l0.mid",Beethoven,2,3581.005208333333,train
+300,"Beethoven, Ludwig van, Piano Sonata No.5, Op.10 No.1, GuMzYleEPRE.mid",Beethoven,2,3160.47265625,train
+301,"Beethoven, Ludwig van, Piano Sonata No.6, Op.10 No.2, FjmzBuRnIHk.mid",Beethoven,2,1704.4088541666665,train
+302,"Beethoven, Ludwig van, Piano Sonata No.7, Op.10 No.3, 9KilNvMTNTI.mid",Beethoven,2,2852.5533854166665,train
+303,"Beethoven, Ludwig van, Piano Sonata No.8, Op.13, SrcOcKYQX3c.mid",Beethoven,2,1195.1197916666665,train
+304,"Beethoven, Ludwig van, Piano Sonata No.9, Op.14 No.1, YkWwBxhQFb8.mid",Beethoven,2,469.0130208333333,train
+305,"Beethoven, Ludwig van, Polonaise in C major, Op.89, 0zV_OUXODMw.mid",Beethoven,2,339.83984375,train
+306,"Beethoven, Ludwig van, Prelude, WoO 55, dPZ0hoIS58o.mid",Beethoven,2,190.0,train
+307,"Beethoven, Ludwig van, Rondo a capriccio, Op.129, 8XFMZs_7nOA.mid",Beethoven,2,335.81901041666663,train
+308,"Beethoven, Ludwig van, Rondo, WoO 48, 11hl66iuTZo.mid",Beethoven,2,147.13932291666666,train
+309,"Beethoven, Ludwig van, Rondo, WoO 49, uGmGtNfOL38.mid",Beethoven,2,139.26953125,train
+310,"Beethoven, Ludwig van, Sonata for Piano 4 hands in D major, Op.6, F7whteMz2Hs.mid",Beethoven,2,391.72916666666663,train
+311,"Beethoven, Ludwig van, Variations and Fugue in E-flat major, Op.35, drOo7iqrkzU.mid",Beethoven,2,1448.7291666666665,train
+312,"Beethoven, Ludwig van, Waltz, WoO 84, PhAZWz6RBD8.mid",Beethoven,2,103.41927083333333,train
+313,"Beethoven, Ludwig van, Waltz, WoO 85, 2PDXxzcNtGs.mid",Beethoven,2,28.463541666666664,test
+314,"Beethoven, Ludwig van, Wind Quintet in E-flat major, Hess 19, W-kUvQRXFaw.mid",Beethoven,2,615.5989583333333,train
+315,"Bendel, Franz, Mozart, Op.14, -n-PbOxEs_c.mid",Mozart,7,276.8489583333333,train
+316,"Brahms, Johannes, Variations and Fugue on a Theme by Handel, Op.24, q9tbCkACbGU.mid",Handel,5,1578.5143229166665,train
+317,"Brassin, Louis, 3 Morceaux pour le Piano d’après D. Scarlatti, 6dzYZzAJGG8.mid",Scarlatti,8,145.34895833333331,test
+318,"Busoni, Ferruccio, Duettino concertante nach Mozart, BV B 88, gd2-RhBM6wQ.mid",Mozart,7,442.5481770833333,train
+319,"Chopin, Frédéric, 2 Mazurkas, B.16, NtzP_wuR1iQ.mid",Chopin,3,165.19921875,train
+320,"Chopin, Frédéric, 3 Ecossaises, Op.72 No.3, z6h_Pj9qGLY.mid",Chopin,3,132.00911458333331,train
+321,"Chopin, Frédéric, 3 Nouvelles études, B.130, cr4e-IfqfkM.mid",Chopin,3,343.81901041666663,train
+322,"Chopin, Frédéric, Allegretto and Mazurka, bFkqrrBUFA4.mid",Chopin,3,75.40885416666666,train
+323,"Chopin, Frédéric, Allegretto in F-sharp major, pO07vvy6sbk.mid",Chopin,3,51.00911458333333,train
+324,"Chopin, Frédéric, Allegro de concert, Op.46, SU73S7WCAZM.mid",Chopin,3,736.1393229166666,test
+325,"Chopin, Frédéric, Andante spianato et Grande polonaise brillante, Op.22, jJ130s7BiSM.mid",Chopin,3,813.5390625,train
+326,"Chopin, Frédéric, Andantino, B.117, 9PMZC5HtB1E.mid",Chopin,3,79.98958333333333,train
+327,"Chopin, Frédéric, Ballade No.1, Op.23, Ce8p0VcTbuA.mid",Chopin,3,550.2408854166666,train
+328,"Chopin, Frédéric, Ballade No.2, Op.38, NZfNAVQ6H4o.mid",Chopin,3,431.359375,train
+329,"Chopin, Frédéric, Ballade No.3, Op.47, BkPLDoZXlHQ.mid",Chopin,3,422.40885416666663,train
+330,"Chopin, Frédéric, Ballade No.4, Op.52, 7tmQSWuYwrI.mid",Chopin,3,639.08984375,train
+331,"Chopin, Frédéric, Barcarolle, Op.60, UU21X-wmD0Q.mid",Chopin,3,538.6796875,train
+332,"Chopin, Frédéric, Berceuse, Op.57, FZtBwlxL0Aw.mid",Chopin,3,222.90885416666666,train
+333,"Chopin, Frédéric, Bolero, Op.19, 8XQXE7SeYkc.mid",Chopin,3,508.22916666666663,train
+334,"Chopin, Frédéric, Bourrée No.1, B.160b1, 6c9mOM2X9PM.mid",Chopin,3,36.6796875,train
+335,"Chopin, Frédéric, Bourrée No.2, B.160b2, 1IZLSFpe1II.mid",Chopin,3,28.139322916666664,train
+336,"Chopin, Frédéric, Canon in F minor, B.129a, 8x5PeQ9jljc.mid",Chopin,3,39.819010416666664,valid
+337,"Chopin, Frédéric, Cantabile in B-flat major, B.84, 2MErGZpgErY.mid",Chopin,3,62.5,train
+338,"Chopin, Frédéric, Casta Diva, 4aojKDKm1BE.mid",Chopin,3,183.25911458333331,train
+339,"Chopin, Frédéric, Fantaisie, Op.49, A-GjbRtlweg.mid",Chopin,3,791.7135416666666,train
+340,"Chopin, Frédéric, Fantaisie-impromptu, Op.66, Gus4dnQuiGk.mid",Chopin,3,368.81901041666663,train
+341,"Chopin, Frédéric, Fugue in A minor, B.144, W0X6w-XSG-M.mid",Chopin,3,147.54947916666666,train
+342,"Chopin, Frédéric, Grande valse brillante, Op.18, LG-E4PVGQSI.mid",Chopin,3,334.8997395833333,test
+343,"Chopin, Frédéric, Hexaméron_ Variation No.6, upfyIUP6U9Y.mid",Chopin,3,118.86197916666666,valid
+344,"Chopin, Frédéric, Impromptu No.1, Op.29, baZGdj0xLYg.mid",Chopin,3,253.16927083333331,train
+345,"Chopin, Frédéric, Impromptu No.2, Op.36, TDGHR4lj3yc.mid",Chopin,3,497.109375,train
+346,"Chopin, Frédéric, Largo in E-flat major, B.109, ZuayOEDAKKc.mid",Chopin,3,132.52994791666666,train
+347,"Chopin, Frédéric, Marche funèbre, Op.72 No.2, e8umUi0dyPw.mid",Chopin,3,332.0794270833333,train
+348,"Chopin, Frédéric, Mazurka in A minor, B.134, zpfNaQ-IEWA.mid",Chopin,3,370.7044270833333,train
+349,"Chopin, Frédéric, Mazurka in A minor, B.140, dtr2H4E3SRk.mid",Chopin,3,158.89583333333331,train
+350,"Chopin, Frédéric, Mazurka in A-flat major, B.85, yEgW05E_mUk.mid",Chopin,3,136.73958333333331,test
+351,"Chopin, Frédéric, Mazurka in B-flat major 'Wołowska', B.73, eEnelX249O8.mid",Chopin,3,61.41927083333333,valid
+352,"Chopin, Frédéric, Mazurka in C major, B.82, lhPMZyfdQbQ.mid",Chopin,3,128.16927083333331,train
+353,"Chopin, Frédéric, Mazurka in D major, B.31, Ho3ik--3T9c.mid",Chopin,3,87.6015625,train
+354,"Chopin, Frédéric, Mazurka in D major, B.71, Kmv893EHqPI.mid",Chopin,3,73.38932291666666,train
+355,"Chopin, Frédéric, Mazurka in F-sharp major, fxp3IQ6pxYs.mid",Chopin,3,209.98958333333331,test
+356,"Chopin, Frédéric, Mazurkas, Op.17, yU6jtMCYCQs.mid",Chopin,3,681.69921875,train
+357,"Chopin, Frédéric, Mazurkas, Op.24, flIQ02Nlkpk.mid",Chopin,3,731.8997395833333,train
+358,"Chopin, Frédéric, Mazurkas, Op.30, H3s-NCcC8sM.mid",Chopin,3,558.5989583333333,train
+359,"Chopin, Frédéric, Mazurkas, Op.33, irNgKtwPIF0.mid",Chopin,3,589.6197916666666,train
+360,"Chopin, Frédéric, Mazurkas, Op.41, J9ivOk3aDQI.mid",Chopin,3,556.96875,train
+361,"Chopin, Frédéric, Mazurkas, Op.50, h0BjbU9upFI.mid",Chopin,3,595.1888020833333,train
+362,"Chopin, Frédéric, Mazurkas, Op.56, tDJNeXJGj3Q.mid",Chopin,3,733.5143229166666,train
+363,"Chopin, Frédéric, Mazurkas, Op.59, eh5c5PfNKgg.mid",Chopin,3,650.7890625,train
+364,"Chopin, Frédéric, Mazurkas, Op.6, _6k8CUmtRE8.mid",Chopin,3,4711.229166666666,valid
+365,"Chopin, Frédéric, Mazurkas, Op.63, 8wa4w6lfrpw.mid",Chopin,3,406.56901041666663,train
+366,"Chopin, Frédéric, Mazurkas, Op.67, _60cemeCu6E.mid",Chopin,3,430.42057291666663,train
+367,"Chopin, Frédéric, Mazurkas, Op.68, -2wScu6HtcY.mid",Chopin,3,508.5989583333333,train
+368,"Chopin, Frédéric, Mazurkas, Op.7, FsFDT24JElU.mid",Chopin,3,557.0091145833333,train
+369,"Chopin, Frédéric, Moderato in E major, B.151, UI_uXFCHUVw.mid",Chopin,3,74.48177083333333,train
+370,"Chopin, Frédéric, Nocturne in C minor, B.108, RAIRdtdVfWA.mid",Chopin,3,216.69270833333331,train
+371,"Chopin, Frédéric, Nocturne in C-sharp minor, B.49, 0TzE2ivdbBA.mid",Chopin,3,268.12890625,test
+372,"Chopin, Frédéric, Nocturne in E minor, Op.72 No.1, h5_V-d8HjhU.mid",Chopin,3,283.515625,valid
+373,"Chopin, Frédéric, Nocturne oubliée, l158eDg2VBk.mid",Chopin,3,377.01953125,train
+374,"Chopin, Frédéric, Nocturnes, Op.15, lin5uA0LSaM.mid",Chopin,3,256.61979166666663,train
+375,"Chopin, Frédéric, Nocturnes, Op.27, WJ8RVjm49hE.mid",Chopin,3,367.7591145833333,train
+376,"Chopin, Frédéric, Nocturnes, Op.32, BhIP4hDBp-E.mid",Chopin,3,282.76953125,train
+377,"Chopin, Frédéric, Nocturnes, Op.37, Dhp_wYUDgc0.mid",Chopin,3,380.70963541666663,train
+378,"Chopin, Frédéric, Nocturnes, Op.48, -7mntyrW3HU.mid",Chopin,3,352.6796875,test
+379,"Chopin, Frédéric, Nocturnes, Op.55, e3yrEEM5j_s.mid",Chopin,3,340.421875,train
+380,"Chopin, Frédéric, Nocturnes, Op.62, 1FeogxNAJWY.mid",Chopin,3,410.46744791666663,train
+381,"Chopin, Frédéric, Nocturnes, Op.9, 9E6b3swbnWg.mid",Chopin,3,268.01953125,valid
+382,"Chopin, Frédéric, Piano Sonata No.1, Op.4, n-XhROuRDBY.mid",Chopin,3,1523.25,train
+383,"Chopin, Frédéric, Piano Sonata No.2, Op.35, hZY5DBmgC_A.mid",Chopin,3,564.3138020833333,train
+384,"Chopin, Frédéric, Piano Sonata No.3, Op.58, xGJxmCOPFVM.mid",Chopin,3,3269.989583333333,train
+385,"Chopin, Frédéric, Polonaise in A-flat major, B.5, jBFafivFoTQ.mid",Chopin,3,290.3020833333333,test
+386,"Chopin, Frédéric, Polonaise in B-flat minor, B.13, YmtsUp8HFZg.mid",Chopin,3,346.39453125,train
+387,"Chopin, Frédéric, Polonaise in F-sharp minor, Op.44, ehm_kDU563Q.mid",Chopin,3,638.12890625,train
+388,"Chopin, Frédéric, Polonaise in G minor, B.1, 28ASfk_A0ng.mid",Chopin,3,234.57161458333331,train
+389,"Chopin, Frédéric, Polonaise in G-flat major, B.36, 2SgbxnqOP3A.mid",Chopin,3,480.5390625,train
+390,"Chopin, Frédéric, Polonaise in G-sharp minor, B.6, rltQFPW9Rmk.mid",Chopin,3,418.29947916666663,train
+391,"Chopin, Frédéric, Polonaise-fantaisie, Op.61, 177qJoCI9Zw.mid",Chopin,3,729.1614583333333,train
+392,"Chopin, Frédéric, Polonaises, Op.26, Pp4v42suFQg.mid",Chopin,3,3438.7994791666665,train
+393,"Chopin, Frédéric, Polonaises, Op.40, hbnunexhlXM.mid",Chopin,3,325.34244791666663,train
+394,"Chopin, Frédéric, Polonaises, Op.71, k1VOCu-VAQY.mid",Chopin,3,3136.75,train
+395,"Chopin, Frédéric, Prelude in A-flat major, B.86, CNcpbfNPj1s.mid",Chopin,3,45.658854166666664,train
+396,"Chopin, Frédéric, Prelude in C-sharp minor, Op.45, uCpi9COuaUA.mid",Chopin,3,301.0,train
+397,"Chopin, Frédéric, Preludes, Op.28, SqXYIteAfNs.mid",Chopin,3,2218.259114583333,train
+398,"Chopin, Frédéric, Rondo in C major, Op.73, sw2R6kyy8M4.mid",Chopin,3,517.3190104166666,train
+399,"Chopin, Frédéric, Rondo in E-flat major, Op.16, CxSEdBKcQYE.mid",Chopin,3,599.2096354166666,train
+400,"Chopin, Frédéric, Rondo à la mazur, Op.5, KpHBVR-s7EM.mid",Chopin,3,521.2994791666666,train
+401,"Chopin, Frédéric, Scherzo No.1, Op.20, 38VShqkukWY.mid",Chopin,3,624.6197916666666,train
+402,"Chopin, Frédéric, Scherzo No.2, Op.31, z_MwPdr7WXQ.mid",Chopin,3,526.0494791666666,train
+403,"Chopin, Frédéric, Scherzo No.3, Op.39, rjmUbZ3Aumw.mid",Chopin,3,477.81510416666663,valid
+404,"Chopin, Frédéric, Scherzo No.4, Op.54, 9CNYX7OkceA.mid",Chopin,3,652.5,train
+405,"Chopin, Frédéric, Valse mélancolique in F-sharp minor, A1_7, endJjZozRtM.mid",Chopin,3,191.94921875,test
+406,"Chopin, Frédéric, Variations brillantes, Op.12, m7Sxe1y0U7M.mid",Chopin,3,487.61588541666663,train
+407,"Chopin, Frédéric, Variations in A major, B.37, asJtkFFWHzs.mid",Chopin,3,206.71614583333331,train
+408,"Chopin, Frédéric, Variations sur un air national allemand, B.14, wg_2Fz1gB1s.mid",Chopin,3,451.12369791666663,train
+409,"Chopin, Frédéric, Variations sur un air national de Moore, B.12a, IX9pYAYHjBw.mid",Chopin,3,492.8489583333333,train
+410,"Chopin, Frédéric, Waltz in A minor, B.150, algM0c_u99k.mid",Chopin,3,141.84114583333331,train
+411,"Chopin, Frédéric, Waltz in A-flat major, B.21, w_vk12F4hvs.mid",Chopin,3,116.70963541666666,test
+412,"Chopin, Frédéric, Waltz in A-flat major, Op.42, 4b9vilZx4dc.mid",Chopin,3,223.25,train
+413,"Chopin, Frédéric, Waltz in E major, B.44, ubTLiVNmeII.mid",Chopin,3,112.34765625,test
+414,"Chopin, Frédéric, Waltz in E minor, B.56, ETcsMMq9LYE.mid",Chopin,3,202.5,train
+415,"Chopin, Frédéric, Waltz in E-flat major, B.133, XXkdfIjzbxM.mid",Chopin,3,138.75911458333331,valid
+416,"Chopin, Frédéric, Waltz in E-flat major, B.46, 2JkFOhuhAio.mid",Chopin,3,141.41927083333331,train
+417,"Chopin, Frédéric, Waltzes, Op.64, hOcryGEw1NY.mid",Chopin,3,223.80989583333331,valid
+418,"Chopin, Frédéric, Waltzes, Op.70, oCjeyj0e2SY.mid",Chopin,3,456.19140625,train
+419,"Chopin, Frédéric, Études, Op.10, g0hoN6_HDVU.mid",Chopin,3,3752.2643229166665,train
+420,"Chopin, Frédéric, Études, Op.25, gLZ4WJiDldU.mid",Chopin,3,1950.1692708333333,train
+421,"Czerny, Carl, 10 Petits rondeaux, Op.316, DCSVCIGlvqk.mid",Czerny,4,204.71484375,train
+422,"Czerny, Carl, 100 Progressive Recreations, jSNe61LwBtc.mid",Czerny,4,232.5,train
+423,"Czerny, Carl, 100 Progressive Studies, Op.139, mFpbUHDh9v4.mid",Czerny,4,2650.649739583333,train
+424,"Czerny, Carl, 110 Progressive Excercises, Op.453, RfCjHjj6Zxw.mid",Czerny,4,69.44921875,train
+425,"Czerny, Carl, 125 Passagenübungen, Op.261, OrYQW1eziFc.mid",Czerny,4,2412.5,train
+426,"Czerny, Carl, 14 Écossaises brillantes, Op.174, uEwrwtL0Qaw.mid",Czerny,4,390.9895833333333,train
+427,"Czerny, Carl, 160 Kurze Übungen, Op.821, mTUcEDCHgug.mid",Czerny,4,3802.829427083333,train
+428,"Czerny, Carl, 24 Airs populaires en rondeaux, Op.609, PVwm5bHp6E0.mid",Czerny,4,975.5299479166666,train
+429,"Czerny, Carl, 24 Piano Studies for the Left Hand, Op.718, TmhYcLynKSk.mid",Czerny,4,153.15885416666666,train
+430,"Czerny, Carl, 3 Duets, Op.461, HK5g5BP38Ls.mid",Czerny,4,239.0390625,valid
+431,"Czerny, Carl, 3 Rondeaux faciles et brillans, Op.374, E5-k7wbmfzU.mid",Czerny,4,504.0989583333333,train
+432,"Czerny, Carl, 32 Nouveaux exercices journaliers, Op.848, aDjV0POHTII.mid",Czerny,4,955.3697916666666,train
+433,"Czerny, Carl, 40 Leichte Tonstücke, Op.803, cpgGcvaA0Z4.mid",Czerny,4,381.1770833333333,train
+434,"Czerny, Carl, 40 Tägliche Studien, Op.337, zwrdmwBzUJ0.mid",Czerny,4,1588.01953125,train
+435,"Czerny, Carl, 50 Grandi Studi di Perfezionamento, Op.409, YI8et9h8B0E.mid",Czerny,4,202.51041666666666,train
+436,"Czerny, Carl, 6 Leichte Stücke, Op.842, tFjYpf6PRzI.mid",Czerny,4,122.79947916666666,test
+437,"Czerny, Carl, 6 Études de salon, Op.754, jOInV9gFUtY.mid",Czerny,4,215.41927083333331,train
+438,"Czerny, Carl, 8 Morceaux de salon, Op.795, 187FmPwmhMw.mid",Czerny,4,221.84895833333331,train
+439,"Czerny, Carl, Allegretto in G major, D-cfv4oI2Ig.mid",Czerny,4,56.109375,train
+440,"Czerny, Carl, Andante e polacca in E major, wc1JsqLU3Ow.mid",Czerny,4,497.72916666666663,train
+441,"Czerny, Carl, Andante in C major, s5VnW5ACfbk.mid",Czerny,4,70.02994791666666,train
+442,"Czerny, Carl, Capriccio à la fuga, Op.89, EpgLt92qaic.mid",Czerny,4,299.97916666666663,train
+443,"Czerny, Carl, Charmant Variationen, Op.249, BfDMgBGB8Yo.mid",Czerny,4,666.4453125,test
+444,"Czerny, Carl, Das moderne Klavierspiel, Op.837, 9YJlw-o7DUM.mid",Czerny,4,93.5,train
+445,"Czerny, Carl, Der Pianist im klassischen style, Op.856, O8wcplLI2JE.mid",Czerny,4,2287.759114583333,train
+446,"Czerny, Carl, Die Schule der linken Hand, Op.399, YH3LvxIkB-A.mid",Czerny,4,457.83984375,test
+447,"Czerny, Carl, Die Schule des Legato und Staccato, Op.335, wzy1_DK5N3U.mid",Czerny,4,478.2890625,train
+448,"Czerny, Carl, Die Vorschule der Fingerfertigkeit, Op.636, NHmsLQOSH4I.mid",Czerny,4,715.6393229166666,train
+449,"Czerny, Carl, Divertissement militaire, Op.229, 2R38SpeZMqA.mid",Czerny,4,573.9244791666666,test
+450,"Czerny, Carl, Fantaisie brillante sur des airs chinois, Op.724, IkCjJrNvq7k.mid",Czerny,4,471.359375,train
+451,"Czerny, Carl, Fantaisie sur des mélodies de Beethoven, Op.752, sifNOVmp0E0.mid",Czerny,4,1050.25,train
+452,"Czerny, Carl, Fantasie brillante sur﻿ 'Le nozze di Figaro', Op.493, 3cysPQescDQ.mid",Czerny,4,616.96875,train
+453,"Czerny, Carl, Gran Capriccio, Op.172, 1LD6iU8Kbb0.mid",Czerny,4,812.83203125,test
+454,"Czerny, Carl, Grand Divertissement en forme de rondeau brillant, Op.122, oVsUeZsEQnM.mid",Czerny,4,714.9791666666666,valid
+455,"Czerny, Carl, Grand Exercice de trilles en forme de rondeau brillant, Op.151, oVsUeZsEQnM.mid",Czerny,4,714.9791666666666,train
+456,"Czerny, Carl, Grand exercice en forme de fantaisie improvisée, Op.348, iKWP0PxpJDs.mid",Czerny,4,812.5950520833333,train
+457,"Czerny, Carl, Grand exercice, Op.245, tzpC1-b4lcc.mid",Czerny,4,228.40885416666666,train
+458,"Czerny, Carl, Grand Exercise, Op.364, WtgdCrzc56c.mid",Czerny,4,479.9895833333333,train
+459,"Czerny, Carl, Grand Exercise, Op.82, 54u6UJ8ZBT8.mid",Czerny,4,364.4895833333333,test
+460,"Czerny, Carl, Grand rondeau brillant, Op.283, oVsUeZsEQnM.mid",Czerny,4,714.9791666666666,train
+461,"Czerny, Carl, Grandes études de salon, Op.756, 1UEoNOb-FIg.mid",Czerny,4,802.7591145833333,train
+462,"Czerny, Carl, Impromptu Fugué, Op.776, KcP0E7l8cB8.mid",Czerny,4,373.72916666666663,train
+463,"Czerny, Carl, Impromptu sentimental sur 'O nume benefico', Op.523, pz1lJvlddr4.mid",Czerny,4,530.4791666666666,train
+464,"Czerny, Carl, In questa tomba oscura, bgOcM14Oi3M.mid",Czerny,4,223.22395833333331,train
+465,"Czerny, Carl, Introduzione ed allegro agitato, Op.264, IrCXYI_yYOU.mid",Czerny,4,434.94791666666663,train
+466,"Czerny, Carl, Invitation à la danse, Op.482, YQ1trXBjkOw.mid",Czerny,4,1494.29296875,train
+467,"Czerny, Carl, Krönungsmarsch, Op.101, mGsuDxie7ic.mid",Czerny,4,528.8098958333333,valid
+468,"Czerny, Carl, L'écho des Alpes Suisses, Op.429, bzYivtxTK_0.mid",Czerny,4,119.58333333333333,test
+469,"Czerny, Carl, Le Perfectionnement, Op.755, 3Od9PU5bEe0.mid",Czerny,4,69.5390625,train
+470,"Czerny, Carl, Le Souvenir, Op.4, -LkhenRO3Mk.mid",Czerny,4,1155.37890625,train
+471,"Czerny, Carl, March in D minor, zoWBrkVebqk.mid",Czerny,4,79.33984375,test
+472,"Czerny, Carl, Marcia funebre sulla morte di Luigi van Beethoven, Op.146, 4hvbtvvI_i8.mid",Czerny,4,370.7890625,train
+473,"Czerny, Carl, Musikalische Theater-Bibliothek für die Jugend, Op.463, SOT9qiEbjG4.mid",Czerny,4,411.90885416666663,train
+474,"Czerny, Carl, Nocturne, Op.647, pdL0_e-4N7c.mid",Czerny,4,309.8841145833333,train
+475,"Czerny, Carl, Piano Sonata No.1, Op.7, oPchef7DpS0.mid",Czerny,4,569.8815104166666,train
+476,"Czerny, Carl, Piano Sonata No.11, Op.730, -Scu_AEkmWg.mid",Czerny,4,514.3489583333333,train
+477,"Czerny, Carl, Piano Sonata No.2, Op.13, W14BcRfW0aM.mid",Czerny,4,532.71875,valid
+478,"Czerny, Carl, Piano Sonata No.4, Op.65, -OAbrgaa-lY.mid",Czerny,4,448.75,train
+479,"Czerny, Carl, Piano Sonata No.5, Op.76, b87JXc8P0oY.mid",Czerny,4,321.54947916666663,train
+480,"Czerny, Carl, Piano Sonata No.6, Op.124, ONQlruOJ690.mid",Czerny,4,462.5,train
+481,"Czerny, Carl, Piano Sonata No.8, Op.144, ySOFE0yWP9s.mid",Czerny,4,537.609375,train
+482,"Czerny, Carl, Piano Sonata No.9, Op.145, DlyDBzJe16A.mid",Czerny,4,521.5299479166666,valid
+483,"Czerny, Carl, Potpourri No.1, Op.38, aratwXSCt2c.mid",Czerny,4,672.7356770833333,train
+484,"Czerny, Carl, Practical Exercises for Beginners, Op.599, jORfbgDFh-Q.mid",Czerny,4,62.908854166666664,train
+485,"Czerny, Carl, Quatuor concertant No.1, Op.230, v_YU6NYDhWw.mid",Czerny,4,1445.89453125,train
+486,"Czerny, Carl, Quiet Thoughts, lLnmTqY4bsU.mid",Czerny,4,76.0,train
+487,"Czerny, Carl, Rondeau brillant, Op.806, oVsUeZsEQnM.mid",Czerny,4,714.9791666666666,train
+488,"Czerny, Carl, Rondeau précédé d'une introduction, Op.265, 32bcx7RO7f0.mid",Czerny,4,391.9192708333333,train
+489,"Czerny, Carl, Rondino No.10 sur un motif de Mozart, Op.98, mTy8Z2oWCNk.mid",Czerny,4,732.1549479166666,valid
+490,"Czerny, Carl, Rondo in F major, Op.260, pZr7gsJqtvQ.mid",Czerny,4,72.5,train
+491,"Czerny, Carl, Schule des Virtuosen, Op.365, mdf3-gHeiwo.mid",Czerny,4,173.90885416666666,train
+492,"Czerny, Carl, Sonate militaire et brillante, Op.119, CR6Z-1uiPEA.mid",Czerny,4,1379.2591145833333,train
+493,"Czerny, Carl, Tableaux Mélodiques, Op.667, 5Ud0ybZiehc.mid",Czerny,4,92.5,train
+494,"Czerny, Carl, The Art of Finger Dexterity, Op.740, rREFCB6O1jY.mid",Czerny,4,118.90885416666666,train
+495,"Czerny, Carl, The School of Embellishments, Op.355, UHTkOOoADXY.mid",Czerny,4,7358.079427083333,valid
+496,"Czerny, Carl, The School of Velocity, Op.299, rd8i0yRK1qU.mid",Czerny,4,3176.7096354166665,train
+497,"Czerny, Carl, Toccata, Op.92, MjT2kS_t_TY.mid",Czerny,4,213.29947916666666,train
+498,"Czerny, Carl, Variations brillantes sur un thême de l’opéra 'I Capuleti e i Montecchi', Op.295, 0feSrNm3zgA.mid",Czerny,4,1065.08984375,train
+499,"Czerny, Carl, Variations brillantes, Op.14, JVSJY-RH8LY.mid",Czerny,4,396.6796875,valid
+500,"Czerny, Carl, Variations on a theme by Rode, Op.33, TfTS8ONyjTY.mid",Czerny,4,497.5390625,train
+501,"Demersseman, Jules, Fantaisie sur 'Le Désir' de Beethoven, 3v3zMzgDlho.mid",Beethoven,2,279.77994791666663,valid
+502,"Drozdov, Vladimir, Reflections at Chopin's Urn, 8jdXaMvrtLY.mid",Chopin,3,289.109375,train
+503,"Handel, George Frideric, Air in A minor, HWV 604, jAx190WwZJ0.mid",Handel,5,106.91927083333333,train
+504,"Handel, George Frideric, Air in B-flat major, HWV 469, S6eL95P6jvw.mid",Handel,5,101.96875,train
+505,"Handel, George Frideric, Air in B-flat major, HWV 471, S6eL95P6jvw.mid",Handel,5,101.96875,train
+506,"Handel, George Frideric, Air in C major, HWV 590, S6eL95P6jvw.mid",Handel,5,101.96875,train
+507,"Handel, George Frideric, Air in D major, AteXZAasHAI.mid",Handel,5,77.60807291666666,train
+508,"Handel, George Frideric, Air in D major, HWV 460, MrWuD1zxTF8.mid",Handel,5,96.7890625,train
+509,"Handel, George Frideric, Air in D minor, HWV 461, u8itn575Mhg.mid",Handel,5,39.75911458333333,train
+510,"Handel, George Frideric, Air in E major, HWV 425, bNzVz5byPqk.mid",Handel,5,206.51302083333331,train
+511,"Handel, George Frideric, Air in F major, HWV 591, b97QFpkELuQ.mid",Handel,5,71.76953125,train
+512,"Handel, George Frideric, Air in G major, HWV 594, -QVwJRscmDw.mid",Handel,5,112.69401041666666,train
+513,"Handel, George Frideric, Air in G minor, HWV 467, W2t30FG3TXE.mid",Handel,5,164.5390625,valid
+514,"Handel, George Frideric, Allemande in A minor, HWV 478, Rfm4vZ1POMU.mid",Handel,5,158.72916666666666,test
+515,"Handel, George Frideric, Capriccio in F major, HWV 481, xI7sSJAI78g.mid",Handel,5,263.69921875,train
+516,"Handel, George Frideric, Capriccio in G minor, HWV 483, QqAcODiE3WQ.mid",Handel,5,99.97916666666666,train
+517,"Handel, George Frideric, Chaconne in G major, HWV 435, 3y26NwL3pf4.mid",Handel,5,471.15885416666663,train
+518,"Handel, George Frideric, Chaconne in G major, HWV 442, F-zsPKbO3ZY.mid",Handel,5,117.96875,valid
+519,"Handel, George Frideric, Concerto in G major, HWV 487, SNAiRKCMIvk.mid",Handel,5,174.875,train
+520,"Handel, George Frideric, Courante in F major, HWV 488, e3EqwUhcaYI.mid",Handel,5,111.98958333333333,train
+521,"Handel, George Frideric, Fugue in A minor, HWV 609, XHNAP4LSkvs.mid",Handel,5,330.3997395833333,train
+522,"Handel, George Frideric, Fugue in B-flat major, HWV 607, m7UmmndsCpI.mid",Handel,5,172.93098958333331,train
+523,"Handel, George Frideric, Fugue in C minor, HWV 610, P6kYr5wzuMQ.mid",Handel,5,206.29947916666666,train
+524,"Handel, George Frideric, Gigue in B-flat major, HWV 413, yTV0CJapgs4.mid",Handel,5,228.14973958333331,test
+525,"Handel, George Frideric, Gigue in C major, HWV 599, VkSHpiLIu9A.mid",Handel,5,75.43880208333333,valid
+526,"Handel, George Frideric, Keyboard Sonata in C major, HWV 577, 5F8xpdgDal8.mid",Handel,5,119.54947916666666,train
+527,"Handel, George Frideric, Keyboard Sonatina in B-flat major, HWV 585, FMiGrsZePu0.mid",Handel,5,54.01953125,train
+528,"Handel, George Frideric, Keyboard Sonatina in D minor, HWV 581, CetDexRR3Ek.mid",Handel,5,102.5,train
+529,"Handel, George Frideric, Keyboard Sonatina in G major, HWV 582, 72_yxA36MpQ.mid",Handel,5,49.91927083333333,train
+530,"Handel, George Frideric, Keyboard Sonatina in G minor, HWV 583, AXHTelJVoH8.mid",Handel,5,58.359375,train
+531,"Handel, George Frideric, Menuet in D minor, sFyypM1Avlc.mid",Handel,5,39.98958333333333,test
+532,"Handel, George Frideric, Minuet in A minor, HWV 547, b97QFpkELuQ.mid",Handel,5,71.76953125,train
+533,"Handel, George Frideric, Minuet in A minor, HWV 549, r8r9tqySmJ8.mid",Handel,5,82.5,train
+534,"Handel, George Frideric, Minuet in A minor, HWV 603, kByYLcgHQ7k.mid",Handel,5,96.94921875,train
+535,"Handel, George Frideric, Minuet in B flat major, HWV 554, yTV0CJapgs4.mid",Handel,5,228.14973958333331,train
+536,"Handel, George Frideric, Minuet in B flat major, HWV 555, yTV0CJapgs4.mid",Handel,5,228.14973958333331,train
+537,"Handel, George Frideric, Minuet in B-flat major, HWV 551, yTV0CJapgs4.mid",Handel,5,228.14973958333331,valid
+538,"Handel, George Frideric, Minuet in B-flat major, HWV 552, yTV0CJapgs4.mid",Handel,5,228.14973958333331,test
+539,"Handel, George Frideric, Minuet in B-flat major, HWV 553, yTV0CJapgs4.mid",Handel,5,228.14973958333331,train
+540,"Handel, George Frideric, Minuet in B-flat major, HWV 556, yTV0CJapgs4.mid",Handel,5,228.14973958333331,train
+541,"Handel, George Frideric, Minuet in C major, HWV 498, b97QFpkELuQ.mid",Handel,5,71.76953125,train
+542,"Handel, George Frideric, Minuet in D minor, HWV 462, Nz5QPIEwX04.mid",Handel,5,50.5390625,train
+543,"Handel, George Frideric, Minuet in F major, HWV 509, b97QFpkELuQ.mid",Handel,5,71.76953125,train
+544,"Handel, George Frideric, Minuet in F major, HWV 513, b97QFpkELuQ.mid",Handel,5,71.76953125,train
+545,"Handel, George Frideric, Minuet in F major, HWV 514, b97QFpkELuQ.mid",Handel,5,71.76953125,train
+546,"Handel, George Frideric, Minuet in F major, HWV 515, b97QFpkELuQ.mid",Handel,5,71.76953125,train
+547,"Handel, George Frideric, Minuet in F major, HWV 516, b97QFpkELuQ.mid",Handel,5,71.76953125,train
+548,"Handel, George Frideric, Minuet in F major, HWV 517, b97QFpkELuQ.mid",Handel,5,71.76953125,train
+549,"Handel, George Frideric, Minuet in F major, HWV 518, b97QFpkELuQ.mid",Handel,5,71.76953125,train
+550,"Handel, George Frideric, Minuet in F major, HWV 519, b97QFpkELuQ.mid",Handel,5,71.76953125,valid
+551,"Handel, George Frideric, Minuet in F major, HWV 520, b97QFpkELuQ.mid",Handel,5,71.76953125,train
+552,"Handel, George Frideric, Minuet in G major, HWV 423, U_TRHFv5UWU.mid",Handel,5,479.8372395833333,train
+553,"Handel, George Frideric, Minuet in G minor, HWV 434_4, 1KLG3p5UZoE.mid",Handel,5,222.08984375,train
+554,"Handel, George Frideric, Minuet in G minor, HWV 532, 1KLG3p5UZoE.mid",Handel,5,222.08984375,train
+555,"Handel, George Frideric, Minuet in G minor, HWV 533, 1KLG3p5UZoE.mid",Handel,5,222.08984375,train
+556,"Handel, George Frideric, Minuet in G minor, HWV 534, 1KLG3p5UZoE.mid",Handel,5,222.08984375,valid
+557,"Handel, George Frideric, Minuet in G minor, HWV 536, rcFQZnEuJSo.mid",Handel,5,228.2734375,train
+558,"Handel, George Frideric, Minuet in G minor, HWV 537, 1KLG3p5UZoE.mid",Handel,5,222.08984375,train
+559,"Handel, George Frideric, Minuet in G minor, HWV 538, rcFQZnEuJSo.mid",Handel,5,228.2734375,train
+560,"Handel, George Frideric, Minuet in G minor, HWV 540, jlGXOodXpCg.mid",Handel,5,82.5,train
+561,"Handel, George Frideric, Minuet in G minor, HWV 541, 1KLG3p5UZoE.mid",Handel,5,222.08984375,train
+562,"Handel, George Frideric, Passepied in A major, HWV 560, N3zRepOJaks.mid",Handel,5,53.71875,train
+563,"Handel, George Frideric, Passepied in C major, HWV 559, IKB-S0f1cg0.mid",Handel,5,43.904947916666664,valid
+564,"Handel, George Frideric, Prelude in E major, HWV 566, fgjR8sNNWDQ.mid",Handel,5,90.75,train
+565,"Handel, George Frideric, Prelude, HWV 562, qxYhUCfhl9Y.mid",Handel,5,169.25520833333331,test
+566,"Handel, George Frideric, Sonata in C major, HWV 598, mAutjWTnQa0.mid",Handel,5,98.56380208333333,train
+567,"Handel, George Frideric, Suite in A minor, eew-90TtWfo.mid",Handel,5,316.5794270833333,train
+568,"Handel, George Frideric, Suite in B-flat major, HWV 440, rjBOqHFt0UY.mid",Handel,5,486.3997395833333,train
+569,"Handel, George Frideric, Suite in D minor, HWV 428, J04HbcvNN7s.mid",Handel,5,328.2890625,train
+570,"Handel, George Frideric, Suite in E minor, HWV 438, 82GylmHAJ-A.mid",Handel,5,247.5234375,train
+571,"Handel, George Frideric, Suite in F minor, HWV 433, GkM30b6V1Rw.mid",Handel,5,84.54947916666666,train
+572,"Handel, George Frideric, Suite in F-sharp minor, HWV 431, VlF3O38IIvY.mid",Handel,5,519.9895833333333,test
+573,"Handel, George Frideric, Suite in G minor, HWV 439, eew-90TtWfo.mid",Handel,5,316.5794270833333,train
+574,"Handel, George Frideric, Suite, HWV 445, ZtXRNZrIq-M.mid",Handel,5,57.479166666666664,train
+575,"Handel, George Frideric, Suite, HWV 447, 26qhrU579xA.mid",Handel,5,441.55729166666663,train
+576,"Handel, George Frideric, Suite, HWV 449, tAbHjtWnvbY.mid",Handel,5,67.5,test
+577,"Handel, George Frideric, Suite, HWV 453, RPBnBVBJQFY.mid",Handel,5,141.70963541666666,test
+578,"Handel, George Frideric, Toccata, HWV 586, lDC0fC0_uJU.mid",Handel,5,90.57942708333333,train
+579,"Handel, George Frideric, Voluntary No.6, 0qU75-5bYxc.mid",Handel,5,368.77994791666663,train
+580,"Handel, George Frideric, Wenn Christus, der Herr, zum Menschen sich neigt, NYWF7r6aGMU.mid",Handel,5,92.5,train
+581,"Heller, Stephen, 21 Etudes Speciales after Chopin, Op.154, AyAt2NkPjvY.mid",Chopin,3,140.59895833333331,train
+582,"Heller, Stephen, Lieder after Schubert, Op.55, 2Cp2iVTde0Y.mid",Schubert,9,220.85416666666666,valid
+583,"Hummel, Johann Nepomuk, Cadenza for Mozart's Piano Concerto No.20, K.466, W1ysGhhkU00.mid",Mozart,7,197.5,test
+584,"Jacinto, Javier, Para la Tumba de Scarlatti, NYvCaWPf2mY.mid",Scarlatti,8,559.5299479166666,train
+585,"Kalkbrenner, Friedrich Wilhelm, Variations brillantes on a Mazurka of Chopin, Op.120, 6pcWfUysK0Y.mid",Chopin,3,786.7734375,test
+586,"Kozlov, Illarion, Moment musical à la F. Schubert, Op.9, Vzmuzw2kxLc.mid",Schubert,9,118.22916666666666,train
+587,"Kreutzer, Joseph, 6 Variations on a theme by Mozart for Guitar, Op.7, UwlHKLb4us4.mid",Mozart,7,329.9895833333333,train
+588,"Lange, Gustav, Fantasiestücke nach Liedern von Franz Schubert, Op.90, aO_RBVrgc-A.mid",Schubert,9,329.9895833333333,test
+589,"Liszt, Franz, 2 Csárdás, S.225, P8ma7ZfGFq0.mid",Liszt,6,191.859375,valid
+590,"Liszt, Franz, 2 Episoden aus Lenau's Faust, S.110, 5t7SdyXrLpU.mid",Liszt,6,862.5,train
+591,"Liszt, Franz, 2 Konzertetüden, S.145, 6GQ2otGSr0k.mid",Liszt,6,420.36979166666663,train
+592,"Liszt, Franz, 2 Lieder von Robert Schumann, S.567, HcCI4nfZIJU.mid",Liszt,6,222.50130208333331,train
+593,"Liszt, Franz, 2 Polonaises, S.223, VvreQKtsObY.mid",Liszt,6,549.2291666666666,train
+594,"Liszt, Franz, 2 Stücke aus Tannhäuser und Lohengrin, S.445, btguV6uPyAs.mid",Liszt,6,406.29947916666663,train
+595,"Liszt, Franz, 2 Transcriptions d'après Rossini, S.553, OVjxYzDeiwI.mid",Liszt,6,452.5,train
+596,"Liszt, Franz, 3 Sonetti del Petrarca, S.270, uNbYde8PG6U.mid",Liszt,6,1322.5,train
+597,"Liszt, Franz, 3 Études de concert, S.144, 4RCS99LVsls.mid",Liszt,6,1357.2526041666665,train
+598,"Liszt, Franz, 5 Klavierstücke, S.192, KU3KglL3deA.mid",Liszt,6,694.7916666666666,train
+599,"Liszt, Franz, 5 Ungarische Volkslieder, S.245, AWSwyPEdDZ8.mid",Liszt,6,64.99479166666666,train
+600,"Liszt, Franz, 6 Melodien von Franz Schubert, S.563, vlEggjNvxXM.mid",Schubert,9,176.90885416666666,train
+601,"Liszt, Franz, 6 Polish Songs, S.480, kljFhcJC838.mid",Liszt,6,177.5,train
+602,"Liszt, Franz, 8 Variations, S.148, x2b-A8qbSSo.mid",Liszt,6,817.3098958333333,train
+603,"Liszt, Franz, A magyarok Istene, S.339, sBGdJ46uNcY.mid",Liszt,6,184.68880208333331,train
+604,"Liszt, Franz, Ab irato, S.143, qYGlfp6NG-I.mid",Liszt,6,134.63411458333331,train
+605,"Liszt, Franz, Abschied, S.251, hjuQ7I7vmH4.mid",Liszt,6,160.78385416666666,train
+606,"Liszt, Franz, Album d'un voyageur, S.156, olNJqtCkY50.mid",Liszt,6,3323.19921875,train
+607,"Liszt, Franz, Album-Leaf 'Preludio', S.164j, 5kpfHNIyiWI.mid",Liszt,6,53.639322916666664,train
+608,"Liszt, Franz, Album-Leaf 'Serenade', S.166g, 5kpfHNIyiWI.mid",Liszt,6,53.639322916666664,test
+609,"Liszt, Franz, Albumblatt in E major, S.164, s1vScFa6iuc.mid",Liszt,6,96.70963541666666,train
+610,"Liszt, Franz, Allegro di bravura, S.151, -_peKn8MccA.mid",Liszt,6,538.0494791666666,train
+611,"Liszt, Franz, Am stillen Herd, S.448, 3QxhIRDw-zE.mid",Liszt,6,457.80078125,train
+612,"Liszt, Franz, Andante Finale und Marsch aus der Oper König Alfred, S.421, 8oiyJANrUiU.mid",Liszt,6,906.0390625,train
+613,"Liszt, Franz, Andantino pour Emile et Charlotte Loudon, S.163a_2, _H1Ytu_NhfE.mid",Liszt,6,78.34895833333333,train
+614,"Liszt, Franz, Années de pèlerinage I, S.160, Aj2gFk0FoKo.mid",Liszt,6,2927.5,train
+615,"Liszt, Franz, Années de pèlerinage II, Supplément, S.162, kK35x1FkqKk.mid",Liszt,6,976.08984375,train
+616,"Liszt, Franz, Aus Lohengrin, S.446, x-l_lG9MQvk.mid",Liszt,6,232.00911458333331,train
+617,"Liszt, Franz, Ave Maria (Die Glocken von Rom), S.182, C6KnuGjvfGM.mid",Liszt,6,329.7890625,train
+618,"Liszt, Franz, Ave Maria d'Arcadelt, S.183_2, WVdAIGPd5oQ.mid",Liszt,6,326.859375,train
+619,"Liszt, Franz, Ballade aus dem Fliegenden Holländer, S.441, qnpgMTdWgj0.mid",Liszt,6,349.1888020833333,train
+620,"Liszt, Franz, Ballade No.1, S.170, fjOJjut6-x4.mid",Liszt,6,482.5,train
+621,"Liszt, Franz, Ballade No.2, S.171, 4bRTrDbPw8s.mid",Liszt,6,769.609375,train
+622,"Liszt, Franz, Buch der Lieder I, S.531, ds8qzdh9_Jg.mid",Liszt,6,599.46875,train
+623,"Liszt, Franz, Buch der Lieder II, S.535–540, c4T2umKzhPo.mid",Liszt,6,126.90885416666666,train
+624,"Liszt, Franz, Bénédiction et serment, S.396, jonxIx3KEpI.mid",Liszt,6,447.5598958333333,train
+625,"Liszt, Franz, Capriccio alla turca sur des motifs de Beethoven, S.388, sW5J3bVEmW8.mid",Beethoven,2,542.3098958333333,train
+626,"Liszt, Franz, Christus ist geboren, S.32, oPW7zUw9qlY.mid",Liszt,6,45.59895833333333,valid
+627,"Liszt, Franz, Concerto pathétique, S.258, VkZPzfwL0xw.mid",Liszt,6,1121.4388020833333,train
+628,"Liszt, Franz, Consolations, S.172, sUDqX4AZL7w.mid",Liszt,6,1089.60546875,train
+629,"Liszt, Franz, Csárdás macabre, S.224, EKbyQfSxGS8.mid",Liszt,6,409.4388020833333,test
+630,"Liszt, Franz, Danse Macabre, S.555, sSIyW9MfD60.mid",Liszt,6,619.9895833333333,train
+631,"Liszt, Franz, Danza sacra e duetto finale d'Aida, S.436, 6d_E09OwVe0.mid",Liszt,6,726.859375,train
+632,"Liszt, Franz, Dem Andenken Petöfis, S.195, XfmHXk5riUM.mid",Liszt,6,229.56901041666666,train
+633,"Liszt, Franz, Der du von dem Himmel bist, S.279, 6WuZqSqlSwE.mid",Liszt,6,290.08984375,train
+634,"Liszt, Franz, Die Zelle in Nonnenwerth, S.274, zYFEElW0seM.mid",Liszt,6,425.11979166666663,valid
+635,"Liszt, Franz, Elegy No.2, S.197, AA6llZlZkuw.mid",Liszt,6,287.01171875,test
+636,"Liszt, Franz, En rêve, S.207, YMm3b4U3ggY.mid",Liszt,6,142.5,train
+637,"Liszt, Franz, Fantaisie romantique sur deux mélodies suisses, S.157, QSmZJ85MNZY.mid",Liszt,6,1150.44921875,valid
+638,"Liszt, Franz, Fantaisie sur des motifs de La pastorella dell'Alpi e Li marinari des Soirées musicales, S.423, ZpUhQtnbd_o.mid",Liszt,6,752.4596354166666,train
+639,"Liszt, Franz, Fantaisie sur des motifs favoris de l'opéra 'La sonnambula', S.393, ZmXyqtPxBSs.mid",Liszt,6,745.0690104166666,train
+640,"Liszt, Franz, Fantaisie sur l'opéra hongroise Szép Ilonka, S.417, UN9uOL5EUCg.mid",Liszt,6,321.69921875,train
+641,"Liszt, Franz, Fantasie über Themen aus Mozarts Figaro und Don Giovanni, S.697, ZVevtrU8Oik.mid",Mozart,7,1219.9596354166665,train
+642,"Liszt, Franz, Faribolo Pasteur, S.236_1, RMhAjvhwjnw.mid",Liszt,6,329.5,train
+643,"Liszt, Franz, Feierlicher Marsch zum heiligen Gral aus Parsifal, S.450, 1Y-xxhBia0s.mid",Liszt,6,555.4518229166666,train
+644,"Liszt, Franz, Festmarsch nach Motiven von E.H.z.S.-C.-G., S.116, 2U3rziH28X0.mid",Liszt,6,378.4388020833333,train
+645,"Liszt, Franz, Festpolonaise, S.230a, VdSxlzB8MDw.mid",Liszt,6,234.94791666666666,train
+646,"Liszt, Franz, Feuilles d'album, S.165, z67xVgqA8jM.mid",Liszt,6,152.2578125,train
+647,"Liszt, Franz, Franz Schuberts geistliche Lieder, S.562, 4E9Nr3NVzdE.mid",Schubert,9,219.22916666666666,train
+648,"Liszt, Franz, Galop de bal, S.220, xowGECqRvCg.mid",Liszt,6,72.91927083333333,test
+649,"Liszt, Franz, Gaudeamus igitur, S.240, 1V1apbqSq20.mid",Liszt,6,501.3177083333333,train
+650,"Liszt, Franz, Gaudeamus igitur, S71a, sHmxGlXuWmU.mid",Liszt,6,508.71875,valid
+651,"Liszt, Franz, Glanes de Woronince, S.249, 3M0oe9QDtJM.mid",Liszt,6,1123.6692708333333,train
+652,"Liszt, Franz, God Save the Queen, S.235, zxoS6zZZUkc.mid",Liszt,6,308.92578125,train
+653,"Liszt, Franz, Grand galop chromatique, S.219, ANEBjgNnq7o.mid",Liszt,6,231.05989583333331,test
+654,"Liszt, Franz, Grande fantaisie sur des motifs de Niobe, S.419, u4VLabkCX0E.mid",Liszt,6,663.7799479166666,train
+655,"Liszt, Franz, Grande fantaisie sur la tyrolienne de l'opéra La fiancée de Auber, S.385, hbIiHM3qSMQ.mid",Liszt,6,756.2526041666666,train
+656,"Liszt, Franz, Grande paraphrase de la Marche pour le Sultan Abdul-Medjid Khan, S.403, GExJGk3pHb8.mid",Liszt,6,475.86979166666663,train
+657,"Liszt, Franz, Grande valse di bravura, S.209, vVQ2UEse-MI.mid",Liszt,6,388.08984375,train
+658,"Liszt, Franz, Grandes études de Paganini, S.141, sJqQ3CCl5jQ.mid",Liszt,6,1515.0794270833333,train
+659,"Liszt, Franz, Grosse Konzertfantasie über spanische Weisen, S.253, HPBShS8vrnc.mid",Liszt,6,789.9596354166666,train
+660,"Liszt, Franz, Harmonies poétiques et religieuses I, S.154, Ed-PvqSG8Bs.mid",Liszt,6,586.69921875,train
+661,"Liszt, Franz, Harmonies poétiques et religieuses III, S.173, jJIXU8ZxdA0.mid",Liszt,6,4975.048177083333,train
+662,"Liszt, Franz, Heroischer Marsch in ungarischem Stil, S.231, xzfe6fW-Das.mid",Liszt,6,420.33984375,test
+663,"Liszt, Franz, Historische ungarische Bildnisse, S.205, SZFW9MWC27E.mid",Liszt,6,189.328125,train
+664,"Liszt, Franz, Hungarian Rhapsody No.1, S.244_1, Ts7nUwUcvYk.mid",Liszt,6,855.3893229166666,train
+665,"Liszt, Franz, Hungarian Rhapsody No.10, S.244_10, waiaGTWPfLY.mid",Liszt,6,338.34244791666663,train
+666,"Liszt, Franz, Hungarian Rhapsody No.11, S.244_11, CPiox6OKchg.mid",Liszt,6,309.45963541666663,train
+667,"Liszt, Franz, Hungarian Rhapsody No.12, S.244_12, xAoLsWMKIx8.mid",Liszt,6,638.9192708333333,train
+668,"Liszt, Franz, Hungarian Rhapsody No.13, S.244_13, 5qrH8_8OFqg.mid",Liszt,6,500.07291666666663,train
+669,"Liszt, Franz, Hungarian Rhapsody No.14, S.244_14, ts2YRBzGF5k.mid",Liszt,6,724.4596354166666,train
+670,"Liszt, Franz, Hungarian Rhapsody No.15, S.244_15, m6U1znXPvOQ.mid",Liszt,6,362.3294270833333,train
+671,"Liszt, Franz, Hungarian Rhapsody No.16, S.244_16, iUVKHH4Ab30.mid",Liszt,6,293.02994791666663,train
+672,"Liszt, Franz, Hungarian Rhapsody No.17, S.244_17, UmHTLJWKcVs.mid",Liszt,6,143.66927083333331,test
+673,"Liszt, Franz, Hungarian Rhapsody No.18, S.244_18, T70mt4xsfHY.mid",Liszt,6,179.73958333333331,train
+674,"Liszt, Franz, Hungarian Rhapsody No.19, S.244_19, zUeEJn2aezk.mid",Liszt,6,589.6497395833333,train
+675,"Liszt, Franz, Hungarian Rhapsody No.2, S.244_2, LdH1hSWGFGU.mid",Liszt,6,571.71875,train
+676,"Liszt, Franz, Hungarian Rhapsody No.3, S.244_3, MbkMd2KnkJA.mid",Liszt,6,258.70963541666663,train
+677,"Liszt, Franz, Hungarian Rhapsody No.4, S.244_4, YB860I9hMnI.mid",Liszt,6,286.51953125,train
+678,"Liszt, Franz, Hungarian Rhapsody No.5, S.244_5, M8eCrvD8cp8.mid",Liszt,6,429.70963541666663,train
+679,"Liszt, Franz, Hungarian Rhapsody No.6, S.244_6, c6Npq0D1p58.mid",Liszt,6,372.25,train
+680,"Liszt, Franz, Hungarian Rhapsody No.7, S.244_7, iIQ_SfPug0s.mid",Liszt,6,364.2395833333333,train
+681,"Liszt, Franz, Hungarian Rhapsody No.8, S.244_8, wUy7t0OvxeU.mid",Liszt,6,452.5091145833333,train
+682,"Liszt, Franz, Hungarian Rhapsody No.9, S.244_9, JZfp5VsyIsc.mid",Liszt,6,651.26953125,test
+683,"Liszt, Franz, Hussitenlied, S.234, M2V4DEbZcMs.mid",Liszt,6,359.08984375,valid
+684,"Liszt, Franz, Hymne de la nuit, S.173a_1, J02tIssQP0s.mid",Liszt,6,416.96875,valid
+685,"Liszt, Franz, Hymne du matin, S.173a_2, tKhz7Llq7cI.mid",Liszt,6,226.81901041666666,train
+686,"Liszt, Franz, Illustrations de l'opéra L'Africaine, S.415, zQrxCk_pOMY.mid",Liszt,6,816.6888020833333,train
+687,"Liszt, Franz, Illustrations du Prophète, S.414, TiuSXhFQDNY.mid",Liszt,6,816.33984375,train
+688,"Liszt, Franz, Impromptu brillant sur des thèmes de Rossini et Spontini, S.150, 9PZku_gpXxQ.mid",Liszt,6,662.1484375,train
+689,"Liszt, Franz, Impromptu, S.191, nLazlKjDukA.mid",Liszt,6,300.9348958333333,train
+690,"Liszt, Franz, In festo transfigurationis Domini nostri Jesu Christi, S.188, sEYEuA5LKmc.mid",Liszt,6,124.06901041666666,train
+691,"Liszt, Franz, Introduction et Polonaise de l'opéra 'I puritani', S.391, ZFhSOjUYTxU.mid",Liszt,6,296.0794270833333,train
+692,"Liszt, Franz, Invocation, S.172c, SVUYifY08y4.mid",Liszt,6,391.453125,train
+693,"Liszt, Franz, Klavierstück, S.193, E_kr2i_gn9w.mid",Liszt,6,145.04947916666666,train
+694,"Liszt, Franz, L'Idée fixe, S.395, J2FtAamHrWQ.mid",Liszt,6,310.1497395833333,train
+695,"Liszt, Franz, La lugubre gondola, S.200, vucQNzyxwX0.mid",Liszt,6,799.5,train
+696,"Liszt, Franz, La romanesca, S.252a, ZbeYcB7ME-Y.mid",Liszt,6,428.3098958333333,train
+697,"Liszt, Franz, Le rossignol, S.250_1, hOIm3iW_Y78.mid",Liszt,6,223.81510416666666,test
+698,"Liszt, Franz, Les adieux, S.409, rSrmtNNum3g.mid",Liszt,6,515.9166666666666,train
+699,"Liszt, Franz, Ländler in A-flat major, S.211, PUNVf4lReHQ.mid",Liszt,6,68.61979166666666,train
+700,"Liszt, Franz, Magyar király-dal, S.340, Ambb1TYwTws.mid",Liszt,6,266.02994791666663,test
+701,"Liszt, Franz, Magyar rapszódiák, S.242, N3WlWqc9Rg4.mid",Liszt,6,604.68359375,train
+702,"Liszt, Franz, Marche et Cavatine de Lucie de Lammermoor, S.398, H3BfZ8tfWsA.mid",Liszt,6,623.0989583333333,train
+703,"Liszt, Franz, Marche funèbre de Dom Sébastien de Donizetti, S.402, skjRJw1FJk0.mid",Liszt,6,513.5,train
+704,"Liszt, Franz, Marche hongroise, S.233b, LYkbTnAEOf4.mid",Liszt,6,69.61458333333333,train
+705,"Liszt, Franz, Marche héroïque, S.510, Ymb8OyJ4104.mid",Liszt,6,469.83984375,test
+706,"Liszt, Franz, Mazeppa, S.138, n4qSn9GhsW4.mid",Liszt,6,426.38932291666663,train
+707,"Liszt, Franz, Mazurka brillante, S.221, 504lZ6VFiNM.mid",Liszt,6,303.39453125,train
+708,"Liszt, Franz, Mephisto Polka, S.217, bAuN0wEq_mk.mid",Liszt,6,397.5,train
+709,"Liszt, Franz, Mephisto Waltz No.1, S.514, KJbg9V2KnD8.mid",Liszt,6,696.37890625,test
+710,"Liszt, Franz, Mephisto Waltz No.2, S.515, YY2BANuwuQ8.mid",Liszt,6,644.69921875,train
+711,"Liszt, Franz, Mephisto Waltz No.3, S.216, 1YJbo0OQGM8.mid",Liszt,6,556.0390625,train
+712,"Liszt, Franz, Mephisto Waltz No.4, S.216b, P1B7t7-rHRQ.mid",Liszt,6,177.23958333333331,train
+713,"Liszt, Franz, Miserere du Trovatore, S.433, aMjdD4W7WhI.mid",Liszt,6,437.01953125,train
+714,"Liszt, Franz, Morceau de salon, S.142, IzflfgNt_S4.mid",Liszt,6,118.80989583333333,train
+715,"Liszt, Franz, Mosonyis Grabgeleit, S.194, e1dfbvD_JFI.mid",Liszt,6,416.1888020833333,train
+716,"Liszt, Franz, Mélodies hongroises d'après Franz Schubert, S.425, M57_MM-A2UM.mid",Schubert,9,335.20963541666663,train
+717,"Liszt, Franz, Müllerlieder von Franz Schubert, S.565, 8tk1gCRtWIE.mid",Schubert,9,1052.63671875,train
+718,"Liszt, Franz, Nuits d'été à Pausilippe, S.399, hAhFZOdBbJ8.mid",Liszt,6,848.71875,train
+719,"Liszt, Franz, O du mein holder Abendstern, S.444, _Mbx22x2GWc.mid",Liszt,6,408.71875,train
+720,"Liszt, Franz, Paraphrase de concert sur Ernani II, S.432, O1PfLvC5nQY.mid",Liszt,6,517.5924479166666,test
+721,"Liszt, Franz, Paraphrase de concert sur Rigoletto, S.434, mu_sVBOmE2A.mid",Liszt,6,442.5,valid
+722,"Liszt, Franz, Pater noster III, S.41, rMGRbYUH--o.mid",Liszt,6,134.0390625,train
+723,"Liszt, Franz, Petite valse favorite, S.212, j-JfB8dnk_o.mid",Liszt,6,201.6796875,train
+724,"Liszt, Franz, Phantasiestück über Motive aus 'Rienzi', S.439, UNEff-PiGmI.mid",Liszt,6,566.5247395833333,train
+725,"Liszt, Franz, Piano Sonata in B minor, S.178, VCHE-UPwBJA.mid",Liszt,6,1975.8098958333333,valid
+726,"Liszt, Franz, Pilgerchor aus Tannhäuser, S.443, d4reZBSyNyo.mid",Liszt,6,375.9192708333333,valid
+727,"Liszt, Franz, Preludes and Fugues by J.S. Bach, S.462, qgngMPkBUrg.mid",Liszt,6,232.359375,train
+728,"Liszt, Franz, Préludes et Harmonies poétiques et religieuses, S.171d, jJIXU8ZxdA0.mid",Liszt,6,4975.048177083333,valid
+729,"Liszt, Franz, R.W. - Venezia, S.201, 4QQ44NJPsZM.mid",Liszt,6,226.32942708333331,train
+730,"Liszt, Franz, Receuillement, S.204, KOOmlLsbhDs.mid",Liszt,6,287.96354166666663,train
+731,"Liszt, Franz, Resignazione, S.187a_b, DoelUeC_6FI.mid",Liszt,6,97.29947916666666,train
+732,"Liszt, Franz, Rhapsodie espagnole, S.254, cQxHB7yJxJo.mid",Liszt,6,779.94921875,train
+733,"Liszt, Franz, Roma e Venezia, kK35x1FkqKk.mid",Liszt,6,976.08984375,train
+734,"Liszt, Franz, Romance oubliée, S.527, szLrTBfpDoA.mid",Liszt,6,267.90885416666663,train
+735,"Liszt, Franz, Romance, S.169, Nga-swbLg2I.mid",Liszt,6,206.81510416666666,test
+736,"Liszt, Franz, Romancero espagnol, S.695c, 5uYICHsVtsM.mid",Liszt,6,1026.5690104166665,train
+737,"Liszt, Franz, Rondeau fantastique sur un thème espagnol, S.252, 2LZpIsqC-Ws.mid",Liszt,6,606.96875,train
+738,"Liszt, Franz, Rondo di bravura, S.152, SdS-sVdYzqc.mid",Liszt,6,842.3997395833333,train
+739,"Liszt, Franz, Rákóczi-Marsch, S.117, -6BLCTQPMs0.mid",Liszt,6,310.9296875,train
+740,"Liszt, Franz, Réminiscences de 'Robert le diable', S.413, jvF6mqttIJo.mid",Liszt,6,632.0989583333333,train
+741,"Liszt, Franz, Réminiscences de Don Juan, S.418, JI6JfJXcUjU.mid",Liszt,6,967.9596354166666,train
+742,"Liszt, Franz, Réminiscences de La juive, S.409a, heBWowW2oSI.mid",Liszt,6,910.0,test
+743,"Liszt, Franz, Réminiscences de Lucia di Lammermoor, S.397, zG8CgPgEjJ4.mid",Liszt,6,345.31901041666663,valid
+744,"Liszt, Franz, Réminiscences de Lucrezia Borgia, S.400, e-XtfYTLi2Y.mid",Liszt,6,1400.8294270833333,train
+745,"Liszt, Franz, Réminiscences de Norma, S.394, IEP1hZG0k6Y.mid",Liszt,6,807.6796875,train
+746,"Liszt, Franz, Réminiscences des Puritains de Bellini, S.390, 64XYYYg_jWU.mid",Liszt,6,1150.3294270833333,train
+747,"Liszt, Franz, Sarabande und Chaconne aus dem Singspiel Almira, S.181, j5vAOJsQTbE.mid",Liszt,6,742.5989583333333,test
+748,"Liszt, Franz, Scherzo in G minor, S.153, G7G7V-HcnAU.mid",Liszt,6,68.93880208333333,train
+749,"Liszt, Franz, Scherzo und Marsch, S.177, OuIJ9PILV_k.mid",Liszt,6,775.2994791666666,train
+750,"Liszt, Franz, Schlaflos! Frage und Antwort, S.203, oZNHCxwOMm0.mid",Liszt,6,182.93880208333331,train
+751,"Liszt, Franz, Seconde marche hongroise, S.232, I8NzqksX6OI.mid",Liszt,6,257.17838541666663,train
+752,"Liszt, Franz, Siegesmarsch, S.233a, CE3t63_UHwc.mid",Liszt,6,250.87890625,train
+753,"Liszt, Franz, Soirées musicales de Rossini, S.424, 8IC_H3etCPU.mid",Liszt,6,234.39453125,valid
+754,"Liszt, Franz, Spinnerlied aus dem Fliegenden Holländer, S.440, J4Uktv9Repw.mid",Liszt,6,346.90885416666663,train
+755,"Liszt, Franz, Stabat Mater, S.172b, 1jpek0VAa2Q.mid",Liszt,6,303.25,valid
+756,"Liszt, Franz, Toccata, S.197a, jONVK5R20Bc.mid",Liszt,6,66.64973958333333,train
+757,"Liszt, Franz, Trauervorspiel und Trauermarsch, S.206, NtvLI0IfGrE.mid",Liszt,6,405.01953125,train
+758,"Liszt, Franz, Trübe Wolken, S.199, tYKl41e_hoU.mid",Liszt,6,217.22916666666666,train
+759,"Liszt, Franz, Tyrolean Melody, S.385a, fI1-7CV3O5Y.mid",Liszt,6,65.83984375,train
+760,"Liszt, Franz, Un portrait en musique, S.190, tH879a-c6_8.mid",Liszt,6,260.1927083333333,train
+761,"Liszt, Franz, Und wir dachten der Toten, S.338, jIPswGky6wk.mid",Liszt,6,121.04427083333333,valid
+762,"Liszt, Franz, Ungarische Nationalmelodien, S.243, 7vc8H1IsPig.mid",Liszt,6,86.57942708333333,train
+763,"Liszt, Franz, Ungarischer Geschwindmarsch, S.233, WYAl3bknxVs.mid",Liszt,6,177.50130208333331,train
+764,"Liszt, Franz, Ungarischer Romanzero, S.241a, lcuXkuMN5LQ.mid",Liszt,6,150.75130208333331,train
+765,"Liszt, Franz, Unstern, S.208, N9TlhjRrqNU.mid",Liszt,6,369.36979166666663,train
+766,"Liszt, Franz, Urbi et Orbi, S.184, Rp5GZ4Hxdis.mid",Liszt,6,394.12369791666663,valid
+767,"Liszt, Franz, Valse de concert, S.430, SWkTVThLQDQ.mid",Liszt,6,469.29947916666663,valid
+768,"Liszt, Franz, Valse mélancolique, S.210, bCMUbOfVTbU.mid",Liszt,6,276.86979166666663,test
+769,"Liszt, Franz, Valse-Impromptu, S.213, cKXFu8nv5XY.mid",Liszt,6,342.5,train
+770,"Liszt, Franz, Variation on a Waltz by Diabelli, S.147, 9DFP4Q5rGL8.mid",Liszt,6,119.75911458333333,train
+771,"Liszt, Franz, Variationen über das Motiv von Bach, S.180, OP2CeT2w9HQ.mid",Liszt,6,981.4088541666666,train
+772,"Liszt, Franz, Variations brillantes sur un thème de Rossini, S.149, BX5W_4PP_bY.mid",Liszt,6,569.7890625,valid
+773,"Liszt, Franz, Venezia e Napoli, S.159, FGMRG56X1B0.mid",Liszt,6,1086.62890625,train
+774,"Liszt, Franz, Vexilla regis prodeunt, S.185, n_ido2UzXFM.mid",Liszt,6,401.4231770833333,train
+775,"Liszt, Franz, Vive Henri IV, S.239, LELncXeM-xs.mid",Liszt,6,168.00520833333331,train
+776,"Liszt, Franz, Vom Fels zum Meer!, S.229, LI9u_HeeSL4.mid",Liszt,6,496.71875,test
+777,"Liszt, Franz, Walhall aus Der Ring des Nibelungen, S.449, 38c57_POobE.mid",Liszt,6,381.7434895833333,test
+778,"Liszt, Franz, Weihnachtsbaum, S.186, OnRMwINZtOg.mid",Liszt,6,2845.095052083333,train
+779,"Liszt, Franz, Weinen, Klagen, Sorgen, Zagen, S.179, ieo_sh80cZs.mid",Liszt,6,312.69140625,train
+780,"Liszt, Franz, Wiegenlied, S.198, vqo0hKXZu38.mid",Liszt,6,239.859375,valid
+781,"Liszt, Franz, À la Chapelle Sixtine, S.461, i6wHgt7n2AQ.mid",Liszt,6,862.9895833333333,train
+782,"Liszt, Franz, Élégie sur des motifs du Prince Louis Ferdinand de Prusse, S.168, th8ayPGtIfg.mid",Liszt,6,424.12890625,train
+783,"Liszt, Franz, Étude en douze exercices, S.136, hXpjNjpZNRs.mid",Liszt,6,1514.1692708333333,train
+784,"Liszt, Franz, Études d'exécution transcendante d'après Paganini, S.140, LNTJyUeEL-c.mid",Liszt,6,277.0598958333333,train
+785,"Liszt, Franz, Études d'exécution transcendante, S.139, xBe_LKngwys.mid",Liszt,6,483.96354166666663,train
+786,"Lysenko, Mykola, Impromptu in the Style of Chopin, Op.38, FRbprtd1WfU.mid",Chopin,3,304.65885416666663,train
+787,"Michałowski, Aleksander, Paraphrase on Chopin's 'Minute Waltz', pD_ZuEbNLvw.mid",Chopin,3,217.7890625,train
+788,"Mozart, Leopold, Menuet in D minor, qaeC2DM1yzQ.mid",Mozart,7,52.05989583333333,train
+789,"Mozart, Leopold, Menuett in F major, U42hwKlemg0.mid",Mozart,7,45.0,test
+790,"Mozart, Leopold, Piano Sonata in C major, -rK1JhHEIuc.mid",Mozart,7,675.9192708333333,train
+791,"Mozart, Leopold, Piano Sonata in F major, kzgSCu1KcKs.mid",Mozart,7,589.4791666666666,train
+792,"Mozart, Leopold, Polonaise in C major, wFDtaSmq1uA.mid",Mozart,7,49.98958333333333,train
+793,"Mozart, Wolfgang Amadeus, 11 Minuets, K.176, F-ZG3LQkpUI.mid",Mozart,7,115.72916666666666,train
+794,"Mozart, Wolfgang Amadeus, 12 Variations in B-flat major, K.500, Z6USF9sm2pw.mid",Mozart,7,689.2734375,train
+795,"Mozart, Wolfgang Amadeus, 2 Fugues in E-flat major, K.deest, h-ZjmTxJBq4.mid",Mozart,7,458.1328125,train
+796,"Mozart, Wolfgang Amadeus, 5 Variations in G major, K.501, hoMXLv3U3To.mid",Mozart,7,452.75,train
+797,"Mozart, Wolfgang Amadeus, 6 Variations in F major, K.54, QVlQv52xIxA.mid",Mozart,7,379.8294270833333,test
+798,"Mozart, Wolfgang Amadeus, 8 Variations on &quot;Dieu d'amour&quot;, K.352_374c, 47yTt32M7Xs.mid",Mozart,7,780.3828125,train
+799,"Mozart, Wolfgang Amadeus, 9 Variations on a Minuet by Duport, K.573, 9nMNIwecVKA.mid",Mozart,7,472.0390625,train
+800,"Mozart, Wolfgang Amadeus, Adagio in B minor, K.deest, qdEGhMxQrB4.mid",Mozart,7,196.55859375,valid
+801,"Mozart, Wolfgang Amadeus, Adagio in C major, K.356_617a, VjPe2jLznXA.mid",Mozart,7,167.5,train
+802,"Mozart, Wolfgang Amadeus, Adagio in D minor, K.Anh.35_593a, CSIxIeiw1yc.mid",Mozart,7,42.26953125,train
+803,"Mozart, Wolfgang Amadeus, Allegro in B-flat major, K.3, Fa3kYVF62ak.mid",Mozart,7,78.43880208333333,train
+804,"Mozart, Wolfgang Amadeus, Allegro in B-flat major, K.400_372a, BEADHChl4OU.mid",Mozart,7,604.4544270833333,test
+805,"Mozart, Wolfgang Amadeus, Allegro in C major, K.484e, CJe3ISkn-RM.mid",Mozart,7,191.47916666666666,train
+806,"Mozart, Wolfgang Amadeus, Allegro in C major, K.9a_5a, CJe3ISkn-RM.mid",Mozart,7,191.47916666666666,valid
+807,"Mozart, Wolfgang Amadeus, Allegro in C minor, K.Anh.44_426a, rGJcCF4aS3c.mid",Mozart,7,29.01953125,train
+808,"Mozart, Wolfgang Amadeus, Allegro in F major, K.1c, xJGr5x4Zmjk.mid",Mozart,7,42.5,valid
+809,"Mozart, Wolfgang Amadeus, Allegro in G major, K.357_497a, bqnMail1yic.mid",Mozart,7,756.8255208333333,train
+810,"Mozart, Wolfgang Amadeus, Allegro in G major, K.72a, L9RDYgJ6wds.mid",Mozart,7,30.485677083333332,train
+811,"Mozart, Wolfgang Amadeus, Allegro in G minor, K.312_590d, Us1U-smpyFM.mid",Mozart,7,410.1888020833333,train
+812,"Mozart, Wolfgang Amadeus, Andante in B-flat major, K6.384B, Mw87w8sTCo0.mid",Mozart,7,139.66927083333331,train
+813,"Mozart, Wolfgang Amadeus, Andante in C major, K.1a, 0Yao9rOmQaE.mid",Mozart,7,26.01953125,test
+814,"Mozart, Wolfgang Amadeus, Fantasia in C minor, K.396_385f, jALw5NwMmXs.mid",Mozart,7,567.5,train
+815,"Mozart, Wolfgang Amadeus, Fantasia in C minor, K.475, Ui9pyxdVX6Y.mid",Mozart,7,787.01953125,train
+816,"Mozart, Wolfgang Amadeus, Fantasia in D minor, K.397_385g, 1BkZ8ci8_k4.mid",Mozart,7,348.34765625,train
+817,"Mozart, Wolfgang Amadeus, Fantasie in F minor, K.Anh.32, c7bBMzFn9_Q.mid",Mozart,7,132.27473958333331,train
+818,"Mozart, Wolfgang Amadeus, Frühlingslied, K.Anh.C 8.23, iYn5wluI2TY.mid",Mozart,7,37.5,train
+819,"Mozart, Wolfgang Amadeus, Fugue in C minor, K.426, oNrM37AYxfc.mid",Mozart,7,235.77213541666666,train
+820,"Mozart, Wolfgang Amadeus, Fugue in C minor, K.Anh.39a_626b, SItm3YOLjmc.mid",Mozart,7,48.73958333333333,train
+821,"Mozart, Wolfgang Amadeus, Fugue in D minor, K.deest, 5nwML8h89tw.mid",Mozart,7,54.81770833333333,train
+822,"Mozart, Wolfgang Amadeus, Fugue in E major, K.Anh.C 27.10, HU5yLGMwRI0.mid",Mozart,7,116.12890625,train
+823,"Mozart, Wolfgang Amadeus, Fugue in E minor, K.deest, lEYOKdybPH4.mid",Mozart,7,35.24739583333333,train
+824,"Mozart, Wolfgang Amadeus, Fugue in E-flat major, K.deest, sW2VQ1bP7KI.mid",Mozart,7,14.529947916666666,test
+825,"Mozart, Wolfgang Amadeus, Fugue in F major, K.Anh.33, yy9SFM1PPYw.mid",Mozart,7,28.805989583333332,train
+826,"Mozart, Wolfgang Amadeus, Fugue in G major, K.Anh.41_375g, ix7hykPFJgI.mid",Mozart,7,48.92317708333333,train
+827,"Mozart, Wolfgang Amadeus, Fugue in G major, K.Anh.45_375d, io-yVAHlmHs.mid",Mozart,7,33.174479166666664,train
+828,"Mozart, Wolfgang Amadeus, Gigue in G major, K.574, 9a1phByRPKo.mid",Mozart,7,83.38932291666666,train
+829,"Mozart, Wolfgang Amadeus, Kleiner Trauermarsch in C minor, K.453a, t_P8jYYjnnA.mid",Mozart,7,171.57942708333331,train
+830,"Mozart, Wolfgang Amadeus, La Tartine de beurre, XIbgGcWqBy4.mid",Mozart,7,74.97786458333333,train
+831,"Mozart, Wolfgang Amadeus, Melodie Fragment in B-flat major, K.deest, yHSPuZu0z4k.mid",Mozart,7,92.19661458333333,valid
+832,"Mozart, Wolfgang Amadeus, Minuet in C major, K.1f, krCV6mcKU-w.mid",Mozart,7,47.5,valid
+833,"Mozart, Wolfgang Amadeus, Minuet in D major, K.355_576b, eIjm5unr9ao.mid",Mozart,7,245.5390625,train
+834,"Mozart, Wolfgang Amadeus, Minuet in D major, K.94_73h, Chmb7ddJ8o4.mid",Mozart,7,70.38932291666666,train
+835,"Mozart, Wolfgang Amadeus, Minuet in F major, K.1d, KetMsgtPXgM.mid",Mozart,7,85.08984375,train
+836,"Mozart, Wolfgang Amadeus, Minuet in F major, K.2, K9AsLW08f6M.mid",Mozart,7,47.049479166666664,valid
+837,"Mozart, Wolfgang Amadeus, Minuet in F major, K.4, HwxNF9Hmz_s.mid",Mozart,7,89.50911458333333,valid
+838,"Mozart, Wolfgang Amadeus, Minuet in G major, K.1_1e, 7UcokDiBdgE.mid",Mozart,7,78.66927083333333,train
+839,"Mozart, Wolfgang Amadeus, Piano Sonata in B-flat major, K.498a, ExBZgS0fQ9I.mid",Mozart,7,1271.703125,train
+840,"Mozart, Wolfgang Amadeus, Piano Sonata in B-flat major, K.Anh.31_569a, LTtqQ8b5dZg.mid",Mozart,7,30.19140625,train
+841,"Mozart, Wolfgang Amadeus, Piano Sonata in F major, K.Anh.135_547a, ePsbF5NJrcI.mid",Mozart,7,447.84244791666663,train
+842,"Mozart, Wolfgang Amadeus, Piano Sonata in F major, K.Anh.29_590a, bUh99lCe1tU.mid",Mozart,7,12.119791666666666,valid
+843,"Mozart, Wolfgang Amadeus, Piano Sonata in F major, K.Anh.30_590b, CKZX2xrn2Vk.mid",Mozart,7,18.953125,train
+844,"Mozart, Wolfgang Amadeus, Piano Sonata in F major, K.Anh.37_590c, F6rR8mWxZ0I.mid",Mozart,7,44.59375,train
+845,"Mozart, Wolfgang Amadeus, Piano Sonata No.1 in C major, K.279_189d, ZixdOZh7zo4.mid",Mozart,7,838.4388020833333,train
+846,"Mozart, Wolfgang Amadeus, Piano Sonata No.11 in A major, K.331_300i, vp_h649sZ9A.mid",Mozart,7,827.3489583333333,train
+847,"Mozart, Wolfgang Amadeus, Piano Sonata No.13 in B-flat major, K.333_315c, 9vLnY5whOO0.mid",Mozart,7,395.31901041666663,train
+848,"Mozart, Wolfgang Amadeus, Piano Sonata No.14 in C minor, K.457, CKtxbloW-ZQ.mid",Mozart,7,1061.8294270833333,valid
+849,"Mozart, Wolfgang Amadeus, Piano Sonata No.15 in F major, K.533_494, tk9fa1CTY9k.mid",Mozart,7,1389.62890625,train
+850,"Mozart, Wolfgang Amadeus, Piano Sonata No.16 in C major, K.545, qjk-YRuQZDE.mid",Mozart,7,319.58984375,train
+851,"Mozart, Wolfgang Amadeus, Piano Sonata No.17 in B-flat major, K.570, kVwEkgQ3dPs.mid",Mozart,7,1099.7890625,train
+852,"Mozart, Wolfgang Amadeus, Piano Sonata No.18 in D major, K.576, TfCzqcW0LqE.mid",Mozart,7,847.21875,train
+853,"Mozart, Wolfgang Amadeus, Piano Sonata No.2 in F major, K.280_189e, J9866zX07iw.mid",Mozart,7,846.1393229166666,train
+854,"Mozart, Wolfgang Amadeus, Piano Sonata No.20 in C minor, 8ZyxKd_18G4.mid",Mozart,7,526.69140625,train
+855,"Mozart, Wolfgang Amadeus, Piano Sonata No.3 in B-flat major, K.281_189f, -QFbj1id5fE.mid",Mozart,7,263.27994791666663,train
+856,"Mozart, Wolfgang Amadeus, Piano Sonata No.4 in E-flat major, K.282_189g, -GWwHu5MJP4.mid",Mozart,7,718.2434895833333,test
+857,"Mozart, Wolfgang Amadeus, Piano Sonata No.5 in G major, K.283_189h, 0rnJu1rlm90.mid",Mozart,7,718.0494791666666,train
+858,"Mozart, Wolfgang Amadeus, Piano Sonata No.6 in D major, K.284_205b, 6TJTGOj03cU.mid",Mozart,7,1438.5989583333333,train
+859,"Mozart, Wolfgang Amadeus, Piano Sonata No.7 in C major, K.309_284b, 7QgT4_e8PTg.mid",Mozart,7,968.1627604166666,train
+860,"Mozart, Wolfgang Amadeus, Piano Sonata No.8 in A minor, K.310_300d, fRgxY8VUOz8.mid",Mozart,7,1289.8997395833333,train
+861,"Mozart, Wolfgang Amadeus, Piano Sonata No.9 in D major, K.311_284c, 49oiE8Tj1UU.mid",Mozart,7,899.9895833333333,test
+862,"Mozart, Wolfgang Amadeus, Prelude and Fugue in C major, K.394_383a, ZYHy76R-O4w.mid",Mozart,7,373.1497395833333,train
+863,"Mozart, Wolfgang Amadeus, Prelude, K.Anh.C 15.11, qtmW3LJj3fY.mid",Mozart,7,340.6419270833333,train
+864,"Mozart, Wolfgang Amadeus, Romance in A-flat major, K.Anh.C 27.04, UEpJALYMVhM.mid",Mozart,7,247.5,train
+865,"Mozart, Wolfgang Amadeus, Rondo in A minor, K.511, G7N6L9v007w.mid",Mozart,7,609.0416666666666,train
+866,"Mozart, Wolfgang Amadeus, Rondo in D major, K.485, qvPIpsgCvt8.mid",Mozart,7,283.90494791666663,train
+867,"Mozart, Wolfgang Amadeus, Rondo in F major, K.494, C01iQSZLOUw.mid",Mozart,7,402.82682291666663,train
+868,"Mozart, Wolfgang Amadeus, Sonata for 2 Pianos in D major, K.448_375a, tT9gT5bqi6Y.mid",Mozart,7,1454.5390625,valid
+869,"Mozart, Wolfgang Amadeus, Sonata for Piano Four-Hands in B-flat major, K.358_186c, Cv4LiOYmFEk.mid",Mozart,7,742.9856770833333,train
+870,"Mozart, Wolfgang Amadeus, Sonata for Piano Four-Hands in C major, K.19d, oTJDS1dprLg.mid",Mozart,7,733.75,train
+871,"Mozart, Wolfgang Amadeus, Sonata for Piano Four-Hands in D major, K.381_123a, zklTQOUOboY.mid",Mozart,7,794.2890625,train
+872,"Mozart, Wolfgang Amadeus, Sonata for Piano Four-Hands in F major, K.497, t2Aodlo8uKU.mid",Mozart,7,1478.94921875,test
+873,"Mozart, Wolfgang Amadeus, Sonata Movement for Two Pianos, K.Anh.42_375b, 4oY3lP_i9iA.mid",Mozart,7,666.72265625,train
+874,"Mozart, Wolfgang Amadeus, Sonata Movement in B-flat major, K.Anh.43_375c, cAIp75te5-s.mid",Mozart,7,264.9296875,train
+875,"Mozart, Wolfgang Amadeus, The London Notebook, UD_6mPBrk3Y.mid",Mozart,7,2873.884114583333,train
+876,"Mozart, Wolfgang Amadeus, The London Sketchbook, UD_6mPBrk3Y.mid",Mozart,7,2873.884114583333,train
+877,"Mozart, Wolfgang Amadeus, Theme in C major, K.Anh.38_383d, KAVjSvszFN4.mid",Mozart,7,61.229166666666664,train
+878,"Ornstein, Leo, Moment Musical (after Schubert), SO 71a, bLMOluaELPc.mid",Schubert,9,108.59895833333333,valid
+879,"Rachmaninoff, Sergei, Variations on a Theme of Chopin, Op.22, XiDtLscGnn8.mid",Chopin,3,1609.9622395833333,train
+880,"Raff, Joachim, Reminiscenzen aus Mozarts 'Don Juan', Op.45, PisFXpjzQk4.mid",Mozart,7,506.9895833333333,train
+881,"Saint-Saëns, Camille, Improvisation sur la Beethoven-Cantate, -afx16u0VTY.mid",Beethoven,2,714.8489583333333,train
+882,"Scarlatti, Alessandro, Folia, cnagWF298ag.mid",Scarlatti,8,89.70963541666666,train
+883,"Scarlatti, Alessandro, La donna ancora è fedele, 4kJ4P0UEk_U.mid",Scarlatti,8,186.31901041666666,valid
+884,"Scarlatti, Alessandro, Messa à quattro in canone, R.514_8, Qa8v12zFrgE.mid",Scarlatti,8,88.66927083333333,train
+885,"Scarlatti, Alessandro, Recorder Concerto in C minor, B9lqcYYk0oI.mid",Scarlatti,8,59.609375,valid
+886,"Scarlatti, Alessandro, Spanish Folies, DQqQcjwb9MU.mid",Scarlatti,8,92.5,train
+887,"Scarlatti, Domenico, Keyboard Sonata in A major, K.113, mICCTTqNfo0.mid",Scarlatti,8,263.14713541666663,train
+888,"Scarlatti, Domenico, Keyboard Sonata in A major, K.114, qVCllFAWCw8.mid",Scarlatti,8,293.9921875,train
+889,"Scarlatti, Domenico, Keyboard Sonata in A major, K.181, JYUu3e1pWiY.mid",Scarlatti,8,256.54947916666663,train
+890,"Scarlatti, Domenico, Keyboard Sonata in A major, K.182, nqknHKxqMjc.mid",Scarlatti,8,180.359375,train
+891,"Scarlatti, Domenico, Keyboard Sonata in A major, K.208, 3H93fMF2f7c.mid",Scarlatti,8,252.83984375,train
+892,"Scarlatti, Domenico, Keyboard Sonata in A major, K.209, as8mBumXTOg.mid",Scarlatti,8,254.69921875,train
+893,"Scarlatti, Domenico, Keyboard Sonata in A major, K.212, ehCJX939_6A.mid",Scarlatti,8,189.89973958333331,train
+894,"Scarlatti, Domenico, Keyboard Sonata in A major, K.220, uxIo7aULii0.mid",Scarlatti,8,308.359375,train
+895,"Scarlatti, Domenico, Keyboard Sonata in A major, K.221, _jnKvhXUd9o.mid",Scarlatti,8,276.1692708333333,train
+896,"Scarlatti, Domenico, Keyboard Sonata in A major, K.26, IEPbIr7YLwQ.mid",Scarlatti,8,215.81901041666666,train
+897,"Scarlatti, Domenico, Keyboard Sonata in A major, K.269, p_887UNCRkQ.mid",Scarlatti,8,199.88932291666666,train
+898,"Scarlatti, Domenico, Keyboard Sonata in A major, K.285, dYKDj8PpFhA.mid",Scarlatti,8,143.01953125,test
+899,"Scarlatti, Domenico, Keyboard Sonata in A major, K.300, 8av3sMM9tzM.mid",Scarlatti,8,261.90885416666663,valid
+900,"Scarlatti, Domenico, Keyboard Sonata in A major, K.320, tXoW-WMSYow.mid",Scarlatti,8,204.609375,train
+901,"Scarlatti, Domenico, Keyboard Sonata in A major, K.342, rDqI-TyDeE8.mid",Scarlatti,8,72.66927083333333,train
+902,"Scarlatti, Domenico, Keyboard Sonata in A major, K.343, 6tDzYa6lQzU.mid",Scarlatti,8,266.08854166666663,train
+903,"Scarlatti, Domenico, Keyboard Sonata in A major, K.369, Rdr7NHm9oWs.mid",Scarlatti,8,268.83984375,train
+904,"Scarlatti, Domenico, Keyboard Sonata in A major, K.404, I9zwckpZOl0.mid",Scarlatti,8,400.13932291666663,train
+905,"Scarlatti, Domenico, Keyboard Sonata in A major, K.428, 4JzZQJx1FU0.mid",Scarlatti,8,124.5625,valid
+906,"Scarlatti, Domenico, Keyboard Sonata in A major, K.429, 8eNREuEoewk.mid",Scarlatti,8,184.65885416666666,train
+907,"Scarlatti, Domenico, Keyboard Sonata in A major, K.452, aOvGdu0Rk0M.mid",Scarlatti,8,273.26953125,train
+908,"Scarlatti, Domenico, Keyboard Sonata in A major, K.453, aOvGdu0Rk0M.mid",Scarlatti,8,273.26953125,train
+909,"Scarlatti, Domenico, Keyboard Sonata in A major, K.456, aOvGdu0Rk0M.mid",Scarlatti,8,273.26953125,train
+910,"Scarlatti, Domenico, Keyboard Sonata in A major, K.457, RfKEM0n5dQs.mid",Scarlatti,8,212.6796875,test
+911,"Scarlatti, Domenico, Keyboard Sonata in A major, K.499, GMUmpdPDCVA.mid",Scarlatti,8,221.07291666666666,train
+912,"Scarlatti, Domenico, Keyboard Sonata in A major, K.500, s35gP2J5e3I.mid",Scarlatti,8,114.21875,train
+913,"Scarlatti, Domenico, Keyboard Sonata in A major, K.533, uNx3ETKQ-xU.mid",Scarlatti,8,179.55989583333331,train
+914,"Scarlatti, Domenico, Keyboard Sonata in A major, K.536, MbllsGl0uMM.mid",Scarlatti,8,409.3997395833333,train
+915,"Scarlatti, Domenico, Keyboard Sonata in A major, K.537, JULVlgCCGgo.mid",Scarlatti,8,175.80989583333331,valid
+916,"Scarlatti, Domenico, Keyboard Sonata in A major, K.65, 2JLvhkzFfXE.mid",Scarlatti,8,126.64322916666666,train
+917,"Scarlatti, Domenico, Keyboard Sonata in A major, K.74, c-_KfI8EDiA.mid",Scarlatti,8,89.61848958333333,train
+918,"Scarlatti, Domenico, Keyboard Sonata in A major, K.83, umFXiqI7xbw.mid",Scarlatti,8,270.77213541666663,train
+919,"Scarlatti, Domenico, Keyboard Sonata in A minor, K.109, 2sWQ4JU_Rbo.mid",Scarlatti,8,242.54947916666666,valid
+920,"Scarlatti, Domenico, Keyboard Sonata in A minor, K.3, dZHg0EIkn9s.mid",Scarlatti,8,154.18880208333331,train
+921,"Scarlatti, Domenico, Keyboard Sonata in A minor, K.341, NXjI7SceQWE.mid",Scarlatti,8,133.32942708333331,train
+922,"Scarlatti, Domenico, Keyboard Sonata in A minor, K.383, B2wtJffhyAM.mid",Scarlatti,8,208.51953125,train
+923,"Scarlatti, Domenico, Keyboard Sonata in A minor, K.451, 1BCFJBLiqOg.mid",Scarlatti,8,67.24088541666666,test
+924,"Scarlatti, Domenico, Keyboard Sonata in A minor, K.54, T_nWScxFc1Y.mid",Scarlatti,8,317.33984375,train
+925,"Scarlatti, Domenico, Keyboard Sonata in A minor, K.61, kFWooNLKqr0.mid",Scarlatti,8,163.98567708333331,train
+926,"Scarlatti, Domenico, Keyboard Sonata in A-flat major, K.127, 3IfGQa4TcqU.mid",Scarlatti,8,172.875,test
+927,"Scarlatti, Domenico, Keyboard Sonata in A-flat major, K.130, 88ZQ0Dle1-8.mid",Scarlatti,8,140.14973958333331,train
+928,"Scarlatti, Domenico, Keyboard Sonata in B major, K.261, Qkrn3sZdliA.mid",Scarlatti,8,319.2591145833333,train
+929,"Scarlatti, Domenico, Keyboard Sonata in B minor, K.197, 6hOFbaTDIRE.mid",Scarlatti,8,344.60807291666663,train
+930,"Scarlatti, Domenico, Keyboard Sonata in B minor, K.27, Fy6plkuF50o.mid",Scarlatti,8,254.55989583333331,train
+931,"Scarlatti, Domenico, Keyboard Sonata in B minor, K.87, 5g_TRcRKtMw.mid",Scarlatti,8,425.17447916666663,train
+932,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.154, MTLyV_7UZGI.mid",Scarlatti,8,210.16796875,train
+933,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.172, ebL_pOB0sHk.mid",Scarlatti,8,249.56901041666666,train
+934,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.189, liuPOptGwEM.mid",Scarlatti,8,260.4192708333333,train
+935,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.202, rBUWtLJh9Iw.mid",Scarlatti,8,176.26171875,train
+936,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.248, u-qnTBe911E.mid",Scarlatti,8,271.88932291666663,train
+937,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.266, tB6q-2gBZtE.mid",Scarlatti,8,262.02213541666663,train
+938,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.311, 6zgfQubusqo.mid",Scarlatti,8,108.98958333333333,train
+939,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.332, hWO0x4LKWnE.mid",Scarlatti,8,131.36979166666666,train
+940,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.334, IkhI1272T_c.mid",Scarlatti,8,160.93880208333331,train
+941,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.393, 0oiNj9W7azY.mid",Scarlatti,8,206.90885416666666,valid
+942,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.411, 3uuv320Y6uQ.mid",Scarlatti,8,146.75651041666666,train
+943,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.439, GL1Gad_i1Kw.mid",Scarlatti,8,215.36979166666666,valid
+944,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.440, pcpSUqpiyR0.mid",Scarlatti,8,190.76953125,train
+945,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.441, uViAcd9LzFE.mid",Scarlatti,8,190.21875,train
+946,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.442, BeObQRLlA1Y.mid",Scarlatti,8,168.72916666666666,train
+947,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.47, FJtKsjK50Fs.mid",Scarlatti,8,217.52473958333331,test
+948,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.473, STP7UVhDvVA.mid",Scarlatti,8,271.8997395833333,train
+949,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.488, kiJv2KGt6I8.mid",Scarlatti,8,138.02994791666666,valid
+950,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.503, wCDpsuZyO7k.mid",Scarlatti,8,120.97916666666666,train
+951,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.504, 8tMkejv9yTs.mid",Scarlatti,8,130.13932291666666,train
+952,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.528, 6S93NSWpz0E.mid",Scarlatti,8,207.1875,train
+953,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.544, tAtE-jBIRZ0.mid",Scarlatti,8,251.37109375,train
+954,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.545, JJsQmZ-yN1M.mid",Scarlatti,8,166.83984375,test
+955,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.551, 96A2qaBLQUg.mid",Scarlatti,8,260.5989583333333,train
+956,"Scarlatti, Domenico, Keyboard Sonata in B-flat major, K.70, jd2qKv6-VNY.mid",Scarlatti,8,126.17447916666666,train
+957,"Scarlatti, Domenico, Keyboard Sonata in B-flat minor, K.128, VFAqYK2YmrE.mid",Scarlatti,8,355.4388020833333,train
+958,"Scarlatti, Domenico, Keyboard Sonata in B-flat minor, K.131, UAJk0RkwR3k.mid",Scarlatti,8,229.98958333333331,valid
+959,"Scarlatti, Domenico, Keyboard Sonata in C major, K.100, Yxj-krh4PTo.mid",Scarlatti,8,151.69401041666666,train
+960,"Scarlatti, Domenico, Keyboard Sonata in C major, K.132, KkQWgp6KVIY.mid",Scarlatti,8,193.87890625,train
+961,"Scarlatti, Domenico, Keyboard Sonata in C major, K.143, CcaXGErpla4.mid",Scarlatti,8,290.7265625,train
+962,"Scarlatti, Domenico, Keyboard Sonata in C major, K.156, E12nUbsmVuk.mid",Scarlatti,8,223.40885416666666,train
+963,"Scarlatti, Domenico, Keyboard Sonata in C major, K.159, M-qHaX927Z0.mid",Scarlatti,8,140.56510416666666,train
+964,"Scarlatti, Domenico, Keyboard Sonata in C major, K.165, TOKL-zcoOMo.mid",Scarlatti,8,281.31510416666663,train
+965,"Scarlatti, Domenico, Keyboard Sonata in C major, K.166, zkgZrNU-jmI.mid",Scarlatti,8,199.95052083333331,train
+966,"Scarlatti, Domenico, Keyboard Sonata in C major, K.170, AbRh2aXA6-o.mid",Scarlatti,8,465.2552083333333,train
+967,"Scarlatti, Domenico, Keyboard Sonata in C major, K.200, xUzEvu1oqyQ.mid",Scarlatti,8,197.37890625,train
+968,"Scarlatti, Domenico, Keyboard Sonata in C major, K.225, C7WU-NA8cBY.mid",Scarlatti,8,314.1497395833333,train
+969,"Scarlatti, Domenico, Keyboard Sonata in C major, K.270, NmFxjCDA-P4.mid",Scarlatti,8,533.0403645833333,test
+970,"Scarlatti, Domenico, Keyboard Sonata in C major, K.271, vgwBgX11kP0.mid",Scarlatti,8,179.58984375,train
+971,"Scarlatti, Domenico, Keyboard Sonata in C major, K.309, yAkn2vGbHfc.mid",Scarlatti,8,206.16927083333331,train
+972,"Scarlatti, Domenico, Keyboard Sonata in C major, K.384, lPmEH3YWeys.mid",Scarlatti,8,226.26953125,train
+973,"Scarlatti, Domenico, Keyboard Sonata in C major, K.385, pvfQXs7FnyE.mid",Scarlatti,8,237.40885416666666,test
+974,"Scarlatti, Domenico, Keyboard Sonata in C major, K.406, TqEgCZkr_Tw.mid",Scarlatti,8,204.77994791666666,test
+975,"Scarlatti, Domenico, Keyboard Sonata in C major, K.407, su-glf8vg4c.mid",Scarlatti,8,155.80598958333331,train
+976,"Scarlatti, Domenico, Keyboard Sonata in C major, K.464, jijGcT88ZtA.mid",Scarlatti,8,161.47916666666666,train
+977,"Scarlatti, Domenico, Keyboard Sonata in C major, K.486, ygKjo5dk224.mid",Scarlatti,8,226.50911458333331,train
+978,"Scarlatti, Domenico, Keyboard Sonata in C major, K.487, diCoNPt9-yc.mid",Scarlatti,8,239.0,train
+979,"Scarlatti, Domenico, Keyboard Sonata in C major, K.49, hUFMGDXgL24.mid",Scarlatti,8,330.72916666666663,train
+980,"Scarlatti, Domenico, Keyboard Sonata in C major, K.501, p-KT4_FiQrA.mid",Scarlatti,8,353.88932291666663,train
+981,"Scarlatti, Domenico, Keyboard Sonata in C major, K.513, 0zOhoJEMSmw.mid",Scarlatti,8,332.8294270833333,train
+982,"Scarlatti, Domenico, Keyboard Sonata in C major, K.514, JdxP2Y4OEyA.mid",Scarlatti,8,176.58984375,train
+983,"Scarlatti, Domenico, Keyboard Sonata in C major, K.527, g35GgGYLjB8.mid",Scarlatti,8,212.71354166666666,train
+984,"Scarlatti, Domenico, Keyboard Sonata in C major, K.548, UJ3xWmP6oW0.mid",Scarlatti,8,249.08984375,train
+985,"Scarlatti, Domenico, Keyboard Sonata in C major, K.549, e50uKs9xZKQ.mid",Scarlatti,8,305.81901041666663,train
+986,"Scarlatti, Domenico, Keyboard Sonata in C major, K.72, oYsobqinCTs.mid",Scarlatti,8,150.94921875,train
+987,"Scarlatti, Domenico, Keyboard Sonata in C major, K.95, wGiY1clQjos.mid",Scarlatti,8,124.921875,train
+988,"Scarlatti, Domenico, Keyboard Sonata in C minor, K.11, TNsUugqKZsI.mid",Scarlatti,8,186.56901041666666,train
+989,"Scarlatti, Domenico, Keyboard Sonata in C minor, K.115, 9P7sgZjkhKw.mid",Scarlatti,8,422.5559895833333,train
+990,"Scarlatti, Domenico, Keyboard Sonata in C minor, K.116, VPD04uuRK_k.mid",Scarlatti,8,210.51302083333331,train
+991,"Scarlatti, Domenico, Keyboard Sonata in C minor, K.126, z9ws4Rcgrxs.mid",Scarlatti,8,327.29947916666663,test
+992,"Scarlatti, Domenico, Keyboard Sonata in C minor, K.129, o7jLX6Zpams.mid",Scarlatti,8,193.25911458333331,valid
+993,"Scarlatti, Domenico, Keyboard Sonata in C minor, K.139, PtrDFMc8Es4.mid",Scarlatti,8,337.70963541666663,train
+994,"Scarlatti, Domenico, Keyboard Sonata in C minor, K.158, aGN5qKoswRI.mid",Scarlatti,8,149.41927083333331,train
+995,"Scarlatti, Domenico, Keyboard Sonata in C minor, K.226, PRyDpHPp8Ik.mid",Scarlatti,8,230.16927083333331,train
+996,"Scarlatti, Domenico, Keyboard Sonata in C minor, K.230, tHk3DxUAwk8.mid",Scarlatti,8,124.18359375,train
+997,"Scarlatti, Domenico, Keyboard Sonata in C minor, K.302, Jp5OPyGVV-I.mid",Scarlatti,8,369.98307291666663,valid
+998,"Scarlatti, Domenico, Keyboard Sonata in C minor, K.303, Y0E4011q6ck.mid",Scarlatti,8,249.57942708333331,train
+999,"Scarlatti, Domenico, Keyboard Sonata in C minor, K.526, 5gSMdS_OHc0.mid",Scarlatti,8,284.70963541666663,train
+1000,"Scarlatti, Domenico, Keyboard Sonata in C minor, K.56, jnjiOnzaPVs.mid",Scarlatti,8,217.69921875,train
+1001,"Scarlatti, Domenico, Keyboard Sonata in C minor, K.58, ZjczJbPMOpg.mid",Scarlatti,8,228.41927083333331,train
+1002,"Scarlatti, Domenico, Keyboard Sonata in C minor, K.73, 4_6svi5EjzY.mid",Scarlatti,8,331.4192708333333,train
+1003,"Scarlatti, Domenico, Keyboard Sonata in C minor, K.84, pYpnpnKryxU.mid",Scarlatti,8,189.43880208333331,train
+1004,"Scarlatti, Domenico, Keyboard Sonata in C minor, K.99, PaapKZjzuFg.mid",Scarlatti,8,390.67838541666663,train
+1005,"Scarlatti, Domenico, Keyboard Sonata in C-sharp minor, K.246, 9s_PgkO70vI.mid",Scarlatti,8,123.41145833333333,train
+1006,"Scarlatti, Domenico, Keyboard Sonata in D major, K.122, PNoNdDusNsU.mid",Scarlatti,8,315.03385416666663,train
+1007,"Scarlatti, Domenico, Keyboard Sonata in D major, K.140, 5smgm2JTceU.mid",Scarlatti,8,215.70833333333331,train
+1008,"Scarlatti, Domenico, Keyboard Sonata in D major, K.160, ViHMmQDAkPQ.mid",Scarlatti,8,316.8606770833333,train
+1009,"Scarlatti, Domenico, Keyboard Sonata in D major, K.21, D19yCXDMCOc.mid",Scarlatti,8,279.19791666666663,train
+1010,"Scarlatti, Domenico, Keyboard Sonata in D major, K.214, Vn9EUyGmLQo.mid",Scarlatti,8,256.11979166666663,train
+1011,"Scarlatti, Domenico, Keyboard Sonata in D major, K.281, 4m-BeQ0rUvk.mid",Scarlatti,8,181.05598958333331,train
+1012,"Scarlatti, Domenico, Keyboard Sonata in D major, K.29, HSnnUvRjJEY.mid",Scarlatti,8,278.02734375,valid
+1013,"Scarlatti, Domenico, Keyboard Sonata in D major, K.298, 9GRXZyBS5Dc.mid",Scarlatti,8,337.44921875,test
+1014,"Scarlatti, Domenico, Keyboard Sonata in D major, K.346, kV--V_ZiLP4.mid",Scarlatti,8,151.75520833333331,train
+1015,"Scarlatti, Domenico, Keyboard Sonata in D major, K.352, lxT3rZhL-b8.mid",Scarlatti,8,309.41276041666663,test
+1016,"Scarlatti, Domenico, Keyboard Sonata in D major, K.359, qca6OjvnEyg.mid",Scarlatti,8,153.171875,valid
+1017,"Scarlatti, Domenico, Keyboard Sonata in D major, K.401, fzFEv-EPGVM.mid",Scarlatti,8,218.07421875,train
+1018,"Scarlatti, Domenico, Keyboard Sonata in D major, K.414, TuJXI12UCdU.mid",Scarlatti,8,161.78385416666666,train
+1019,"Scarlatti, Domenico, Keyboard Sonata in D major, K.430, 5nN8DQSAwlI.mid",Scarlatti,8,102.45442708333333,valid
+1020,"Scarlatti, Domenico, Keyboard Sonata in D major, K.436, tkScHgy5ORA.mid",Scarlatti,8,167.34895833333331,train
+1021,"Scarlatti, Domenico, Keyboard Sonata in D major, K.443, SkN8h63vd8w.mid",Scarlatti,8,289.76041666666663,test
+1022,"Scarlatti, Domenico, Keyboard Sonata in D major, K.458, URYDNU3wXVk.mid",Scarlatti,8,306.0091145833333,train
+1023,"Scarlatti, Domenico, Keyboard Sonata in D major, K.478, -NgWtzEepjQ.mid",Scarlatti,8,465.6223958333333,train
+1024,"Scarlatti, Domenico, Keyboard Sonata in D major, K.491, r1jyJ8RKjVM.mid",Scarlatti,8,171.96875,train
+1025,"Scarlatti, Domenico, Keyboard Sonata in D major, K.492, m_F6NQDEPXU.mid",Scarlatti,8,221.89973958333331,train
+1026,"Scarlatti, Domenico, Keyboard Sonata in D major, K.512, CE8JjhqCKUs.mid",Scarlatti,8,77.12890625,train
+1027,"Scarlatti, Domenico, Keyboard Sonata in D major, K.534, iAL3i29k61Q.mid",Scarlatti,8,302.5,train
+1028,"Scarlatti, Domenico, Keyboard Sonata in D major, K.535, zEwr2aj8FQ4.mid",Scarlatti,8,272.46875,train
+1029,"Scarlatti, Domenico, Keyboard Sonata in D minor, K.1, lYAsSceNGrE.mid",Scarlatti,8,153.89192708333331,test
+1030,"Scarlatti, Domenico, Keyboard Sonata in D minor, K.120, y_Zz0NuG87U.mid",Scarlatti,8,246.70963541666666,train
+1031,"Scarlatti, Domenico, Keyboard Sonata in D minor, K.138, 4fms1jfryDs.mid",Scarlatti,8,205.265625,test
+1032,"Scarlatti, Domenico, Keyboard Sonata in D minor, K.141, wjghYFgt8Zk.mid",Scarlatti,8,207.7890625,train
+1033,"Scarlatti, Domenico, Keyboard Sonata in D minor, K.18, IYQLnwHRBe4.mid",Scarlatti,8,182.88411458333331,valid
+1034,"Scarlatti, Domenico, Keyboard Sonata in D minor, K.294, 7YyL_oky0ug.mid",Scarlatti,8,268.6692708333333,train
+1035,"Scarlatti, Domenico, Keyboard Sonata in D minor, K.34, iH0t95VskLo.mid",Scarlatti,8,122.5,train
+1036,"Scarlatti, Domenico, Keyboard Sonata in D minor, K.396, A7-4zzYEsLo.mid",Scarlatti,8,258.39453125,train
+1037,"Scarlatti, Domenico, Keyboard Sonata in D minor, K.444, g3exzJBh_w8.mid",Scarlatti,8,172.97135416666666,train
+1038,"Scarlatti, Domenico, Keyboard Sonata in D minor, K.459, xDTNvJfvClM.mid",Scarlatti,8,217.1796875,train
+1039,"Scarlatti, Domenico, Keyboard Sonata in D minor, K.510, tJLRsI5I3D0.mid",Scarlatti,8,272.5,train
+1040,"Scarlatti, Domenico, Keyboard Sonata in D minor, K.516, Oa2pTq25Xgg.mid",Scarlatti,8,382.27734375,train
+1041,"Scarlatti, Domenico, Keyboard Sonata in D minor, K.52, yHAPV9BxkqY.mid",Scarlatti,8,324.8203125,train
+1042,"Scarlatti, Domenico, Keyboard Sonata in D minor, K.64, LiYwxXfgevY.mid",Scarlatti,8,124.29817708333333,train
+1043,"Scarlatti, Domenico, Keyboard Sonata in D minor, K.77, JxXMhwP_l38.mid",Scarlatti,8,343.26953125,train
+1044,"Scarlatti, Domenico, Keyboard Sonata in D minor, K.9, PzzKSiUS-X0.mid",Scarlatti,8,192.359375,train
+1045,"Scarlatti, Domenico, Keyboard Sonata in D minor, K.92, 6rTxtlWwYVI.mid",Scarlatti,8,334.6848958333333,train
+1046,"Scarlatti, Domenico, Keyboard Sonata in E major, K.134, Fw7MnRIOCtw.mid",Scarlatti,8,265.7890625,train
+1047,"Scarlatti, Domenico, Keyboard Sonata in E major, K.135, _Xgf0bNUS2g.mid",Scarlatti,8,278.84375,train
+1048,"Scarlatti, Domenico, Keyboard Sonata in E major, K.136, YcHSHNXvD84.mid",Scarlatti,8,267.56901041666663,train
+1049,"Scarlatti, Domenico, Keyboard Sonata in E major, K.163, iW6-9BnzhyY.mid",Scarlatti,8,101.09895833333333,train
+1050,"Scarlatti, Domenico, Keyboard Sonata in E major, K.206, tx-Z1Q1HJwU.mid",Scarlatti,8,346.8046875,train
+1051,"Scarlatti, Domenico, Keyboard Sonata in E major, K.207, VpGhEpio4Ew.mid",Scarlatti,8,178.93880208333331,train
+1052,"Scarlatti, Domenico, Keyboard Sonata in E major, K.264, SXMdMZkc1jI.mid",Scarlatti,8,168.47395833333331,valid
+1053,"Scarlatti, Domenico, Keyboard Sonata in E major, K.28, 3h4_57Sz54I.mid",Scarlatti,8,221.90494791666666,train
+1054,"Scarlatti, Domenico, Keyboard Sonata in E major, K.380, 6JqC-TBzxr8.mid",Scarlatti,8,306.9895833333333,train
+1055,"Scarlatti, Domenico, Keyboard Sonata in E major, K.531, JLNiugXWElg.mid",Scarlatti,8,211.77994791666666,train
+1056,"Scarlatti, Domenico, Keyboard Sonata in E minor, K.147, nFWsFCXDdgY.mid",Scarlatti,8,310.77994791666663,train
+1057,"Scarlatti, Domenico, Keyboard Sonata in E minor, K.198, lzhMKFmZpUU.mid",Scarlatti,8,172.54557291666666,train
+1058,"Scarlatti, Domenico, Keyboard Sonata in E minor, K.232, 1Mg3NoOAFBU.mid",Scarlatti,8,304.21875,valid
+1059,"Scarlatti, Domenico, Keyboard Sonata in E minor, K.263, 0gl_yNaQGVM.mid",Scarlatti,8,387.26953125,test
+1060,"Scarlatti, Domenico, Keyboard Sonata in E minor, K.291, Tc_V8UlVyC4.mid",Scarlatti,8,168.09895833333331,train
+1061,"Scarlatti, Domenico, Keyboard Sonata in E minor, K.402, QkvDWbo-_nE.mid",Scarlatti,8,658.08984375,train
+1062,"Scarlatti, Domenico, Keyboard Sonata in E minor, K.98, SzRcJrQXZG4.mid",Scarlatti,8,158.93880208333331,train
+1063,"Scarlatti, Domenico, Keyboard Sonata in E-flat major, K.123, HnO2fZ-3kfs.mid",Scarlatti,8,245.54947916666666,train
+1064,"Scarlatti, Domenico, Keyboard Sonata in E-flat major, K.193, wFw5U5Hdj_0.mid",Scarlatti,8,126.71875,test
+1065,"Scarlatti, Domenico, Keyboard Sonata in E-flat major, K.474, xk3yxzE8Q5s.mid",Scarlatti,8,340.63932291666663,train
+1066,"Scarlatti, Domenico, Keyboard Sonata in E-flat major, K.475, wymycMCzZws.mid",Scarlatti,8,259.1640625,train
+1067,"Scarlatti, Domenico, Keyboard Sonata in E-flat major, K.507, Ztb8H4jaUdY.mid",Scarlatti,8,379.85416666666663,train
+1068,"Scarlatti, Domenico, Keyboard Sonata in E-flat major, K.508, ZbzlNz7pdkk.mid",Scarlatti,8,178.22916666666666,train
+1069,"Scarlatti, Domenico, Keyboard Sonata in E-flat major, K.68, oNDRI140Cfw.mid",Scarlatti,8,258.2591145833333,train
+1070,"Scarlatti, Domenico, Keyboard Sonata in F major, K.106, XiRMG9jIOZk.mid",Scarlatti,8,199.60416666666666,train
+1071,"Scarlatti, Domenico, Keyboard Sonata in F major, K.107, 6ij149U-Yro.mid",Scarlatti,8,279.7630208333333,train
+1072,"Scarlatti, Domenico, Keyboard Sonata in F major, K.151, X-RpBCAWe2E.mid",Scarlatti,8,260.75,train
+1073,"Scarlatti, Domenico, Keyboard Sonata in F major, K.167, dsZJJu5uCLM.mid",Scarlatti,8,330.85546875,valid
+1074,"Scarlatti, Domenico, Keyboard Sonata in F major, K.194, t9SS_PQq2Y0.mid",Scarlatti,8,396.37890625,train
+1075,"Scarlatti, Domenico, Keyboard Sonata in F major, K.276, W4CEIDR7j6I.mid",Scarlatti,8,207.55338541666666,train
+1076,"Scarlatti, Domenico, Keyboard Sonata in F major, K.355, up108ZVVReQ.mid",Scarlatti,8,143.23177083333331,train
+1077,"Scarlatti, Domenico, Keyboard Sonata in F major, K.366, p-pk7vOJj50.mid",Scarlatti,8,218.91927083333331,test
+1078,"Scarlatti, Domenico, Keyboard Sonata in F major, K.378, JICwtkEaM9M.mid",Scarlatti,8,87.87369791666666,train
+1079,"Scarlatti, Domenico, Keyboard Sonata in F major, K.379, BbRVmesZsXg.mid",Scarlatti,8,91.56901041666666,train
+1080,"Scarlatti, Domenico, Keyboard Sonata in F major, K.38, 6-1zf2jAdLM.mid",Scarlatti,8,126.56119791666666,train
+1081,"Scarlatti, Domenico, Keyboard Sonata in F major, K.418, VEdPfCKfakE.mid",Scarlatti,8,214.859375,train
+1082,"Scarlatti, Domenico, Keyboard Sonata in F major, K.438, GljLXoUbUVA.mid",Scarlatti,8,393.70963541666663,valid
+1083,"Scarlatti, Domenico, Keyboard Sonata in F major, K.445, aonverKMWfQ.mid",Scarlatti,8,195.12890625,train
+1084,"Scarlatti, Domenico, Keyboard Sonata in F major, K.469, gz3CEC49xvY.mid",Scarlatti,8,178.27473958333331,train
+1085,"Scarlatti, Domenico, Keyboard Sonata in F major, K.482, r1NFVD1D7Mk.mid",Scarlatti,8,149.44921875,train
+1086,"Scarlatti, Domenico, Keyboard Sonata in F major, K.483, dUxCepCWACk.mid",Scarlatti,8,102.25,train
+1087,"Scarlatti, Domenico, Keyboard Sonata in F major, K.506, dvwB9LvwZ3k.mid",Scarlatti,8,93.32942708333333,train
+1088,"Scarlatti, Domenico, Keyboard Sonata in F major, K.518, 3R494Nh8u40.mid",Scarlatti,8,294.5989583333333,train
+1089,"Scarlatti, Domenico, Keyboard Sonata in F major, K.524, X66P5r4ORW4.mid",Scarlatti,8,226.09244791666666,train
+1090,"Scarlatti, Domenico, Keyboard Sonata in F major, K.525, VkLHGcBuPNg.mid",Scarlatti,8,137.94401041666666,train
+1091,"Scarlatti, Domenico, Keyboard Sonata in F major, K.540, Lp1du9DWDrQ.mid",Scarlatti,8,281.96875,test
+1092,"Scarlatti, Domenico, Keyboard Sonata in F major, K.542, UVT25ufjgVs.mid",Scarlatti,8,138.36979166666666,train
+1093,"Scarlatti, Domenico, Keyboard Sonata in F major, K.543, -opgU74pHsg.mid",Scarlatti,8,248.71875,train
+1094,"Scarlatti, Domenico, Keyboard Sonata in F major, K.78, PbVoQU24glc.mid",Scarlatti,8,115.56901041666666,train
+1095,"Scarlatti, Domenico, Keyboard Sonata in F major, K.85, EA5_JqfSI04.mid",Scarlatti,8,513.76953125,train
+1096,"Scarlatti, Domenico, Keyboard Sonata in F major, K.94, -KIKiLeEBlo.mid",Scarlatti,8,90.9296875,train
+1097,"Scarlatti, Domenico, Keyboard Sonata in F minor, K.183, ARtOsBl8Vog.mid",Scarlatti,8,367.5,train
+1098,"Scarlatti, Domenico, Keyboard Sonata in F minor, K.184, IDXJiINuzP8.mid",Scarlatti,8,173.38932291666666,train
+1099,"Scarlatti, Domenico, Keyboard Sonata in F minor, K.185, J6YwJGtyJi0.mid",Scarlatti,8,178.22916666666666,valid
+1100,"Scarlatti, Domenico, Keyboard Sonata in F minor, K.187, fUMta2bymMY.mid",Scarlatti,8,305.47916666666663,train
+1101,"Scarlatti, Domenico, Keyboard Sonata in F minor, K.238, v4EIwCqISDs.mid",Scarlatti,8,139.11979166666666,train
+1102,"Scarlatti, Domenico, Keyboard Sonata in F minor, K.239, gQ9QO83rCCg.mid",Scarlatti,8,221.33984375,valid
+1103,"Scarlatti, Domenico, Keyboard Sonata in F minor, K.365, qT2S3sB7dsk.mid",Scarlatti,8,223.02473958333331,train
+1104,"Scarlatti, Domenico, Keyboard Sonata in F minor, K.386, 1Ge9VCaoJoY.mid",Scarlatti,8,144.50911458333331,valid
+1105,"Scarlatti, Domenico, Keyboard Sonata in F minor, K.387, NLBuiQ4GEzA.mid",Scarlatti,8,146.84895833333331,valid
+1106,"Scarlatti, Domenico, Keyboard Sonata in F minor, K.462, y53VXydFVfY.mid",Scarlatti,8,260.1796875,train
+1107,"Scarlatti, Domenico, Keyboard Sonata in F minor, K.463, qUWXIfYITiw.mid",Scarlatti,8,159.50911458333331,train
+1108,"Scarlatti, Domenico, Keyboard Sonata in F minor, K.466, uthlSgmBYMc.mid",Scarlatti,8,296.40885416666663,test
+1109,"Scarlatti, Domenico, Keyboard Sonata in F minor, K.481, cup9ypmLVPo.mid",Scarlatti,8,362.5,test
+1110,"Scarlatti, Domenico, Keyboard Sonata in F minor, K.555, oD7qW7pYZH4.mid",Scarlatti,8,236.5390625,train
+1111,"Scarlatti, Domenico, Keyboard Sonata in F minor, K.69, a7Cy-SIYuA4.mid",Scarlatti,8,333.0,train
+1112,"Scarlatti, Domenico, Keyboard Sonata in F-sharp major, K.319, cm3ZsacnwSk.mid",Scarlatti,8,116.33984375,train
+1113,"Scarlatti, Domenico, Keyboard Sonata in G major, K.104, GOgKZWYuXNM.mid",Scarlatti,8,182.72916666666666,train
+1114,"Scarlatti, Domenico, Keyboard Sonata in G major, K.144, ifcQiTB8dtw.mid",Scarlatti,8,253.65885416666666,train
+1115,"Scarlatti, Domenico, Keyboard Sonata in G major, K.146, KEC8bk50Ig4.mid",Scarlatti,8,162.72916666666666,train
+1116,"Scarlatti, Domenico, Keyboard Sonata in G major, K.152, CPek8wdMz9E.mid",Scarlatti,8,143.93880208333331,train
+1117,"Scarlatti, Domenico, Keyboard Sonata in G major, K.153, xQvN6zLEJOw.mid",Scarlatti,8,111.63411458333333,train
+1118,"Scarlatti, Domenico, Keyboard Sonata in G major, K.169, fH_mG0IlPr0.mid",Scarlatti,8,290.5234375,train
+1119,"Scarlatti, Domenico, Keyboard Sonata in G major, K.180, 47tT5ZhBCRY.mid",Scarlatti,8,182.59895833333331,train
+1120,"Scarlatti, Domenico, Keyboard Sonata in G major, K.201, Wrk5Nd9MoOY.mid",Scarlatti,8,198.41927083333331,train
+1121,"Scarlatti, Domenico, Keyboard Sonata in G major, K.260, CE_IhahQqR0.mid",Scarlatti,8,253.29036458333331,train
+1122,"Scarlatti, Domenico, Keyboard Sonata in G major, K.284, 1JkI0yKNXW4.mid",Scarlatti,8,116.39973958333333,valid
+1123,"Scarlatti, Domenico, Keyboard Sonata in G major, K.290, RFWYp31_rfg.mid",Scarlatti,8,222.67578125,train
+1124,"Scarlatti, Domenico, Keyboard Sonata in G major, K.304, rrjLU32nEng.mid",Scarlatti,8,95.50520833333333,train
+1125,"Scarlatti, Domenico, Keyboard Sonata in G major, K.372, pKkZn4OXOks.mid",Scarlatti,8,123.70442708333333,train
+1126,"Scarlatti, Domenico, Keyboard Sonata in G major, K.375, NDFb-_92xxo.mid",Scarlatti,8,130.0,test
+1127,"Scarlatti, Domenico, Keyboard Sonata in G major, K.413, DZ_pcdF-LhI.mid",Scarlatti,8,136.01432291666666,test
+1128,"Scarlatti, Domenico, Keyboard Sonata in G major, K.424, Rm5ck2D9F4Q.mid",Scarlatti,8,147.65885416666666,train
+1129,"Scarlatti, Domenico, Keyboard Sonata in G major, K.425, oOhpEdtLucU.mid",Scarlatti,8,108.45572916666666,train
+1130,"Scarlatti, Domenico, Keyboard Sonata in G major, K.427, VA1A0Gr5R60.mid",Scarlatti,8,141.82942708333331,train
+1131,"Scarlatti, Domenico, Keyboard Sonata in G major, K.431, SsTctLhhALw.mid",Scarlatti,8,49.276041666666664,test
+1132,"Scarlatti, Domenico, Keyboard Sonata in G major, K.449, QhOjxrvBOVw.mid",Scarlatti,8,178.34895833333331,train
+1133,"Scarlatti, Domenico, Keyboard Sonata in G major, K.454, lf6OtVrqPmw.mid",Scarlatti,8,160.18880208333331,train
+1134,"Scarlatti, Domenico, Keyboard Sonata in G major, K.470, 3vWC6j9tsDE.mid",Scarlatti,8,402.0,train
+1135,"Scarlatti, Domenico, Keyboard Sonata in G major, K.471, 5rxW7R8UHVY.mid",Scarlatti,8,206.29947916666666,test
+1136,"Scarlatti, Domenico, Keyboard Sonata in G major, K.477, RFWYp31_rfg.mid",Scarlatti,8,222.67578125,valid
+1137,"Scarlatti, Domenico, Keyboard Sonata in G major, K.493, EtALBHvkbvk.mid",Scarlatti,8,425.1953125,train
+1138,"Scarlatti, Domenico, Keyboard Sonata in G major, K.520, E6REhWRmMzE.mid",Scarlatti,8,288.0442708333333,train
+1139,"Scarlatti, Domenico, Keyboard Sonata in G major, K.521, HMuiWu9aqqQ.mid",Scarlatti,8,243.765625,train
+1140,"Scarlatti, Domenico, Keyboard Sonata in G major, K.522, m2Py45Ziwno.mid",Scarlatti,8,310.9296875,train
+1141,"Scarlatti, Domenico, Keyboard Sonata in G major, K.523, GjNzAoyPZac.mid",Scarlatti,8,95.5546875,train
+1142,"Scarlatti, Domenico, Keyboard Sonata in G major, K.539, _HRNRj3R_NQ.mid",Scarlatti,8,287.9296875,train
+1143,"Scarlatti, Domenico, Keyboard Sonata in G major, K.547, 0x_7MWKoNnQ.mid",Scarlatti,8,239.80208333333331,train
+1144,"Scarlatti, Domenico, Keyboard Sonata in G major, K.55, dhD2BTYZ58k.mid",Scarlatti,8,184.79947916666666,train
+1145,"Scarlatti, Domenico, Keyboard Sonata in G major, K.63, GIsNFOZBR78.mid",Scarlatti,8,148.4921875,train
+1146,"Scarlatti, Domenico, Keyboard Sonata in G major, K.75, fJfgE3gJnTI.mid",Scarlatti,8,137.73958333333331,train
+1147,"Scarlatti, Domenico, Keyboard Sonata in G major, K.79, CVnj7f2Ap0Y.mid",Scarlatti,8,57.83984375,train
+1148,"Scarlatti, Domenico, Keyboard Sonata in G major, K.80, z_Hwn4CuAWU.mid",Scarlatti,8,132.69921875,train
+1149,"Scarlatti, Domenico, Keyboard Sonata in G minor, K.108, mjWh4j_cZd0.mid",Scarlatti,8,154.88671875,train
+1150,"Scarlatti, Domenico, Keyboard Sonata in G minor, K.179, SF1a0LTgAss.mid",Scarlatti,8,164.02994791666666,train
+1151,"Scarlatti, Domenico, Keyboard Sonata in G minor, K.30, ebmMBvuxRkg.mid",Scarlatti,8,190.1796875,train
+1152,"Scarlatti, Domenico, Keyboard Sonata in G minor, K.426, RbvCzAFdPfM.mid",Scarlatti,8,177.53515625,valid
+1153,"Scarlatti, Domenico, Keyboard Sonata in G minor, K.43, A_wUZuDNPXY.mid",Scarlatti,8,167.22916666666666,train
+1154,"Scarlatti, Domenico, Keyboard Sonata in G minor, K.450, 52yT2MskxlQ.mid",Scarlatti,8,216.12890625,valid
+1155,"Scarlatti, Domenico, Keyboard Sonata in G minor, K.476, wiGPufjmGyA.mid",Scarlatti,8,185.9296875,train
+1156,"Scarlatti, Domenico, Keyboard Sonata in G minor, K.60, GYWXU2_S6A0.mid",Scarlatti,8,167.75,train
+1157,"Scarlatti, Domenico, Keyboard Sonata in G minor, K.76, a9XzCqW2K6I.mid",Scarlatti,8,133.609375,test
+1158,"Scarlatti, Domenico, Keyboard Sonata in G minor, K.8, sw2sctUPl9s.mid",Scarlatti,8,297.13151041666663,train
+1159,"Scarlatti, Domenico, Keyboard Sonata in G minor, K.88, cjSvps-wTA8.mid",Scarlatti,8,601.99609375,train
+1160,"Scarlatti, Domenico, Keyboard Sonata in G minor, K.93, 693VMKh6bvM.mid",Scarlatti,8,213.27994791666666,test
+1161,"Schauerte, Uli, Canone minore alla Chopin su 'Happy Birthday to You', p37Ld0YK0DY.mid",Chopin,3,59.109375,train
+1162,"Schubert, Camille, Bertha, MVPz-wNEEGI.mid",Schubert,9,137.59895833333331,train
+1163,"Schubert, Camille, La Fée de la Prairie, Op.222, K5zZrYKdqKw.mid",Schubert,9,161.609375,test
+1164,"Schubert, Camille, La rose de Palerme, Op.232, QvT_6K1ynpc.mid",Schubert,9,91.52994791666666,train
+1165,"Schubert, Camille, Mosaïque sur des motifs de la 'Norma', Op.27, xFZ88cir4Oc.mid",Schubert,9,944.3190104166666,train
+1166,"Schubert, Franz, 10 Variations in F major, D.156, hLm0_ROztEs.mid",Schubert,9,787.5,train
+1167,"Schubert, Franz, 12 Ecossaises, D.299, edjyhE4NnQA.mid",Schubert,9,317.71875,train
+1168,"Schubert, Franz, 12 Ecossaises, D.781, 3lrlMyJ8mYU.mid",Schubert,9,230.01953125,train
+1169,"Schubert, Franz, 12 German Dances, D.420, dOKeTcGB-Qs.mid",Schubert,9,457.5,train
+1170,"Schubert, Franz, 12 German Dances, D.790, L8UmJSteRec.mid",Schubert,9,633.87890625,train
+1171,"Schubert, Franz, 12 Grazer Waltzer, D.924, GnrmZ7u_JsI.mid",Schubert,9,578.5598958333333,test
+1172,"Schubert, Franz, 12 Valses nobles, D.969, 30YycNdZWy0.mid",Schubert,9,708.2591145833333,test
+1173,"Schubert, Franz, 12 Viennese German Dances, D.128, pSFjJItc1aQ.mid",Schubert,9,638.484375,train
+1174,"Schubert, Franz, 13 Variations on a Theme of Hüttenbrenner, D.576, IbH95JyuS_c.mid",Schubert,9,81.76953125,train
+1175,"Schubert, Franz, 17 Ländler, D.366, SGmpMIOwZBw.mid",Schubert,9,750.6588541666666,train
+1176,"Schubert, Franz, 18 German Dances and Ecossaises, D.783, dRThK-7mQnk.mid",Schubert,9,478.5,train
+1177,"Schubert, Franz, 2 German Dances, D.841, We0JR--EpZ8.mid",Schubert,9,87.9921875,train
+1178,"Schubert, Franz, 2 German Dances, D.974, aEcdrzQkOwQ.mid",Schubert,9,64.25,train
+1179,"Schubert, Franz, 2 Ländler in E-flat major, D.980b, 2rEMYoJMji8.mid",Schubert,9,59.109375,train
+1180,"Schubert, Franz, 2 Marches caractéristiques, D.968b, J-KLdGf3vkc.mid",Schubert,9,415.2734375,train
+1181,"Schubert, Franz, 2 Waltzes, D.980, _nCP02dVkwA.mid",Schubert,9,83.27994791666666,train
+1182,"Schubert, Franz, 20 Waltzes, D.146, FwE_52-cIww.mid",Schubert,9,2122.51953125,valid
+1183,"Schubert, Franz, 3 Ecossaises, D.816, tQDrmOiWjEA.mid",Schubert,9,87.70963541666666,valid
+1184,"Schubert, Franz, 3 German Dances, D.971, xDFDzZo7Ry4.mid",Schubert,9,132.90885416666666,train
+1185,"Schubert, Franz, 3 German Dances, D.972, zGmmudkMvTQ.mid",Schubert,9,96.46875,valid
+1186,"Schubert, Franz, 3 German Dances, D.973, -UDZ2PmtCf0.mid",Schubert,9,123.62890625,train
+1187,"Schubert, Franz, 3 Klavierstücke, D.946, M75JsOQwk68.mid",Schubert,9,4054.7408854166665,test
+1188,"Schubert, Franz, 3 Marches héroïques, D.602, 8Mk7SUehUYc.mid",Schubert,9,413.04947916666663,train
+1189,"Schubert, Franz, 3 Marches militaires, D.733, 6kYkb0Jgod0.mid",Schubert,9,260.4153645833333,train
+1190,"Schubert, Franz, 3 Minuets, D.380, hwmP5_Or7wI.mid",Schubert,9,504.38932291666663,train
+1191,"Schubert, Franz, 36 Originaltänze, D.365, D-xbDl-Mimw.mid",Schubert,9,1462.2317708333333,train
+1192,"Schubert, Franz, 38 Waltzes, Ländler and Ecossaises, D.145, x9Omg-iOe9Q.mid",Schubert,9,665.7395833333333,train
+1193,"Schubert, Franz, 4 Impromptus, D.899, 24DugWBRkYg.mid",Schubert,9,1695.609375,train
+1194,"Schubert, Franz, 4 Impromptus, D.935, 06OBNoeKWBw.mid",Schubert,9,2411.079427083333,train
+1195,"Schubert, Franz, 4 Ländler, D.814, bwz5Hz9iSMg.mid",Schubert,9,226.57942708333331,train
+1196,"Schubert, Franz, 4 Polonaises, D.599, gwOp5lEOknY.mid",Schubert,9,631.8190104166666,train
+1197,"Schubert, Franz, 6 Antiphonen zum Palmsonntag, D.696, Noe0Mn8ijKA.mid",Schubert,9,79.98958333333333,train
+1198,"Schubert, Franz, 6 Ecossaises in A-flat major, D.697, iq7uEDJozyM.mid",Schubert,9,43.256510416666664,train
+1199,"Schubert, Franz, 6 German Dances, D.820, NabtIIRnM3Q.mid",Schubert,9,337.0091145833333,train
+1200,"Schubert, Franz, 6 German Dances, D.970, TcH6fI5HIzk.mid",Schubert,9,201.25911458333331,train
+1201,"Schubert, Franz, 6 Grandes marches, D.819, 4B980-T6O_A.mid",Schubert,9,511.8997395833333,train
+1202,"Schubert, Franz, 6 Polonaises, D.824, 90tn6WTykWo.mid",Schubert,9,217.76953125,valid
+1203,"Schubert, Franz, 8 Ecossaises, D.529, jFN1prco1Sg.mid",Schubert,9,23.87890625,train
+1204,"Schubert, Franz, 8 Ecossaises, D.977, r0BPiJw0np0.mid",Schubert,9,161.51953125,train
+1205,"Schubert, Franz, 8 Ländler, D.378, vkUtRaeUarw.mid",Schubert,9,37.93880208333333,train
+1206,"Schubert, Franz, 8 Variations on a French Song, D.624, 7gSGIFpQDJA.mid",Schubert,9,830.203125,train
+1207,"Schubert, Franz, 8 Variations on an Original Theme, D.813, 68UIoL0CFeQ.mid",Schubert,9,1153.83984375,train
+1208,"Schubert, Franz, Adagio in C major, D.349, YgYhBLnkd7M.mid",Schubert,9,269.8489583333333,test
+1209,"Schubert, Franz, Adagio in E major, D.612, Ekgd_U-m6qw.mid",Schubert,9,272.5,train
+1210,"Schubert, Franz, Adagio in G major, D.178, gna_BfHFsus.mid",Schubert,9,992.5,train
+1211,"Schubert, Franz, Allegretto in C major, D.346, pECF2ZQRIO0.mid",Schubert,9,414.9296875,train
+1212,"Schubert, Franz, Allegretto in C minor, D.915, P8rdNrIbFxU.mid",Schubert,9,344.87890625,train
+1213,"Schubert, Franz, Allegro and Scherzo, D.570, RwvQy7pyuZo.mid",Schubert,9,234.56901041666666,train
+1214,"Schubert, Franz, Allegro in A minor, D.947, hjRgrz3vO8Y.mid",Schubert,9,685.09375,train
+1215,"Schubert, Franz, Allegro moderato in C major, D.347, ticjXvpjU6c.mid",Schubert,9,124.41927083333333,train
+1216,"Schubert, Franz, Andante in C major, D.29, IQhgia9KneY.mid",Schubert,9,252.5,test
+1217,"Schubert, Franz, Andantino in C major, D.348, PXOev0gb2GU.mid",Schubert,9,166.98958333333331,train
+1218,"Schubert, Franz, Cotillon, D.976, ob7xD67iwqQ.mid",Schubert,9,35.85546875,train
+1219,"Schubert, Franz, Der Geistertanz, D.15, 6mCuyA6fbvU.mid",Schubert,9,152.57942708333331,train
+1220,"Schubert, Franz, Der Geistertanz, D.15a, uw1DmmVgyJY.mid",Schubert,9,133.14973958333331,train
+1221,"Schubert, Franz, Divertissement à la hongroise, D.818, mS_L46VHZPY.mid",Schubert,9,1053.4986979166665,train
+1222,"Schubert, Franz, Ecossaise in D major, D.782, SIlfmpW_N80.mid",Schubert,9,23.819010416666664,train
+1223,"Schubert, Franz, Ecossaise in E-flat major, D.511, fk4rfDfpTUQ.mid",Schubert,9,33.549479166666664,train
+1224,"Schubert, Franz, Ecossaise, D.158, b34nNxbBBBY.mid",Schubert,9,21.96875,train
+1225,"Schubert, Franz, Eine kleine Trauermusik, D.79, XxONXgCTFOM.mid",Schubert,9,427.0091145833333,train
+1226,"Schubert, Franz, Fantasie in C major, D.605, pRlZUPrP8SI.mid",Schubert,9,747.7591145833333,train
+1227,"Schubert, Franz, Fantasie in C major, D.760, lR43Ti4w5MM.mid",Schubert,9,1295.3541666666665,test
+1228,"Schubert, Franz, Fantasie in C minor, D.48, LNDOwjhjNmk.mid",Schubert,9,857.4596354166666,train
+1229,"Schubert, Franz, Fantasie in F minor, D.940, uzjYQuDPi9Q.mid",Schubert,9,1162.3763020833333,train
+1230,"Schubert, Franz, Fantasie in G major, D.1, uE43tEsIDKw.mid",Schubert,9,649.7109375,train
+1231,"Schubert, Franz, Fantasie in G minor, D.9, 4LHjXRhZJo0.mid",Schubert,9,358.2890625,test
+1232,"Schubert, Franz, Fantasy in C minor, D.2e, lIZdxfY550E.mid",Schubert,9,363.6028645833333,train
+1233,"Schubert, Franz, Frühlingsglaube, D.686, f_BnWNmdmuE.mid",Schubert,9,420.8984375,train
+1234,"Schubert, Franz, Fugue in E minor, D.952, tnbt1VpwMPE.mid",Schubert,9,232.68880208333331,train
+1235,"Schubert, Franz, Galop and Ecossaises, D.735, J2fUU6_DDvU.mid",Schubert,9,235.69921875,train
+1236,"Schubert, Franz, German Dance and 2 Ländler, D.618, mzXBonQSdeU.mid",Schubert,9,386.13932291666663,test
+1237,"Schubert, Franz, German Dance and Ecossaise, D.643, QXAK2SOjT2I.mid",Schubert,9,46.89973958333333,train
+1238,"Schubert, Franz, German Dance in C-sharp major, D.139, 08j55lWjhOc.mid",Schubert,9,104.11067708333333,train
+1239,"Schubert, Franz, German Dance, D.722, qtBoJv4xC1c.mid",Schubert,9,34.41927083333333,train
+1240,"Schubert, Franz, German Dance, D.975, rzTsql0-5Mo.mid",Schubert,9,50.82552083333333,test
+1241,"Schubert, Franz, Grande marche funèbre, D.859, 1yUNnoufJ-8.mid",Schubert,9,642.75,train
+1242,"Schubert, Franz, Grande marche héroïque, D.885, GDQEP7livs0.mid",Schubert,9,1034.3333333333333,train
+1243,"Schubert, Franz, Grazer Galopp, D.925, hUV7254mHXQ.mid",Schubert,9,119.18880208333333,train
+1244,"Schubert, Franz, Kindermarsch, D.928, o-0IeXpDi6Q.mid",Schubert,9,160.98958333333331,train
+1245,"Schubert, Franz, March in E major, D.606, qK96Tz0MUqo.mid",Schubert,9,276.7890625,test
+1246,"Schubert, Franz, Minuet in A major, D.334, jxUbuaH6qog.mid",Schubert,9,183.95963541666666,train
+1247,"Schubert, Franz, Minuet in A minor, D.277a, 7mIXb7uwHOM.mid",Schubert,9,225.19921875,train
+1248,"Schubert, Franz, Minuet in C-sharp minor, D.600, ZJDL5XuA6hU.mid",Schubert,9,412.01953125,train
+1249,"Schubert, Franz, Minuet in E major, D.335, vqpOtqRc2uY.mid",Schubert,9,226.70182291666666,train
+1250,"Schubert, Franz, Moments musicaux, D.780, 0WDQL_X7Euk.mid",Schubert,9,1629.359375,valid
+1251,"Schubert, Franz, Overture in F major, D.675, POrxPoKLa60.mid",Schubert,9,416.49479166666663,train
+1252,"Schubert, Franz, Overture in G minor, D.668, 39aHXLgzku8.mid",Schubert,9,481.7825520833333,train
+1253,"Schubert, Franz, Piano Piece in A major, D.604, SZv1_UUwRd0.mid",Schubert,9,311.40494791666663,train
+1254,"Schubert, Franz, Piano Piece in C major, D.916b, XmTZe0HD_Fk.mid",Schubert,9,472.65885416666663,train
+1255,"Schubert, Franz, Piano Piece in C minor, D.916c, uB0_IElELmA.mid",Schubert,9,801.76953125,train
+1256,"Schubert, Franz, Piano Sonata in A major, D.664, HsMHHlDYlMM.mid",Schubert,9,1416.26953125,valid
+1257,"Schubert, Franz, Piano Sonata in A major, D.959, olmgg0y2o9A.mid",Schubert,9,2369.016927083333,train
+1258,"Schubert, Franz, Piano Sonata in A minor, D.537, 8uNJOr6B9Lc.mid",Schubert,9,1336.8893229166665,train
+1259,"Schubert, Franz, Piano Sonata in A minor, D.845, QkgICN1QUhI.mid",Schubert,9,2127.309895833333,train
+1260,"Schubert, Franz, Piano Sonata in A-flat major, D.557, TxbqZ0TX7u0.mid",Schubert,9,717.1197916666666,train
+1261,"Schubert, Franz, Piano Sonata in B major, D.575, obkheDWz9_w.mid",Schubert,9,1492.3229166666665,train
+1262,"Schubert, Franz, Piano Sonata in B-flat major, D.960, MAZ8PA5_gVA.mid",Schubert,9,2479.33984375,train
+1263,"Schubert, Franz, Piano Sonata in C major, D.279, dm4NFhDjVno.mid",Schubert,9,1085.0794270833333,test
+1264,"Schubert, Franz, Piano Sonata in C major, D.613, dSdq0pi3_Wk.mid",Schubert,9,1149.6497395833333,train
+1265,"Schubert, Franz, Piano Sonata in C minor, D.958, hTA6CZLb_FY.mid",Schubert,9,2168.7994791666665,train
+1266,"Schubert, Franz, Piano Sonata in C-sharp minor, D.655, _jEay_bqXME.mid",Schubert,9,292.36979166666663,valid
+1267,"Schubert, Franz, Piano Sonata in D major, D.850, gguHcUWUVOE.mid",Schubert,9,2378.7291666666665,valid
+1268,"Schubert, Franz, Piano Sonata in E major, D.154, ruL4sD2rpHc.mid",Schubert,9,1161.7369791666665,valid
+1269,"Schubert, Franz, Piano Sonata in E major, D.157, cRvFZWiTgNQ.mid",Schubert,9,1159.3489583333333,train
+1270,"Schubert, Franz, Piano Sonata in E major, D.459, MagL6pLggLA.mid",Schubert,9,1668.7395833333333,train
+1271,"Schubert, Franz, Piano Sonata in E minor, D.566, UdtR7_K48do.mid",Schubert,9,961.9296875,train
+1272,"Schubert, Franz, Piano Sonata in E minor, D.769a, 0RlWAU0ly84.mid",Schubert,9,56.131510416666664,train
+1273,"Schubert, Franz, Piano Sonata in E-flat major, D.568, _gEpL1gqoj8.mid",Schubert,9,1721.8828125,train
+1274,"Schubert, Franz, Piano Sonata in F minor, D.625, juKNuVnbhHI.mid",Schubert,9,1358.3997395833333,train
+1275,"Schubert, Franz, Piano Sonata in F-sharp minor, D.571, BN-s-Qnw07k.mid",Schubert,9,423.3098958333333,train
+1276,"Schubert, Franz, Piano Sonata in G major, D.894, bX_IjA3x_rw.mid",Schubert,9,2357.44140625,train
+1277,"Schubert, Franz, Rondo in A major, D.951, qfMU1jORNyA.mid",Schubert,9,757.5,train
+1278,"Schubert, Franz, Rondo in D major, D.608, QjG_gdZPehE.mid",Schubert,9,495.9309895833333,train
+1279,"Schubert, Franz, Rondo in E major, D.506, BTRrIxxxoug.mid",Schubert,9,455.9622395833333,valid
+1280,"Schubert, Franz, Sonata for Piano Duet, D.617, hRO2WaPhilY.mid",Schubert,9,1054.1497395833333,train
+1281,"Schubert, Franz, Sonata for Piano Duet, D.812, Uml2lokoxbk.mid",Schubert,9,840.0794270833333,train
+1282,"Schubert, Franz, Sonatine, D.968, LhWCWji3qTY.mid",Schubert,9,532.5,valid
+1283,"Schubert, Franz, Trio in E major, D.610, ZJDL5XuA6hU.mid",Schubert,9,412.01953125,train
+1284,"Schubert, Franz, Ungarische Melodie, D.817, -MJ3b5Phzd4.mid",Schubert,9,204.39453125,train
+1285,"Schubert, Franz, Valses sentimentales, D.779, j_K-MIW71ck.mid",Schubert,9,1634.5716145833333,train
+1286,"Schubert, Franz, Variation on a Waltz by Diabelli, D.718, 6_vCnoPf-oo.mid",Schubert,9,84.26953125,train
+1287,"Schubert, Franz, Variations on a Theme from Herold's 'Marie', D.908, BqPEp-5U5Rc.mid",Schubert,9,722.3098958333333,train
+1288,"Schubert, Franz, Waltz in A-flat major, D.978, 1oasxg8aMIM.mid",Schubert,9,92.72916666666666,train
+1289,"Schubert, Franz, Waltz in G major, D.844, pu4BsLejH2M.mid",Schubert,9,172.13932291666666,train
+1290,"Schubert, Franz, Waltz in G major, D.979, WXkKjzUdRTA.mid",Schubert,9,62.229166666666664,train
+1291,"Schubert, Franz, Wiener Damen-Ländler und Ecossaisen, D.734, 8SiqQdPsNO4.mid",Schubert,9,419.6888020833333,train
+1292,"Schubert, Franz, Über allen Zauber Liebe, D.682, xkRlfwbJK4k.mid",Schubert,9,178.39973958333331,train
+1293,"Schuberth, Carl, 3 Romances sans paroles, Op.20, 45CdhbiM1j4.mid",Schubert,9,164.77994791666666,test
+1294,"Schumann, Robert, Etudes in Variation Form on a Theme by Beethoven, WoO 31, fXMVAPZjnmw.mid",Beethoven,2,877.609375,train
+1295,"Schunke, Ludwig, Variations concertantes sur la Valse funèbre de François Schubert, Op.14, tsdKVGDxH0g.mid",Schubert,9,948.0989583333333,valid
+1296,"Snuggs, Colin Peter, Passacaglia on a Theme by Handel, pAs2tHOYFHU.mid",Handel,5,1187.72265625,train
+1297,"Snuggs, Colin Peter, Variations on a Theme by Beethoven, v7kZQn7DucQ.mid",Beethoven,2,639.3229166666666,train
+1298,"Turchetto, Andrea, Variations on a Theme by Mozart, QihjMKKNdo0.mid",Mozart,7,475.99479166666663,test
+1299,"Villa-Lobos, Heitor, Hommage à Chopin, W474, rYLExa67dbc.mid",Chopin,3,458.87109375,valid
+1300,"Volkmann, Robert, Variationen über ein Thema von Handel, Op.26, qnO-gq6OetE.mid",Handel,5,1060.30078125,valid
+1301,"Wagner, Carl, Souvenir de Chopin, flvF9x4rLUo.mid",Chopin,3,194.5,train
+1302,"Wille, Rolf-Peter, 2 Studies on Chopin's Etude, Op.10 No.2, s8IBX8vACHs.mid",Chopin,3,239.45963541666666,valid
+1303,"Zhang, Shuwen, Variations on a Theme by Mozart for 2 Pianos, cevMEDHQVV0.mid",Mozart,7,693.8411458333333,train

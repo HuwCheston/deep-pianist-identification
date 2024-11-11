@@ -23,7 +23,10 @@ from deep_pianist_identification.dataloader import MIDILoader, MIDITripletLoader
 from deep_pianist_identification.encoders import CRNNet, CNNet, DisentangleNet, ResNet50, TripletMarginLoss
 from deep_pianist_identification.utils import DEVICE, seed_everything, get_project_root, SEED
 
-__all__ = ["groupby_tracks", "get_model", "TrainModule", "parse_config_yaml", "DEFAULT_CONFIG", "NoOpScheduler"]
+__all__ = [
+    "groupby_tracks", "get_model", "TrainModule", "parse_config_yaml",
+    "DEFAULT_CONFIG", "NoOpScheduler", "get_tracking_uri"
+]
 
 # Any key-value pairs we don't define in our custom config will be overwritten using these
 DEFAULT_CONFIG = yaml.safe_load(open(os.path.join(get_project_root(), 'config', 'debug_local.yaml')))
