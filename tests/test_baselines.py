@@ -14,6 +14,7 @@ import deep_pianist_identification.rf_baselines.rf_utils as rf_utils
 import deep_pianist_identification.utils as utils
 from deep_pianist_identification.encoders import CNNet, CRNNet, ResNet50, TangCNN
 from deep_pianist_identification.encoders.shared import IBN
+from deep_pianist_identification.rf_baselines.features import get_valid_ngrams, drop_invalid_ngrams, format_features
 
 
 class ForestTest(unittest.TestCase):
@@ -27,7 +28,7 @@ class ForestTest(unittest.TestCase):
         ]
         # This is the only n-gram that appears in at least three dictionaries (i.e., tracks)
         predicted = ["[1, 2, 3]"]
-        actual = rf_utils.get_valid_ngrams(tester, min_count=3)
+        actual = get_valid_ngrams(tester, min_count=3)
         self.assertEqual(predicted, actual)
         # This is what the results should look like once we've dropped all the invalid n-grams
         predicted_dropped = [
@@ -36,11 +37,11 @@ class ForestTest(unittest.TestCase):
             {},
             {"[1, 2, 3]": 3}
         ]
-        actual_dropped = rf_utils.drop_invalid_ngrams(tester, predicted)
+        actual_dropped = drop_invalid_ngrams(tester, predicted)
         self.assertEqual(predicted_dropped, actual_dropped)
         # Test dropping n-grams that appear in too many tracks
         predicted = ["[2, 3, 4]", "[3, 4]", "[3, 4, 5]"]
-        actual = rf_utils.get_valid_ngrams(tester, min_count=1, max_count=2)
+        actual = get_valid_ngrams(tester, min_count=1, max_count=2)
         self.assertEqual(predicted, actual)
         # Results should look like this
         predicted_dropped = [
@@ -49,7 +50,7 @@ class ForestTest(unittest.TestCase):
             {"[3, 4]": 1},
             {"[3, 4, 5]": 2}
         ]
-        actual_dropped = rf_utils.drop_invalid_ngrams(tester, predicted)
+        actual_dropped = drop_invalid_ngrams(tester, predicted)
         self.assertEqual(predicted_dropped, actual_dropped)
 
     def test_format_features(self):
@@ -74,7 +75,7 @@ class ForestTest(unittest.TestCase):
             [3, 0, 0]
         ])
         expected_feature_names = ["[1, 2, 3]", "[2, 3, 4]", "[2, 3, 5]"]
-        actual_1, actual_2, actual_feature_names = rf_utils.format_features(tester_1, tester_2)
+        actual_1, actual_2, actual_feature_names = format_features(tester_1, tester_2)
         self.assertTrue(np.array_equal(expected_1, actual_1, equal_nan=True))
         self.assertTrue(np.array_equal(expected_2, actual_2, equal_nan=True))
         self.assertTrue(expected_feature_names == actual_feature_names)

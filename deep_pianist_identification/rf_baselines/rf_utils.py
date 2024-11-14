@@ -6,35 +6,21 @@
 import csv
 import json
 import os
-import warnings
 from ast import literal_eval
-from collections import defaultdict
-from itertools import groupby
-from multiprocessing import Manager, Process
-from operator import itemgetter
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from time import time
-from typing import Callable, Iterable
 
 import numpy as np
 import pandas as pd
-from joblib import Parallel, delayed
 from loguru import logger
-from pretty_midi import PrettyMIDI, Instrument, Note
 from sklearn.ensemble import RandomForestClassifier, HistGradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, top_k_accuracy_score
-from sklearn.model_selection import ParameterSampler
 from sklearn.naive_bayes import MultinomialNB, GaussianNB
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from tenacity import retry, retry_if_exception_type, wait_random_exponential, stop_after_attempt
-from tqdm import tqdm
 
 from deep_pianist_identification import utils
-from deep_pianist_identification.extractors import RollExtractor, quantize, ExtractorError
-from deep_pianist_identification.plotting import HeatmapWhiteboxFeaturePianoRoll
 
 # These are the parameters we'll sample from when optimizing different types of model
 RF_OPTIMIZE_PARAMS = dict(
@@ -99,7 +85,6 @@ N_BOOT_FEATURES = 2000  # number of features to sample when bootstrapping permut
 
 MIN_COUNT = 10
 MAX_COUNT = 1000
-ACC_TOP_KS = [1, 2, 3, 5, 10]  # We'll print the model top-k accuracy at these levels
 
 MAX_LEAP = 15  # If we leap by more than this number of semitones (once in an n-gram, twice in a chord), drop it
 NGRAMS = [2, 3]  # The ngrams to consider when extracting melody (horizontal) or chords (vertical)
@@ -192,150 +177,6 @@ def get_split_clips(split_name: str, dataset: str = "20class_80min") -> tuple[st
         yield track_path, track_clips, track['pianist']
 
 
-def extract_ngrams_from_clips(split_clips: Iterable, extract_func: Callable, *args) -> tuple[list[dict], list[int]]:
-    """For clips from a given split, applies an n-gram `extract_func` in parallel"""
-    # Iterate over each track and apply our extraction function
-    with Parallel(n_jobs=N_JOBS, verbose=5) as par:
-        res = par(delayed(extract_func)(p, n, pi, *args) for p, n, pi in list(split_clips))
-    # Returns a tuple of ngrams (dict) and targets (int) for every *clip* in the dataset
-    return zip(*res)
-
-
-def get_valid_ngrams(list_of_ngram_dicts: list[dict], min_count: int, max_count: int = 10000) -> list[str]:
-    """From a list of n-gram dictionaries (one dictionary per track), get n-grams that appear in at least N tracks"""
-    ngram_counts = defaultdict(int)
-    # Iterate through each dictionary (= one track)
-    for d in list_of_ngram_dicts:
-        # Iterate through each key (= one n-gram in the track)
-        for key in d:
-            # Increase the global count for this n-gram
-            ngram_counts[key] += 1
-    # Return a list of n-grams that appear in at least N tracks
-    return [key for key, count in ngram_counts.items() if min_count <= count <= max_count]
-
-
-def drop_invalid_ngrams(list_of_ngram_dicts: list[dict], valid_ngrams: list[str]) -> list[dict]:
-    """From a list of n-gram dictionaries (one dictionary per track), remove n-grams that do not appear in N tracks"""
-    # Define the removal function
-    rm = lambda feat: {k: v for k, v in feat.items() if k in valid_ngrams}
-    # In parallel, remove non-valid n-grams from all dictionaries
-    with Parallel(n_jobs=N_JOBS, verbose=5) as par:
-        return par(delayed(rm)(f) for f in list_of_ngram_dicts)
-
-
-def format_features(*features: list[dict]) -> tuple:
-    """For an arbitrary number of ngram dictionaries, format these as NumPy arrays with the same number of columns"""
-    fmt = []
-    for split_count, feature in enumerate(features):
-        # Convert features to a dataframe
-        df = pd.DataFrame(feature)
-        # Set ID column
-        df['split'] = str(split_count)
-        fmt.append(df)
-    # Combine all dataframes row-wise, which ensures the correct number of columns in all, and fill NaNs with 0
-    conc = pd.concat(fmt, axis=0).fillna(0)
-    # Return a tuple of numpy arrays, one for each split initially provided, PLUS the names of the features themselves
-    return (
-        *(conc[conc['split'] == str(sp)].drop(columns='split').to_numpy() for sp in range(len(features))),
-        conc.drop(columns='split').columns.tolist()
-    )
-
-
-def _optimize_classifier(
-        train_features: np.ndarray,
-        train_targets: list,
-        test_features: np.ndarray,
-        test_targets: np.ndarray,
-        out: str,
-        n_iter: int = 100,
-        use_cache: bool = True,
-        classifier_type: str = "rf"
-) -> dict:
-    """With given training and test features/targets, optimize random forest for test accuracy and save CSV to `out`"""
-
-    def save_to_file(q):
-        """Threadsafe writing to file"""
-        while True:
-            val = q.get()
-            if val is None:
-                break
-            with open(out, 'a') as o:
-                o.write(val + '\n')
-
-    def load_from_file() -> list[dict]:
-        """Tries to load cached results and returns a list of dictionaries"""
-        try:
-            cr = pd.read_csv(out).to_dict(orient='records')
-            logger.info(f'... loaded {len(cr)} results from {out}')
-        except (FileNotFoundError, pd.errors.EmptyDataError):
-            cr = []
-            q.put('accuracy,iteration,time,' + ','.join(i for i in next(iter(sampler)).keys()))
-        return cr
-
-    def __step(iteration: int, parameters: dict) -> dict:
-        """Inner optimization function"""
-        start = time()
-        # Try and load in the CSV file for this particular task
-        if use_cache:
-            try:
-                # If we have it, just return the cached results for this particular iteration
-                res = [o for o in cached_results if o['iteration'] == iteration][0]
-                return res
-            # Don't worry if we haven't got the CSV file or results for this interation yet
-            except IndexError:
-                pass
-        # Create the forest model with the given parameter settings
-        forest = classifier(**parameters)
-        # Fit the model to the training data and get the test data accuracy
-        forest.fit(train_features, train_targets)
-        acc = accuracy_score(test_targets, forest.predict(test_features))
-        # Create the results dictionary and save
-        end = time() - start
-        # line = str(acc) + ',' + str(iteration) + ',' + str(end) + ',' + ','.join(str(i) for i in parameters.values())
-        results_dict = {'accuracy': acc, 'iteration': iteration, 'time': end, **parameters}
-        # threadsafe_save_csv(results_dict, out)
-        q.put(','.join(str(i) for i in results_dict.values()))
-        # Return the results for this optimization step
-        return results_dict
-
-    classifier, params = get_classifier_and_params(classifier_type)
-    # Create the parameter sampling instance with the required parameters, number of iterations, and random state
-    sampler = ParameterSampler(params, n_iter=n_iter, random_state=utils.SEED)
-    # Define multiprocessing instance used to write in threadsafe manner
-    m = Manager()
-    q = m.Queue()
-    p = Process(target=save_to_file, args=(q,))
-    p.start()
-    # Get cached results
-    cached_results = load_from_file()
-    # Use lazy parallelization to create the forest and fit to the data
-    warnings.filterwarnings("ignore")
-    with Parallel(n_jobs=-1, verbose=5) as p:
-        fit = p(
-            delayed(__step)(num, params) for num, params in tqdm(enumerate(sampler), total=n_iter, desc="Fitting...")
-        )
-    warnings.filterwarnings("default")
-    # Adding a None at this point kills the multiprocessing manager instance
-    q.put(None)
-    # Get the best parameter combination using pandas
-    best_params = (
-        pd.DataFrame(fit)
-        .replace({np.nan: None})
-        .convert_dtypes()  # Needed to convert some int columns from float
-        .sort_values(by=['accuracy', 'iteration'], ascending=False)
-        .head(1)
-        .to_dict(orient='records')[0]
-    )
-    # TODO: maybe this needs to become a function?
-    if classifier_type == 'rf':
-        try:
-            best_params["max_features"] = float(best_params["max_features"])
-        except ValueError:
-            pass
-    logger.info(f'... best parameters: {best_params}')
-    return {k: v for k, v in best_params.items() if k not in ["accuracy", "iteration", "time"]}
-
-
 def get_classifier_and_params(classifier_type: str) -> tuple:
     """Return the correct classifier instance and optimized parameter settings"""
     clf = ["rf", "svm", "nb", "lr", "xgb", "gnb"]
@@ -368,55 +209,6 @@ def scale_features(
     test_x = scaler.transform(test_x)
     valid_x = scaler.transform(valid_x)
     return train_x, test_x, valid_x
-
-
-def scale_feature(
-        feature: np.array
-) -> np.array:
-    scaler = StandardScaler()
-    return scaler.fit_transform(feature)
-
-
-def fit_classifier(
-        train_x: np.ndarray,
-        test_x: np.ndarray,
-        valid_x: np.ndarray,
-        train_y: np.ndarray,
-        test_y: np.ndarray,
-        valid_y: np.ndarray,
-        csvpath: str,
-        n_iter: int,
-        classifier_type: str = "rf",
-) -> tuple:
-    """Runs optimization, fits optimized settings to validation set, and returns accuracy + fitted model"""
-    logger.info(f"Beginning parameter optimization with {n_iter} iterations and classifier {classifier_type}...")
-    logger.info(f"... optimization results will be saved in {csvpath}")
-    logger.info(f"... shape of training features: {train_x.shape}")
-    logger.info(f"... shape of testing features: {test_x.shape}")
-    # Run the hyperparameter optimization here and get the optimized parameter settings
-    optimized_params = _optimize_classifier(
-        train_x, train_y, test_x, test_y, csvpath, n_iter=n_iter, classifier_type=classifier_type
-    )
-    # Create the optimized random forest model
-    logger.info("Optimization finished, fitting optimized model to test and validation set...")
-    classifier, _ = get_classifier_and_params(classifier_type)
-    clf_opt = classifier(**optimized_params)
-    clf_opt.fit(train_x, train_y)
-    # Get the optimized test accuracy
-    test_y_pred = clf_opt.predict(test_x)
-    test_acc = accuracy_score(test_y, test_y_pred)
-    logger.info(f"... test accuracy: {test_acc:.6f}")
-    # Get the optimized validation accuracy
-    valid_y_pred = clf_opt.predict(valid_x)
-    valid_acc = accuracy_score(valid_y, valid_y_pred)
-    logger.info(f"... validation accuracy: {valid_acc:.6f}")
-    # Get the top-k accuracy
-    valid_y_proba = clf_opt.predict_proba(valid_x)
-    for k in ACC_TOP_KS:
-        topk_acc = top_k_accuracy_score(valid_y, valid_y_proba, k=k)
-        logger.info(f'... top-{k} validation accuracy: {topk_acc:.6f}')
-    # Return the fitted classifier for e.g., permutation importance testing
-    return clf_opt, valid_acc, optimized_params
 
 
 def get_all_clips(dataset: str, n_clips: int = None):
@@ -507,134 +299,3 @@ def get_database_mapping(
     # Concatenate and return
     return np.hstack([train_datasets, test_datasets, valid_datasets])
 
-
-class MIDIOutputManager:
-    """Takes in a single MIDI clip and performer n-grams, and creates outputs that match every n-gram"""
-
-    def __init__(
-            self,
-            midi_path: str,
-            performer_name: str,
-            desired_ngram: str
-    ):
-        self.midi_path = midi_path
-        self.input_midi = PrettyMIDI(midi_path)
-        self.performer_name = performer_name
-        self.desired_ngram = desired_ngram
-
-    @staticmethod
-    def apply_skyline(quantized_notes):
-        """For all notes with the same (quantized) start time, keep only the highest pitch note"""
-        note_starts = itemgetter(0)
-        # Group all the MIDI events by the (quantized) start time
-        grouper = groupby(sorted(quantized_notes, key=note_starts), note_starts)
-        # Iterate through each group and keep only the note with the highest pitch
-        for quantized_note_start, subiter in grouper:
-            yield max(subiter, key=itemgetter(2))
-
-    @staticmethod
-    def quantize_notes(input_midi: PrettyMIDI):
-        quantized_notes = []
-        # Iterate through all notes
-        for note in input_midi.instruments[0].notes:
-            note_start, note_end, note_pitch, note_velocity = note.start, note.end, note.pitch, note.velocity
-            # If the note is above our lower bound
-            if note_pitch >= utils.MIDI_OFFSET:
-                # Snap note start and end with the given time resolution
-                new_note_start = quantize(note_start, 1 / utils.FPS)
-                new_note_end = quantize(note_end, 1 / utils.FPS)
-                # Set the velocity to maximum to binarize
-                quantized_notes.append((new_note_start, new_note_end, note_pitch, note_velocity, note_start, note_end))
-        return quantized_notes
-
-    @staticmethod
-    def convert_to_interval_classes(input_midi: list[tuple]):
-        interval_classes = []
-        for n1, n2 in zip(input_midi, input_midi[1:]):
-            ic = n2[2] - n1[2]
-            if abs(ic) > MAX_LEAP:
-                continue
-            # actual start, actual end, interval class
-            interval_classes.append((n2[4], n2[5], ic))
-        return interval_classes
-
-    @staticmethod
-    def get_desired_ngram_phrases(ng: list[int], interval_classes, span_notes: int = 2):
-        ng_len = len(ng)
-        matches, phrase_spans = [], []
-        for ic_start_idx in range(len(interval_classes)):
-            ic_end_idx = ic_start_idx + ng_len
-            desired_phrase = interval_classes[ic_start_idx:ic_end_idx]
-            all_ics = [i[2] for i in desired_phrase]
-            if all_ics == ng:
-                idx_before = ic_start_idx - span_notes
-                idx_after = ic_end_idx + span_notes
-                if idx_before < 0:
-                    idx_before = 0
-                if idx_after >= len(interval_classes):
-                    idx_after = len(interval_classes) - 1
-                note_before_phrase = interval_classes[idx_before]
-                note_after_phrase = interval_classes[idx_after]
-                phrase_span = note_before_phrase[0], note_after_phrase[1]
-                phrase_spans.append(phrase_span)
-        return phrase_spans
-
-    def process_match(self, phrase_start: float, phrase_end: float) -> PrettyMIDI:
-        # Get the notes from the *original* MIDI that are within the bounds
-        midi_in_bounds = [n for n in self.input_midi.instruments[0].notes if phrase_start <= n.start <= phrase_end]
-        # Get first onset and offset time
-        earliest_onset = min(midi_in_bounds, key=lambda x: x.start).start
-        # Adjust all note onset and offset times to fit within boundaries
-        newmidi = PrettyMIDI()
-        newinstr = Instrument(self.input_midi.instruments[0].program)
-        newinstr.notes.extend(
-            [Note(start=n.start - earliest_onset, end=n.end - earliest_onset, pitch=n.pitch, velocity=n.velocity) for
-             n in midi_in_bounds])
-        newmidi.instruments = [newinstr]
-        return newmidi
-
-    def create_outputs(self, processed_midi: PrettyMIDI):
-        # Get the performer-ngram folder
-        fp = os.path.join(
-            utils.get_project_root(),
-            'reports/figures/whitebox/clip_outputs',
-            f'{self.performer_name.lower().replace(" ", "_")}_{self.desired_ngram[2:]}'
-        )
-        # Create if it doesn't already exist
-        if not os.path.isdir(fp):
-            os.makedirs(fp)
-        # Create the folder to save outputs for this clip-ngram combination in
-        n_already_saved = len(os.listdir(fp))
-        newfp = os.path.join(fp, f'phrase_{str(n_already_saved).zfill(3)}')
-        assert not os.path.isdir(newfp)
-        os.makedirs(newfp)
-        # Create the static matplotlib plot
-        pl = HeatmapWhiteboxFeaturePianoRoll(
-            processed_midi,
-            self.performer_name,
-            self.desired_ngram,
-            os.path.sep.join(self.midi_path.split(os.path.sep)[-2:])
-        )
-        pl.create_plot()
-        pl.save_fig(os.path.join(newfp, 'static.png'))
-
-        # Write the MIDI
-        processed_midi.write(os.path.join(newfp, 'midi.mid'))
-
-    def run(self):
-        # Validate the input MIDI, and skip any cases where e.g., we don't have notes
-        try:
-            validated = RollExtractor(self.input_midi).output_midi
-        except ExtractorError:
-            return
-        quant = self.quantize_notes(validated)
-        skylined = list(self.apply_skyline(quant))
-        ics = self.convert_to_interval_classes(skylined)
-        matched_phrases = self.get_desired_ngram_phrases(eval(self.desired_ngram[2:]), ics)
-        # Skip over clip/ngram combinations where the ngram doesn't appear
-        if len(matched_phrases) == 0:
-            return
-        # Otherwise, process each match to get the MIDI within the boundaries
-        for phrase_start, phrase_end in matched_phrases:
-            processed = self.process_match(phrase_start, phrase_end)
-            self.create_outputs(processed)

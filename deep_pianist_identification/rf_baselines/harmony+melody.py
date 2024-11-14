@@ -10,6 +10,7 @@ from loguru import logger
 
 import deep_pianist_identification.rf_baselines.rf_utils as rf_utils
 from deep_pianist_identification import utils
+from deep_pianist_identification.rf_baselines.classifiers import fit_classifier
 from deep_pianist_identification.rf_baselines.explainers import (
     LRWeightExplainer, DatabaseExplainer, PermutationExplainer
 )
@@ -76,9 +77,16 @@ def rf_melody_harmony(
     if scale and classifier_type != "nb":
         train_x_arr, test_x_arr, valid_x_arr = rf_utils.scale_features(train_x_arr, test_x_arr, valid_x_arr)
     # Optimize the classifier
-    clf_opt, valid_acc, best_params = rf_utils.fit_classifier(
-        train_x_arr, test_x_arr, valid_x_arr, train_y_mel, test_y_mel, valid_y_mel,
-        csvpath, n_iter, classifier_type
+    clf_opt, valid_acc, best_params = fit_classifier(
+        train_x_arr,
+        test_x_arr,
+        valid_x_arr,
+        train_y_mel,
+        test_y_mel,
+        valid_y_mel,
+        csvpath,
+        n_iter,
+        classifier_type
     )
     # Permutation feature importance: this class will do all analysis and create plots/outputs
     logger.info('---PERMUTATION FEATURE IMPORTANCE---')
