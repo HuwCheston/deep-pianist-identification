@@ -44,6 +44,8 @@ SAVE_KWS = dict(format='png', facecolor=WHITE)
 # Keyword arguments to use when applying a grid to a plot
 GRID_KWS = dict(color=BLACK, alpha=ALPHA, lw=LINEWIDTH / 2, ls=LINESTYLE)
 
+LEGEND_KWS = dict(frameon=True, framealpha=1, edgecolor=BLACK)
+
 N_BOOT = 10000
 N_BINS = 50
 PLOT_AFTER_N_EPOCHS = 5
@@ -149,25 +151,25 @@ class BarPlotMaskedConceptsAccuracy(BasePlot):
 
     def _format_df(self, df):
         pd.options.mode.chained_assignment = None
-        counter = lambda x: x.count('+') + 1 if '+' in x else 0
+        counter = lambda x: abs(x.count('+') - 3)
         df["n_concepts"] = df['concepts'].apply(counter)
         sort_and_title = lambda x: ', '.join(sorted([i.title() for i in x.split('+')]))
         df["concepts"] = df["concepts"].apply(sort_and_title)
         pd.options.mode.chained_assignment = "warn"
         return (
-            df.sort_values(by=["n_concepts", "track_acc"], ascending=False)
+            df.sort_values(by=["n_concepts", "track_acc"], ascending=[True, False])
             .reset_index(drop=True)
         )
 
     def _create_plot(self) -> None:
         return sns.barplot(
-            self.df, y="concepts", x="track_acc", hue="n_concepts", palette="tab10",
-            edgecolor=BLACK, linewidth=LINEWIDTH,
-            linestyle=LINESTYLE, ax=self.ax, legend=False, zorder=10
+            self.df, y="concepts", x="track_acc", hue="n_concepts", palette="tab10", legend=True,
+            edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, ax=self.ax, zorder=10
         )
 
     def _format_ax(self):
-        self.ax.set(ylabel="Concepts", xlabel="Validation accuracy (track)")
+        sns.move_legend(self.ax, loc="lower right", title='$N$ masks', **LEGEND_KWS)
+        self.ax.set(ylabel="Concepts", xlabel="Accuracy (track-level)")
         plt.setp(self.ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
         self.ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
         self.ax.grid(axis="x", zorder=0, **GRID_KWS)
@@ -300,12 +302,9 @@ class StripplotTopKFeatures(BasePlot):
         """Setting plot aeshetics on a figure-level basis"""
         self.fig.subplots_adjust(left=0.1, top=0.925, bottom=0.1, right=0.75)
 
-    def save_fig(self):
-        fold = os.path.join(utils.get_project_root(), 'reports/figures', 'whitebox/performer_strip_plots')
-        if not os.path.isdir(fold):
-            os.makedirs(fold)
+    def save_fig(self, output_dir: str):
         fp = os.path.join(
-            fold, f'topk_stripplot_{self.pianist_name.lower().replace(" ", "_")}_{self.concept_name}.png'
+            output_dir, f'topk_stripplot_{self.pianist_name.lower().replace(" ", "_")}_{self.concept_name}.png'
         )
         self.fig.savefig(fp, **SAVE_KWS)
         plt.close('all')

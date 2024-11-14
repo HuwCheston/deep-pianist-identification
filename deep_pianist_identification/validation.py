@@ -26,6 +26,8 @@ MASKS = ["melody", "harmony", "rhythm", "dynamics"]
 MASK_COMBINATIONS = []
 for L in range(len(MASKS) + 1):
     for subset in combinations(range(len(MASKS)), L):
+        if len(subset) == len(MASKS):
+            continue
         MASK_COMBINATIONS.append(subset)
 
 
@@ -211,6 +213,7 @@ class ValidateModule:
                     combo_accuracies[cmasks]["track_predictions"].append(softmaxed)
 
         global_accuracies, perclass_accuracies = [], []
+        all_concept_acc = None
         # Iterate through all individual combinations of masks
         for mask, vals in combo_accuracies.items():
             # Average clip-level accuracy
@@ -218,6 +221,8 @@ class ValidateModule:
             # Group by track names and calculate average track-level accuracy
             p, t = groupby_tracks(track_names, vals["track_predictions"], track_targets)
             track_acc = self.acc_fn(p, t).item()
+            if mask == "melody+harmony+rhythm+dynamics":
+                all_concept_acc = track_acc
             # Calculate per-class accuracy: create the normalized confusion matrix, then take the diagonal
             perclass_acc = self.confusion_matrix_fn(p, t).diag().cpu().numpy()
             for class_idx, class_acc in enumerate(perclass_acc):
@@ -226,7 +231,8 @@ class ValidateModule:
             # Create the confusion matrix for this combination of parameters
             self.create_confusion_matrix(p, t, mask)
             # Log and store a dictionary for this combination of masks
-            logger.info(f"Results for concepts {mask}: clip accuracy {clip_acc:.2f}, track accuracy {track_acc:.2f}")
+            logger.info(f"Results for concepts {mask}: clip accuracy {clip_acc:.5f}, track accuracy {track_acc:.5f}")
+            logger.info(f"Accuracy loss vs. full model: {1 - (track_acc / all_concept_acc):.5f}")
             global_accuracies.append(dict(model=self.run, concepts=mask, clip_acc=clip_acc, track_acc=track_acc))
         # Create the per-class, per-concept accuracy dataframe and save to a csv
         perclass_acc_df = pd.DataFrame(perclass_accuracies)
@@ -262,7 +268,7 @@ class ValidateModule:
         # Create the confusion matrix
         self.create_confusion_matrix(predictions, targets)
         # Append all the results as a dictionary and log
-        logger.info(f"Results for single channel: clip accuracy {clip_acc:.2f}, track accuracy {track_acc:.2f}")
+        logger.info(f"Results for single channel: clip accuracy {clip_acc:.5f}, track accuracy {track_acc:.5f}")
         return [dict(model=self.run, concepts="singlechannel", clip_acc=clip_acc, track_acc=track_acc)]
 
 
