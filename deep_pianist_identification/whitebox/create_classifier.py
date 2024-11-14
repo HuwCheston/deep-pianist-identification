@@ -102,6 +102,9 @@ def create_classifier(
     )
     permute_explainer.explain()
     permute_explainer.create_outputs()
+    # Don't create the other outputs if the classifier isn't a logistic regression
+    if classifier_type != "lr":
+        return
     # Weights for top k features for each performer across melody/harmony features
     logger.info('---EXPLAINING: MODEL WEIGHTS (LOCAL)---')
     lr_exp = LRWeightExplainer(
@@ -129,7 +132,6 @@ def create_classifier(
     )
     database_explainer.explain()
     database_explainer.create_outputs()
-    logger.info('Done!')
 
 
 if __name__ == "__main__":
@@ -150,3 +152,4 @@ if __name__ == "__main__":
         classifier_type=args["classifier_type"],
         scale=args["scale"]
     )
+    logger.info('Done!')
