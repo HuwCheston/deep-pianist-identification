@@ -9,7 +9,6 @@ import os
 import warnings
 from ast import literal_eval
 from collections import defaultdict
-from copy import deepcopy
 from itertools import groupby
 from multiprocessing import Manager, Process
 from operator import itemgetter
@@ -100,7 +99,6 @@ N_BOOT_FEATURES = 2000  # number of features to sample when bootstrapping permut
 
 MIN_COUNT = 10
 MAX_COUNT = 1000
-K = 5  # When plotting, we'll get this number of features per performer (bottom and top)
 ACC_TOP_KS = [1, 2, 3, 5, 10]  # We'll print the model top-k accuracy at these levels
 
 MAX_LEAP = 15  # If we leap by more than this number of semitones (once in an n-gram, twice in a chord), drop it
@@ -356,120 +354,6 @@ def get_classifier_and_params(classifier_type: str) -> tuple:
         return GaussianNB, GNB_OPTIMIZE_PARAMS
 
 
-def get_harmony_feature_importance(
-        harmony_features: np.ndarray,
-        melody_features: np.ndarray,
-        classifier,
-        y_actual: np.ndarray,
-        initial_acc: float,
-        scale: bool = True,
-        n_iter: int = N_ITER
-):
-    """Calculates harmony feature importance, both for all features and with bootstrapped subsamples of features"""
-    scaler = StandardScaler()
-
-    def _shuffler(idxs: np.ndarray = None, seed: int = utils.SEED):
-        rng = np.random.default_rng(seed=seed)  # Used to permute arrays
-        # Make a copy of the data and shuffle
-        toshuffle = deepcopy(harmony_features)
-        # If we're using all features, i.e., we're not bootstrapping
-        if idxs is None:
-            shuffled = rng.permuted(toshuffle, axis=0)
-            # Combine the arrays together as before
-            combined = np.concatenate([melody_features, shuffled], axis=1)
-        # If we're only using some features, i.e., we're bootstrapping
-        else:
-            cols = toshuffle[:, idxs]
-            # Permute the column
-            permuted = rng.permutation(cols, axis=0)
-            # Set the column back
-            toshuffle[:, idxs] = permuted
-            # Combine the arrays together as before
-            combined = np.concatenate([melody_features, toshuffle], axis=1)
-        # Z-transform the features if required
-        if scale:
-            combined = scaler.fit_transform(combined)
-        # Make predictions and take accuracy
-        valid_y_pred_permute = classifier.predict(combined)
-        return initial_acc - accuracy_score(y_actual, valid_y_pred_permute)
-
-    def _shuffler_boot(seed):
-        # Get an array of bootstrapping indexes to use
-        boot_idxs = np.random.choice(harmony_features.shape[1], N_BOOT_FEATURES)
-        return _shuffler(boot_idxs, seed)
-
-    with Parallel(n_jobs=-1, verbose=5) as par:
-        # Permute all features
-        logger.info('Permuting harmony features...')
-        har_acc = par(delayed(_shuffler)(None, seed) for seed in range(n_iter))
-        logger.info(f"... all harmony feature importance {np.mean(har_acc)}, "
-                    f"SD {np.std(har_acc)}, "
-                    f"CI: [{np.percentile(har_acc, 2.5)}, {np.percentile(har_acc, 97.5)}]")
-        # Permute bootstrapped subsamples of features
-        logger.info('Permuting harmony features with bootstrapping...')
-        har_acc_boot = par(delayed(_shuffler_boot)(seed) for seed in range(n_iter))
-        logger.info(f"... bootstrapped harmony feature importance {np.mean(har_acc_boot)}, "
-                    f"SD {np.std(har_acc_boot)}, "
-                    f"CI: [{np.percentile(har_acc_boot, 2.5)}, {np.percentile(har_acc_boot, 97.5)}]")
-
-
-def get_melody_feature_importance(
-        harmony_features: np.ndarray,
-        melody_features: np.ndarray,
-        classifier,
-        y_actual: np.ndarray,
-        initial_acc: float,
-        scale: bool = True,
-        n_iter: int = N_ITER
-):
-    """Calculates melody feature importance, both for all features and with bootstrapped subsamples of features"""
-    scaler = StandardScaler()
-
-    def _shuffler(idxs: np.ndarray = None, seed: int = utils.SEED):
-        rng = np.random.default_rng(seed=seed)
-        # Make a copy of the data and shuffle
-        toshuffle = deepcopy(melody_features)
-        # If we're using all features, i.e., we're not bootstrapping
-        if idxs is None:
-            shuffled = rng.permuted(toshuffle, axis=0)
-            # Combine the arrays together as before
-            combined = np.concatenate([shuffled, harmony_features], axis=1)
-        # If we're only using some features, i.e., we're bootstrapping
-        else:
-            cols = toshuffle[:, idxs]
-            # Permute the column
-            permuted = rng.permutation(cols, axis=0)
-            # Set the column back
-            toshuffle[:, idxs] = permuted
-            # Combine the arrays together as before
-            combined = np.concatenate([toshuffle, harmony_features], axis=1)
-        # Z-transform the features if required
-        if scale:
-            combined = scaler.fit_transform(combined)
-        # Make predictions and take accuracy
-        valid_y_pred_permute = classifier.predict(combined)
-        return initial_acc - accuracy_score(y_actual, valid_y_pred_permute)
-
-    def _shuffler_boot(seed):
-        # Get an array of bootstrapping indexes to use
-        boot_idxs = np.random.choice(melody_features.shape[1], N_BOOT_FEATURES)
-        return _shuffler(boot_idxs, seed=seed)
-
-    with Parallel(n_jobs=-1, verbose=5) as par:
-        # Permute all features
-        logger.info('Permuting melody features...')
-        mel_acc = par(delayed(_shuffler)(None, seed) for seed in range(n_iter))
-        logger.info(f"... all melody feature importance {np.mean(mel_acc)}, "
-                    f"SD {np.std(mel_acc)}, "
-                    f"CI: [{np.percentile(mel_acc, 2.5)}, {np.percentile(mel_acc, 97.5)}]")
-        # Permute bootstrapped subsamples of features
-        logger.info('Permuting melody features with bootstrapping...')
-        mel_acc_boot = par(delayed(_shuffler_boot)(seed) for seed in range(n_iter))
-        logger.info(f"... bootstrapped melody feature importance {np.mean(mel_acc_boot)}, "
-                    f"SD {np.std(mel_acc_boot)}, "
-                    f"CI: [{np.percentile(mel_acc_boot, 2.5)}, {np.percentile(mel_acc_boot, 97.5)}]")
-
-
 def scale_features(
         train_x: np.ndarray,
         test_x: np.ndarray,
@@ -552,113 +436,6 @@ def get_all_clips(dataset: str, n_clips: int = None):
     return train_clips, test_clips, validation_clips
 
 
-def get_topk_features(
-        weights: np.array,
-        bootstrapped_weights: list[np.array],
-        feature_names: np.array,
-        class_mapping: dict,
-        k: int = K,
-) -> dict:
-    """For weights (with bootstrapping), get top and bottom `k` features for each performer"""
-    res = {}
-    # Iterate over all classes
-    for class_idx in tqdm(range(len(class_mapping.keys()))):
-        # Get the actual and bootstrapped weights for this performer
-        class_ratios = weights[class_idx, :]
-        boot_class_ratios = np.array([b[class_idx, :] for b in bootstrapped_weights])
-        # Apply functions to the bootstrapped weights to get SD, lower, upper bounds
-        stds = np.apply_along_axis(np.std, 0, boot_class_ratios)
-        lower_bounds = np.apply_along_axis(lambda x: np.percentile(x, 2.5), 0, boot_class_ratios)
-        upper_bounds = np.apply_along_axis(lambda x: np.percentile(x, 97.5), 0, boot_class_ratios)
-        # Get sorted idxs in ascending/descending order
-        bottom_idxs = np.argsort(class_ratios)
-        top_idxs = bottom_idxs[::-1]
-        # Iterate through all concepts
-        perf_dict = {}
-        for concept, starter in zip(['melody', 'harmony'], ['M_', 'H_']):
-            # Get top idxs
-            top_m_idxs = np.array([i for i in top_idxs if feature_names[i].startswith(starter)])[:k]
-            top_m_features = feature_names[top_m_idxs]
-            top_m_ors = class_ratios[top_m_idxs]
-            top_m_high = upper_bounds[top_m_idxs] - top_m_ors
-            top_m_low = top_m_ors - lower_bounds[top_m_idxs]
-            top_m_stds = stds[top_m_idxs]
-            # Get bottom idxs
-            bottom_m_idxs = np.array([i for i in bottom_idxs if feature_names[i].startswith(starter)])[:k]
-            bottom_m_features = feature_names[bottom_m_idxs]
-            bottom_m_ors = class_ratios[bottom_m_idxs]
-            bottom_m_high = upper_bounds[bottom_m_idxs] - bottom_m_ors
-            bottom_m_low = bottom_m_ors - lower_bounds[bottom_m_idxs]
-            bottom_m_stds = stds[bottom_m_idxs]
-            # Format results as a dictionary
-            r = dict(
-                top_ors=top_m_ors,
-                top_names=top_m_features,
-                top_high=top_m_high,
-                top_low=top_m_low,
-                top_std=top_m_stds,
-                bottom_ors=bottom_m_ors,
-                bottom_names=bottom_m_features,
-                bottom_high=bottom_m_high,
-                bottom_low=bottom_m_low,
-                bottom_std=bottom_m_stds,
-            )
-            # Append to the performer dictionary
-            perf_dict[concept] = r
-        # Append to the master dictionary
-        res[class_mapping[class_idx]] = perf_dict
-    return res
-
-
-def get_classifier_weights(
-        all_x: np.array,
-        all_y: np.array,
-        feature_names: np.array,
-        classifier_params: dict,
-        classifier_type: str,
-        n_boot: int = N_ITER // 10,  # this will take ages otherwise, so use a smaller number of iterations
-        use_odds_ratios: bool = True
-) -> tuple:
-    """For a given classifier type, get actual weights and bootstrapped versions of these"""
-
-    # Get the correct classifier instance (we don't care about parameters, though)
-    classifier, _ = get_classifier_and_params(classifier_type)
-    # Quick checks here to make sure that all parameters are as expected
-    if classifier_type not in ["lr", "svm"]:
-        raise ValueError(f"Getting classifier weights only supports `lr` and `svm` models, but got {classifier_type}!")
-    if use_odds_ratios and classifier_type != "lr":
-        raise ValueError(f"Getting weights as odds ratios is only supported when `classifier_type == 'lr'`")
-
-    def fitter(x: np.array, y: np.array) -> np.array:
-        # Create and fit the classifier and take the weights
-        temp_model = classifier(**classifier_params)
-        temp_model.fit(x, y)
-        coef = temp_model.coef_
-        # Take exponential if we want odds ratios
-        if use_odds_ratios:
-            coef = np.exp(coef)
-        return coef
-
-    def booter(x: np.array, y: np.array, i: int = utils.SEED) -> np.array:
-        # Sample the features
-        x_samp = x.sample(frac=1, replace=True, random_state=i)
-        # Use the index to sample the y values
-        y_samp = y[x_samp.index]
-        # Return the coefficients
-        return fitter(x_samp, y_samp)
-
-    # TODO: rather than bootstrapping, why not just take the standard errors?
-    # Convert to a dataframe as this makes bootstrapping a lot easier
-    full_x_df = pd.DataFrame(all_x, columns=feature_names)
-    full_y_df = pd.Series(all_y)
-    # Get actual coefficients: (n_classes, n_features)
-    ratios = fitter(full_x_df, full_y_df)
-    # Bootstrap the coefficients: (n_boots, n_classes, n_features)
-    with Parallel(n_jobs=-1, verbose=5) as par:
-        boot_ratios = par(delayed(booter)(full_x_df, full_y_df, i) for i in range(n_boot))
-    return ratios, boot_ratios
-
-
 def parse_arguments(parser) -> dict:
     """Takes in a parser object and adds all required arguments, then returns these arguments"""
     parser.add_argument(
@@ -715,86 +492,6 @@ def parse_arguments(parser) -> dict:
     # Parse all arguments and return
     args = vars(parser.parse_args())
     return args
-
-
-def get_database_coefs(
-        x_arr: np.array,
-        y_arr: np.array,
-        dataset_mapping: np.array,
-        classifier_type: str,
-        classifier_params: dict = None,
-        scale: bool = True,
-) -> tuple[np.array, np.array]:
-    """Gets coefficients for two models fitted only to the data from each source database"""
-    # Get values for JTD
-    jtd_x = np.array([i for num, i in enumerate(x_arr) if dataset_mapping[num] == 1])
-    jtd_y = np.array([i for num, i in enumerate(y_arr) if dataset_mapping[num] == 1])
-    # Get values for pijama
-    pijama_x = np.array([i for num, i in enumerate(x_arr) if dataset_mapping[num] != 1])
-    pijama_y = np.array([i for num, i in enumerate(y_arr) if dataset_mapping[num] != 1])
-    # Check that the total number of rows adds up to the initial number
-    assert jtd_x.shape[0] + pijama_x.shape[0] == x_arr.shape[0]
-    # Scale if required
-    if scale:
-        sscale = StandardScaler()
-        jtd_x = sscale.fit_transform(jtd_x)
-        pijama_x = sscale.fit_transform(pijama_x)
-    # Get params for fitting the model
-    if classifier_params is None:
-        classifier_params = {}
-    # Create the model instances
-    classifier, _ = get_classifier_and_params(classifier_type)
-    jtd_md = classifier(**classifier_params)
-    pijama_md = classifier(**classifier_params)
-    # Fit the models
-    jtd_md.fit(jtd_x, jtd_y)
-    pijama_md.fit(pijama_x, pijama_y)
-    # Return the coefficients
-    return jtd_md.coef_, pijama_md.coef_
-
-
-def get_database_coef_corrs(
-        jtd_coefs: np.array,
-        pijama_coefs: np.array,
-        class_mapping: dict,
-        n_boot: int = N_ITER
-) -> pd.DataFrame:
-    """Gets performer-wise correlation between coefficients obtained from both source databases"""
-
-    def _booter(j, p):
-        # Get the indexes for this iteration
-        bi = np.random.choice(np.arange(len(j)), len(j), replace=True)
-        # Get the correlation with these bootstrap indexes
-        return np.corrcoef(j[bi], p[bi])[0, 1]
-
-    coef_res = []
-    # Iterate through each performer
-    for i in tqdm(range(jtd_coefs.shape[0]), desc='Getting correlations...'):
-        # Get the coefficients for this performer
-        jtd_perf_coefs = jtd_coefs[i, :]
-        pijama_perf_coefs = pijama_coefs[i, :]
-        # Get the actual correlation
-        act_pcorr = np.corrcoef(jtd_perf_coefs, pijama_perf_coefs)[0, 1]
-        # Get the bootstrapped correlations with multiprocessing
-        with Parallel(n_jobs=-1, verbose=5) as par:
-            boot_corrs = par(delayed(_booter)(jtd_perf_coefs, pijama_perf_coefs) for _ in range(n_boot))
-        # Get the upper and lower bounds from the bootstrapped array
-        boot_arr = np.array(boot_corrs)
-        high, low = np.percentile(boot_arr, 97.5), np.percentile(boot_arr, 2.5)
-        # Create a dictionary with everything in and append
-        perf_res = dict(
-            perf_name=class_mapping[i],
-            corr=act_pcorr,
-            high=high - act_pcorr,
-            low=act_pcorr - low
-        )
-        coef_res.append(perf_res)
-    # Return a dataframe sorted by correlation
-    return (
-        pd.DataFrame(coef_res)
-        .sort_values(by='corr', ascending=False)
-        .reset_index(drop=True)
-    )
 
 
 def get_database_mapping(
