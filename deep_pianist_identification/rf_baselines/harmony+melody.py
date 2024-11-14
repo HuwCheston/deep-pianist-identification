@@ -13,8 +13,7 @@ from deep_pianist_identification import utils
 from deep_pianist_identification.rf_baselines.explainers import (
     LRWeightExplainer, DatabaseExplainer, PermutationExplainer
 )
-from deep_pianist_identification.rf_baselines.harmony import get_harmony_features
-from deep_pianist_identification.rf_baselines.melody import get_melody_features
+from deep_pianist_identification.rf_baselines.features import get_harmony_features, get_melody_features
 
 
 def rf_melody_harmony(
