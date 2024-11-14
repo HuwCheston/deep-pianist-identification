@@ -8,13 +8,13 @@ import os
 import numpy as np
 from loguru import logger
 
-import deep_pianist_identification.rf_baselines.rf_utils as rf_utils
 from deep_pianist_identification import utils
-from deep_pianist_identification.rf_baselines.classifiers import fit_classifier
-from deep_pianist_identification.rf_baselines.explainers import (
+from deep_pianist_identification.whitebox import wb_utils
+from deep_pianist_identification.whitebox.classifiers import fit_classifier
+from deep_pianist_identification.whitebox.explainers import (
     LRWeightExplainer, DatabaseExplainer, PermutationExplainer
 )
-from deep_pianist_identification.rf_baselines.features import get_harmony_features, get_melody_features
+from deep_pianist_identification.whitebox.features import get_harmony_features, get_melody_features
 
 
 def rf_melody_harmony(
@@ -34,7 +34,7 @@ def rf_melody_harmony(
     # Get the class mapping dictionary from the dataset
     class_mapping = utils.get_class_mapping(dataset)
     # Get all clips from the given dataset
-    train_clips, test_clips, validation_clips = rf_utils.get_all_clips(dataset)
+    train_clips, test_clips, validation_clips = wb_utils.get_all_clips(dataset)
     # Melody extraction
     logger.info('---MELODY---')
     train_x_arr_mel, test_x_arr_mel, valid_x_arr_mel, mel_features, train_y_mel, test_y_mel, valid_y_mel = get_melody_features(
@@ -70,12 +70,12 @@ def rf_melody_harmony(
     logger.info('---FITTING---')
     csvpath = os.path.join(
         utils.get_project_root(),
-        'references/rf_baselines',
+        'references/whitebox',
         f'{dataset}_{classifier_type}_harmony+melody.csv'
     )
     # Scale the data if required (never for multinomial naive Bayes as this expects count data)
     if scale and classifier_type != "nb":
-        train_x_arr, test_x_arr, valid_x_arr = rf_utils.scale_features(train_x_arr, test_x_arr, valid_x_arr)
+        train_x_arr, test_x_arr, valid_x_arr = wb_utils.scale_features(train_x_arr, test_x_arr, valid_x_arr)
     # Optimize the classifier
     clf_opt, valid_acc, best_params = fit_classifier(
         train_x_arr,
@@ -107,7 +107,7 @@ def rf_melody_harmony(
     database_explainer = DatabaseExplainer(
         x=np.vstack([train_x_arr, test_x_arr, valid_x_arr]),
         y=np.hstack([train_y_mel, test_y_mel, valid_y_mel]),
-        dataset_idxs=rf_utils.get_database_mapping(train_clips, test_clips, validation_clips),
+        dataset_idxs=wb_utils.get_database_mapping(train_clips, test_clips, validation_clips),
         feature_names=np.array(['M_' + f for f in mel_features] + ['H_' + f for f in har_features]),
         class_mapping=class_mapping,
         classifier_params=best_params,
@@ -137,7 +137,7 @@ if __name__ == "__main__":
     utils.seed_everything(utils.SEED)
     # Parsing arguments from the command line interface
     parser = argparse.ArgumentParser(description='Create white box classifier for melody + harmony')
-    args = rf_utils.parse_arguments(parser)
+    args = wb_utils.parse_arguments(parser)
     # Create the forest
     rf_melody_harmony(
         dataset=args['dataset'],

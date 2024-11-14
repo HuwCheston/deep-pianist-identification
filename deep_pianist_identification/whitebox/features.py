@@ -13,9 +13,9 @@ from joblib import Parallel, delayed
 from loguru import logger
 from pretty_midi import PrettyMIDI
 
-import deep_pianist_identification.rf_baselines.rf_utils as rf_utils
 from deep_pianist_identification import utils
 from deep_pianist_identification.extractors import HarmonyExtractor, ExtractorError, MelodyExtractor
+from deep_pianist_identification.whitebox import wb_utils
 
 MAX_LEAPS_IN_CHORD = 2
 
@@ -40,7 +40,7 @@ def extract_chords(
 ):
     # Use the default ngram value, if not provided
     if ngrams is None:
-        ngrams = rf_utils.NGRAMS
+        ngrams = wb_utils.NGRAMS
     # Create a list of empty default dictionaries, one per each value of n we wish to extract (e.g., 3-gram, 4-gram...)
     track_chords = {ng: defaultdict(int) for ng in ngrams}
     for clip_idx in range(nclips):
@@ -56,7 +56,7 @@ def extract_chords(
                 # Calculate the number of semitones between successive notes of the chord
                 leaps = [i1 - i2 for i2, i1 in zip(chord, chord[1:])]
                 # Calculate the number of semitone leaps that are above our threshold
-                above_thresh = [i for i in leaps if i >= rf_utils.MAX_LEAP]
+                above_thresh = [i for i in leaps if i >= wb_utils.MAX_LEAP]
                 # If we have more than N (default N = 2) leaps above the threshold, skip the chord
                 if len(above_thresh) >= MAX_LEAPS_IN_CHORD:
                     continue
@@ -126,7 +126,7 @@ def extract_melody_ngrams(
     """For a given track path, number of clips, and pianist, extract all melody `ngrams` and return a dictionary"""
     # Use the default ngram value, if not provided
     if ngrams is None:
-        ngrams = rf_utils.NGRAMS
+        ngrams = wb_utils.NGRAMS
     # Create a list of empty default dictionaries, one per each value of n we wish to extract (e.g., 3-gram, 4-gram...)
     ngram_res = [defaultdict(int) for _ in range(len(ngrams))]
     for idx in range(nclips):
@@ -146,7 +146,7 @@ def extract_melody_ngrams(
             # Iterate through all n-grams
             for ng in grams:
                 # If we want to remove leaps, and ONE of the intervals is above our maximum threshold, then drop
-                if any(abs(val) >= rf_utils.MAX_LEAP for val in ng) and remove_leaps:
+                if any(abs(val) >= wb_utils.MAX_LEAP for val in ng) and remove_leaps:
                     continue
                 # Otherwise, increment the counter by one for this n-gram
                 di[str(ng)] += 1
@@ -196,7 +196,7 @@ def get_melody_features(
 def extract_ngrams_from_clips(split_clips: Iterable, extract_func: Callable, *args) -> tuple[list[dict], list[int]]:
     """For clips from a given split, applies an n-gram `extract_func` in parallel"""
     # Iterate over each track and apply our extraction function
-    with Parallel(n_jobs=rf_utils.N_JOBS, verbose=5) as par:
+    with Parallel(n_jobs=wb_utils.N_JOBS, verbose=5) as par:
         res = par(delayed(extract_func)(p, n, pi, *args) for p, n, pi in list(split_clips))
     # Returns a tuple of ngrams (dict) and targets (int) for every *clip* in the dataset
     return zip(*res)
@@ -220,7 +220,7 @@ def drop_invalid_ngrams(list_of_ngram_dicts: list[dict], valid_ngrams: list[str]
     # Define the removal function
     rm = lambda feat: {k: v for k, v in feat.items() if k in valid_ngrams}
     # In parallel, remove non-valid n-grams from all dictionaries
-    with Parallel(n_jobs=rf_utils.N_JOBS, verbose=5) as par:
+    with Parallel(n_jobs=wb_utils.N_JOBS, verbose=5) as par:
         return par(delayed(rm)(f) for f in list_of_ngram_dicts)
 
 

@@ -10,11 +10,11 @@ import numpy as np
 import torch
 from pretty_midi import PrettyMIDI, Instrument, Note
 
-import deep_pianist_identification.rf_baselines.rf_utils as rf_utils
 import deep_pianist_identification.utils as utils
 from deep_pianist_identification.encoders import CNNet, CRNNet, ResNet50, TangCNN
 from deep_pianist_identification.encoders.shared import IBN
-from deep_pianist_identification.rf_baselines.features import get_valid_ngrams, drop_invalid_ngrams, format_features
+from deep_pianist_identification.whitebox import wb_utils
+from deep_pianist_identification.whitebox.features import get_valid_ngrams, drop_invalid_ngrams, format_features
 
 
 class ForestTest(unittest.TestCase):
@@ -81,7 +81,7 @@ class ForestTest(unittest.TestCase):
         self.assertTrue(expected_feature_names == actual_feature_names)
 
     def test_melody_ngram_extraction(self):
-        from deep_pianist_identification.rf_baselines.features import _extract_fn_melody
+        from deep_pianist_identification.whitebox.features import _extract_fn_melody
 
         # Create the pretty MIDI object
         midi = PrettyMIDI()
@@ -110,7 +110,7 @@ class ForestTest(unittest.TestCase):
         self.assertEqual(expected_34grams, actual_34grams)
 
     def test_remove_leaps_melody(self):
-        from deep_pianist_identification.rf_baselines.features import extract_melody_ngrams
+        from deep_pianist_identification.whitebox.features import extract_melody_ngrams
 
         # Define the testing track
         track = 'monkt-sweetandlovelytake1-unaccompanied-xxxx-gsz3i0ac'
@@ -125,14 +125,14 @@ class ForestTest(unittest.TestCase):
             self.assertEqual(len(ics), 3)
             # All interval classes should be below the threshold
             for ic in ics:
-                self.assertTrue(ic < rf_utils.MAX_LEAP)
+                self.assertTrue(ic < wb_utils.MAX_LEAP)
         # Extract the ngrams, allowing for leaps
         all_ngrams, _ = extract_melody_ngrams(tester, nclips=6, pianist=18, ngrams=[3], remove_leaps=False)
         # Total number of ngrams should be larger when allowing for leaps
         self.assertLess(len(list(restrict_ngrams.keys())), len(list(all_ngrams.keys())))
 
     def test_remove_leaps_harmony(self):
-        from deep_pianist_identification.rf_baselines.features import extract_chords, MAX_LEAPS_IN_CHORD
+        from deep_pianist_identification.whitebox.features import extract_chords, MAX_LEAPS_IN_CHORD
 
         # Define the testing track
         track = 'monkt-sweetandlovelytake1-unaccompanied-xxxx-gsz3i0ac'
@@ -146,7 +146,7 @@ class ForestTest(unittest.TestCase):
             # Quick check that we're only extracting 3-gram
             self.assertEqual(len(ics), 3)
             # Should not have more than MAX_LEAPS_IN_CHORD leaps of MAX_LEAP semitones
-            above_thresh = [i1 for i1, i2 in zip(ics, ics[1:]) if i2 - i1 >= rf_utils.MAX_LEAP]
+            above_thresh = [i1 for i1, i2 in zip(ics, ics[1:]) if i2 - i1 >= wb_utils.MAX_LEAP]
             self.assertTrue(len(above_thresh) < MAX_LEAPS_IN_CHORD)
         # Extract the ngrams, allowing for leaps
         all_ngrams, _ = extract_chords(tester, nclips=6, pianist=18, ngrams=[3], remove_leaps=False)
@@ -154,7 +154,7 @@ class ForestTest(unittest.TestCase):
         self.assertLess(len(list(restrict_ngrams.keys())), len(list(all_ngrams.keys())))
 
     def test_harmony_chord_extraction(self):
-        from deep_pianist_identification.rf_baselines.features import _extract_fn_harmony
+        from deep_pianist_identification.whitebox.features import _extract_fn_harmony
 
         # Create the pretty MIDI object
         midi = PrettyMIDI()

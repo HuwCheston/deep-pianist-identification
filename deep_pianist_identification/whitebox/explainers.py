@@ -14,7 +14,7 @@ from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 
 from deep_pianist_identification import utils, plotting
-from deep_pianist_identification.rf_baselines.rf_utils import get_classifier_and_params
+from deep_pianist_identification.whitebox.wb_utils import get_classifier_and_params
 
 N_BOOT = 10000
 K_COEFS = 1000

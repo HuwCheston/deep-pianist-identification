@@ -298,4 +298,3 @@ def get_database_mapping(
     valid_datasets = np.array([1 if 'jtd' in i[0] else 0 for i in valid_clips])
     # Concatenate and return
     return np.hstack([train_datasets, test_datasets, valid_datasets])
-

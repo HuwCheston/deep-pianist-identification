@@ -13,9 +13,10 @@ from joblib import Parallel, delayed
 from loguru import logger
 from sklearn.metrics import accuracy_score, top_k_accuracy_score
 from sklearn.model_selection import ParameterSampler
+from tqdm import tqdm
 
 from deep_pianist_identification import utils
-from deep_pianist_identification.rf_baselines.rf_utils import get_classifier_and_params
+from deep_pianist_identification.whitebox.wb_utils import get_classifier_and_params
 
 ACC_TOP_KS = [1, 2, 3, 5, 10]  # We'll print the model top-k accuracy at these levels
 
