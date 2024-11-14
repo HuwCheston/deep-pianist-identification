@@ -115,7 +115,7 @@ def create_classifier(
         classifier_type=classifier_type,
         classifier_params=best_params,
         use_odds_ratios=True,
-        n_iter=n_iter,
+        n_iter=n_iter // 10,
     )
     lr_exp.explain()
     lr_exp.create_outputs()

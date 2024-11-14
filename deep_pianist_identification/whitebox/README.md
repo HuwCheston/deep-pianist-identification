@@ -36,6 +36,8 @@ When `<classifier-type>` == `lr`, two additional outputs are created by:
 
 - Extract top- and bottom-K weights from the model for each performer across both harmony and melody and create plots (
   in `.reports/figures/whitebox/lr_weights`)
+    - Confidence intervals are created by bootstrapping the data entered into the model, which is very computationally
+      intensive. As a results, we use `<n-iter> // 10` here (see arguments below).
 - Compute the correlation between top-K weights from the full model using models fitted to both JTD and PiJAMA
   separately (results stored in `./reports/figures/whitebox/database`)
 
