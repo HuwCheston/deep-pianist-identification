@@ -24,8 +24,9 @@ def create_classifier(
         max_count: int,
         ngrams: list[int],
         remove_leaps: bool,
+        database_k_coefs: int,
         classifier_type: str = "rf",
-        scale: bool = True
+        scale: bool = True,
 ):
     """Fit the random forest to both melody and harmony features"""
     logger.info("Creating white box classifier using melody and harmony data!")
@@ -129,6 +130,7 @@ def create_classifier(
         class_mapping=class_mapping,
         classifier_params=best_params,
         classifier_type=classifier_type,
+        topk=database_k_coefs
     )
     database_explainer.explain()
     database_explainer.create_outputs()
@@ -150,6 +152,7 @@ if __name__ == "__main__":
         remove_leaps=args['remove_leaps'],
         max_count=args["max_count"],
         classifier_type=args["classifier_type"],
-        scale=args["scale"]
+        scale=args["scale"],
+        database_k_coefs=args["database_k_coefs"]
     )
     logger.info('Done!')

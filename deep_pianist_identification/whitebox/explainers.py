@@ -17,7 +17,8 @@ from deep_pianist_identification import utils, plotting
 from deep_pianist_identification.whitebox.wb_utils import get_classifier_and_params
 
 N_BOOT = 10000
-K_COEFS = 1000
+K_COEFS = 2000
+N_PERMUTATION_COEFS = 2000
 
 
 class WhiteBoxExplainer:
@@ -199,7 +200,7 @@ class PermutationExplainer(WhiteBoxExplainer):
             init_acc: float,
             scale: bool = True,
             n_iter: int = N_BOOT,
-            n_boot_features: int = 2000,
+            n_boot_features: int = N_PERMUTATION_COEFS,
             n_features: int = None
     ):
         super().__init__(output_dir='permutation')

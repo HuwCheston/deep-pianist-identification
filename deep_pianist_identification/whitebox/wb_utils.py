@@ -281,6 +281,12 @@ def parse_arguments(parser) -> dict:
         type=bool,
         help="Whether to scale data using z-transformation or not"
     )
+    parser.add_argument(
+        "-k", "--database-k-coefs",
+        default=1000,
+        type=int,
+        help="Number of k coefficients to extract when computing correlation between different datasets"
+    )
     # Parse all arguments and return
     args = vars(parser.parse_args())
     return args
