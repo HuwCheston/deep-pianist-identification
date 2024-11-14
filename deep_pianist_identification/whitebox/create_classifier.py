@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Random forest baseline applied to harmony & melody"""
+"""Create whitebox classifiers with command line interface"""
 
 import os
 
@@ -17,7 +17,7 @@ from deep_pianist_identification.whitebox.explainers import (
 from deep_pianist_identification.whitebox.features import get_harmony_features, get_melody_features
 
 
-def rf_melody_harmony(
+def create_classifier(
         dataset: str,
         n_iter: int,
         min_count: int,
@@ -136,10 +136,10 @@ if __name__ == "__main__":
 
     utils.seed_everything(utils.SEED)
     # Parsing arguments from the command line interface
-    parser = argparse.ArgumentParser(description='Create white box classifier for melody + harmony')
+    parser = argparse.ArgumentParser(description='Create white box classifier')
     args = wb_utils.parse_arguments(parser)
     # Create the forest
-    rf_melody_harmony(
+    create_classifier(
         dataset=args['dataset'],
         n_iter=args["n_iter"],
         min_count=args["min_count"],
