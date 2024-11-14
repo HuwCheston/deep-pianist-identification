@@ -89,7 +89,7 @@ def create_classifier(
         classifier_type
     )
     # Permutation feature importance: this class will do all analysis and create plots/outputs
-    logger.info('---PERMUTATION FEATURE IMPORTANCE---')
+    logger.info('---EXPLAINING: PERMUTATION FEATURE IMPORTANCE (GLOBAL)---')
     permute_explainer = PermutationExplainer(
         harmony_features=valid_x_arr_har,
         melody_features=valid_x_arr_mel,
@@ -102,20 +102,8 @@ def create_classifier(
     )
     permute_explainer.explain()
     permute_explainer.create_outputs()
-    # Correlation between top-k coefficients from the full model for individual database models
-    logger.info('---DATASET FEATURE CORRELATIONS---')
-    database_explainer = DatabaseExplainer(
-        x=np.vstack([train_x_arr, test_x_arr, valid_x_arr]),
-        y=np.hstack([train_y_mel, test_y_mel, valid_y_mel]),
-        dataset_idxs=wb_utils.get_database_mapping(train_clips, test_clips, validation_clips),
-        feature_names=np.array(['M_' + f for f in mel_features] + ['H_' + f for f in har_features]),
-        class_mapping=class_mapping,
-        classifier_params=best_params,
-        classifier_type=classifier_type,
-    )
-    database_explainer.explain()
-    database_explainer.create_outputs()
     # Weights for top k features for each performer across melody/harmony features
+    logger.info('---EXPLAINING: MODEL WEIGHTS (LOCAL)---')
     lr_exp = LRWeightExplainer(
         x=np.vstack([train_x_arr, test_x_arr, valid_x_arr]),
         y=np.hstack([train_y_mel, test_y_mel, valid_y_mel]),
@@ -128,6 +116,19 @@ def create_classifier(
     )
     lr_exp.explain()
     lr_exp.create_outputs()
+    # Correlation between top-k coefficients from the full model for individual database models
+    logger.info('---EXPLAINING: DATASET FEATURE CORRELATIONS---')
+    database_explainer = DatabaseExplainer(
+        x=np.vstack([train_x_arr, test_x_arr, valid_x_arr]),
+        y=np.hstack([train_y_mel, test_y_mel, valid_y_mel]),
+        dataset_idxs=wb_utils.get_database_mapping(train_clips, test_clips, validation_clips),
+        feature_names=np.array(['M_' + f for f in mel_features] + ['H_' + f for f in har_features]),
+        class_mapping=class_mapping,
+        classifier_params=best_params,
+        classifier_type=classifier_type,
+    )
+    database_explainer.explain()
+    database_explainer.create_outputs()
     logger.info('Done!')
 
 
