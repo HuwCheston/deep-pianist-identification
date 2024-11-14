@@ -37,6 +37,7 @@ def fit_classifier(
     logger.info(f"... optimization results will be saved in {csvpath}")
     logger.info(f"... shape of training features: {train_x.shape}")
     logger.info(f"... shape of testing features: {test_x.shape}")
+    warnings.filterwarnings("ignore")
     # Run the hyperparameter optimization here and get the optimized parameter settings
     optimized_params = _optimize_classifier(
         train_x, train_y, test_x, test_y, csvpath, n_iter=n_iter, classifier_type=classifier_type
@@ -60,6 +61,7 @@ def fit_classifier(
         topk_acc = top_k_accuracy_score(valid_y, valid_y_proba, k=k)
         logger.info(f'... top-{k} validation accuracy: {topk_acc:.6f}')
     # Return the fitted classifier for e.g., permutation importance testing
+    warnings.filterwarnings("default")
     return clf_opt, valid_acc, optimized_params
 
 
@@ -131,12 +133,10 @@ def _optimize_classifier(
     # Get cached results
     cached_results = load_from_file()
     # Use lazy parallelization to create the forest and fit to the data
-    warnings.filterwarnings("ignore")
     with Parallel(n_jobs=-1, verbose=5) as p:
         fit = p(
             delayed(__step)(num, params) for num, params in tqdm(enumerate(sampler), total=n_iter, desc="Fitting...")
         )
-    warnings.filterwarnings("default")
     # Adding a None at this point kills the multiprocessing manager instance
     q.put(None)
     # Get the best parameter combination using pandas
