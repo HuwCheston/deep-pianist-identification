@@ -110,7 +110,7 @@ def create_classifier(
         return
     # Concatenate all features and feature names
     all_xs = np.vstack([train_x_arr, test_x_arr, valid_x_arr])
-    all_ys = np.vstack([train_y_mel, test_y_mel, valid_y_mel])
+    all_ys = np.hstack([train_y_mel, test_y_mel, valid_y_mel])
     feature_names = np.array(['M_' + f for f in mel_features] + ['H_' + f for f in har_features])
     dataset_idxs: np.array = wb_utils.get_database_mapping(train_clips, test_clips, validation_clips),
     # Weights for top k features for each performer across melody/harmony features
