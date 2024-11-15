@@ -91,6 +91,8 @@ def create_classifier(
     )
     # Permutation feature importance: this class will do all analysis and create plots/outputs
     logger.info('---EXPLAINING: PERMUTATION FEATURE IMPORTANCE (GLOBAL)---')
+    logger.info(f'... shapes: harmony {valid_x_arr.shape}, melody {mel_features.shape}, targets {valid_y_mel.shape}')
+    logger.info(f'... scale: {scale}, n_iter {n_iter}, n_boots {n_iter // 10}, initial accuracy {valid_acc}')
     permute_explainer = PermutationExplainer(
         harmony_features=valid_x_arr_har,
         melody_features=valid_x_arr_mel,
@@ -106,12 +108,19 @@ def create_classifier(
     # Don't create the other outputs if the classifier isn't a logistic regression
     if classifier_type != "lr":
         return
+    # Concatenate all features and feature names
+    all_xs = np.vstack([train_x_arr, test_x_arr, valid_x_arr])
+    all_ys = np.vstack([train_y_mel, test_y_mel, valid_y_mel])
+    feature_names = np.array(['M_' + f for f in mel_features] + ['H_' + f for f in har_features])
+    dataset_idxs: np.array = wb_utils.get_database_mapping(train_clips, test_clips, validation_clips),
     # Weights for top k features for each performer across melody/harmony features
     logger.info('---EXPLAINING: MODEL WEIGHTS (LOCAL)---')
+    logger.info(f'... shapes: x {all_xs.shape}, y {all_ys.shape}, feature names {feature_names.shape}')
+    logger.info(f'... n_iter {n_iter // 10}')
     lr_exp = LRWeightExplainer(
-        x=np.vstack([train_x_arr, test_x_arr, valid_x_arr]),
+        x=all_xs,
         y=np.hstack([train_y_mel, test_y_mel, valid_y_mel]),
-        feature_names=np.array(['M_' + f for f in mel_features] + ['H_' + f for f in har_features]),
+        feature_names=feature_names,
         class_mapping=class_mapping,
         classifier_type=classifier_type,
         classifier_params=best_params,
@@ -122,11 +131,14 @@ def create_classifier(
     lr_exp.create_outputs()
     # Correlation between top-k coefficients from the full model for individual database models
     logger.info('---EXPLAINING: DATASET FEATURE CORRELATIONS---')
+    logger.info(f'... shapes: x {all_xs.shape}, y {all_ys.shape}, '
+                f'feature names {feature_names.shape}, dataset_idxs {dataset_idxs.shape}')
+    logger.info(f'... topk coefs: {database_k_coefs}')
     database_explainer = DatabaseExplainer(
-        x=np.vstack([train_x_arr, test_x_arr, valid_x_arr]),
-        y=np.hstack([train_y_mel, test_y_mel, valid_y_mel]),
-        dataset_idxs=wb_utils.get_database_mapping(train_clips, test_clips, validation_clips),
-        feature_names=np.array(['M_' + f for f in mel_features] + ['H_' + f for f in har_features]),
+        x=all_xs,
+        y=all_ys,
+        dataset_idxs=dataset_idxs,
+        feature_names=feature_names,
         class_mapping=class_mapping,
         classifier_params=best_params,
         classifier_type=classifier_type,

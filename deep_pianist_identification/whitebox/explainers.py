@@ -390,9 +390,16 @@ class DatabaseExplainer(WhiteBoxExplainer):
                 # Append other indexes to other list
                 else:
                     har_idxs.append(i)
-            # Get the top-k indexes for melody and harmony and append to list
-            all_topks_mel.append(np.array(mel_idxs)[:self.topk])
-            all_topks_har.append(np.array(har_idxs)[:self.topk])
+            # Convert lists of idxs to arrays
+            mel_arr = np.array(mel_idxs)
+            har_arr = np.array(har_idxs)
+            # Truncate to top-k weights if required
+            if self.topk is not None:
+                mel_arr = mel_arr[:self.topk]
+                har_arr = har_arr[:self.topk]
+            # Append to master list
+            all_topks_mel.append(mel_arr)
+            all_topks_har.append(har_arr)
         # Convert to arrays of shape [n_performers, top_k]
         return np.array(all_topks_mel), np.array(all_topks_har)
 
