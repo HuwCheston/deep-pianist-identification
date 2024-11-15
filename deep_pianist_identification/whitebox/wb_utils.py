@@ -285,10 +285,13 @@ def parse_arguments(parser) -> dict:
         "-k", "--database-k-coefs",
         default=1000,
         type=int,
-        help="Number of k coefficients to extract when computing correlation between different datasets"
+        help="Number of k coefficients to extract when computing correlation between different datasets."
+             "-1 uses all coefficients."
     )
     # Parse all arguments and return
     args = vars(parser.parse_args())
+    if args['database_k_coefs'] == -1:
+        args['database_k_coefs'] = None
     return args
 
 
