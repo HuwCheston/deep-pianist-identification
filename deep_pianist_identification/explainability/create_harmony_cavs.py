@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 from deep_pianist_identification import utils
 from deep_pianist_identification.explainability.cav_dataloader import VoicingLoaderFake, VoicingLoaderReal
-from deep_pianist_identification.explainability.cav_explainer import Explainer
+from deep_pianist_identification.explainability.cav_explainer import ConceptExplainer
 from deep_pianist_identification.explainability.cav_plotting import (
     HeatmapPianistCAV, HeatmapCAVKernelSensitivity, HeatmapCAVKernelSensitivityInteractive
 )
@@ -48,7 +48,7 @@ def get_all_cavs(concept_encoder, n_cavs: int = 20) -> np.ndarray:
     explainers = []
     for idx in tqdm(range(1, n_cavs + 1), desc='Creating all CAVs: '):
         # Create the Explainer instance, passing in the correct dataloaders, and fit
-        explain = Explainer(
+        explain = ConceptExplainer(
             cav_idx=idx,
             model=concept_encoder,
             real_loader=VoicingLoaderReal,
@@ -98,6 +98,44 @@ def embed_all_clips(loaders: list, model, roll_idx: int = 1) -> tuple[np.array, 
             # Store target indexes
             actual_targets.append(target.cpu().numpy())
     return np.concatenate(actual_embeds), np.concatenate(actual_targets), np.array(tns)
+
+
+def cav_similarity_peturb(
+        clip_features: np.ndarray,
+        clip_targets: np.ndarray,
+        cav_features: np.ndarray,
+        classifier_head: torch.nn.Module,
+        epsilon: float = 1e-4
+):
+    all_s = []
+    # Iterate through each individual clip embeddings and target
+    for feat, targ in zip(clip_features, clip_targets):
+        # Set devices correctly
+        feat = torch.tensor(feat).to(utils.DEVICE)
+        targ = torch.tensor(targ).to(utils.DEVICE)
+        # Iterate through each individual CAV
+        clip_res = []
+        for cav in cav_features:
+            # Perturb the embeddings towards and away from the CAV
+            away = feat - (cav * epsilon)
+            towards = feat + (cav * epsilon)
+            # Compute the logits for both cases
+            with torch.no_grad():
+                away_logits = classifier_head(away)
+                towards_logits = classifier_head(towards)
+            # Apply the softmax
+            away_sm = torch.nn.functional.softmax(away_logits, dim=-1)
+            toward_sm = torch.nn.functional.softmax(towards_logits, dim=-1)
+            # Get the logits for the target class
+            away_desired = away_sm[targ]
+            toward_desired = toward_sm[targ]
+            # Compute the sensitivity by subtracting the results
+            s = toward_desired - away_desired
+            clip_res.append(s)
+        # Shape = (n_cavs)
+        all_s.append(np.array(clip_res))
+    # Shape = (n_clips, n_cavs)
+    return np.array(all_s)
 
 
 def clip_cav_similarity(clip_features: np.ndarray, cav_features: np.ndarray, normalize: bool = False) -> np.ndarray:
