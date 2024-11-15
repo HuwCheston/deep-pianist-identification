@@ -91,7 +91,7 @@ def create_classifier(
     )
     # Permutation feature importance: this class will do all analysis and create plots/outputs
     logger.info('---EXPLAINING: PERMUTATION FEATURE IMPORTANCE (GLOBAL)---')
-    logger.info(f'... shapes: harmony {valid_x_arr_har.shape}, melody {valid_x_arr_mel.shape}, y {valid_y_mel.shape}')
+    # logger.info(f'... shapes: harmony {valid_x_arr_har.shape}, melody {valid_x_arr_mel.shape}, y {valid_y_mel.shape}')
     logger.info(f'... scale: {scale}, n_iter {n_iter}, n_boots {n_iter // 10}, initial accuracy {valid_acc}')
     permute_explainer = PermutationExplainer(
         harmony_features=valid_x_arr_har,
