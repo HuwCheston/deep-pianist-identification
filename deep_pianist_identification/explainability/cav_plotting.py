@@ -10,7 +10,6 @@ from itertools import product
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import plotly.graph_objects as go
 import seaborn as sns
 import torch
@@ -29,56 +28,6 @@ __all__ = ["BIRTH_YEARS", "HeatmapPianistCAV", "HeatmapCAVKernelSensitivity", "H
 BIRTH_YEARS = np.genfromtxt(
     os.path.join(utils.get_project_root(), 'references/data_splits/20class_80min/birth_years.txt'), dtype=int
 )
-
-
-class HeatmapPianistCAV(plotting.BasePlot):
-    def __init__(self, corr_df: pd.DataFrame, cav_type: str = "Voicings"):
-        super().__init__()
-        self.df = self._format_df(corr_df)
-        self.cav_type = cav_type
-        self.fig, self.ax = plt.subplots(1, 1, figsize=(plotting.WIDTH, plotting.WIDTH))
-
-    def _format_df(self, df: pd.DataFrame) -> pd.DataFrame:
-        sorters = np.argsort(BIRTH_YEARS)
-        corr_df = df.reindex(df.index[sorters])
-        corr_df.index = [f"{n} ({y})" for n, y in zip(corr_df.index, BIRTH_YEARS[sorters])]
-        return corr_df
-
-    def _create_plot(self) -> None:
-        return sns.heatmap(
-            self.df,
-            square=True,
-            cmap="vlag",
-            linecolor=plotting.WHITE,
-            linewidth=plotting.LINEWIDTH // 2,
-            ax=self.ax,
-            center=0.,
-            cbar_kws=dict(
-                label="Coefficient $r$",
-                shrink=0.75
-            )
-        )
-
-    def _format_ax(self):
-        # Set aesthetics for both colorbar and main axis
-        plotting.fmt_heatmap_axis(self.ax)
-        self.ax.set(
-            xlabel=f"{self.cav_type} CAV (→→→ $increasing$ $complexity$ →→→)",
-            ylabel="Pianist (→→→ $increasing$ $birth$ $year$ →→→)"
-        )
-
-    def _format_fig(self):
-        self.fig.tight_layout()
-
-    def save_fig(self):
-        fp = os.path.join(
-            utils.get_project_root(),
-            "reports/figures",
-            f"cav_plots/{self.cav_type.lower()}",
-            "correlation_heatmap"
-        )
-        for fmt in ["png", "svg"]:
-            self.fig.savefig(fp + "." + fmt, format=fmt, facecolor=plotting.WHITE)
 
 
 class HeatmapCAVKernelSensitivity(plotting.BasePlot):

@@ -422,3 +422,57 @@ if __name__ == "__main__":
     )
     sp = StripplotTopKFeatures(tmp, "Tempy McTempface", "melody")
     sp.create_plot()
+
+
+class HeatmapCAVSensitivity(BasePlot):
+    HEATMAP_KWS = dict(
+        square=True, cmap="rocket", linecolor=WHITE,
+        linewidth=LINEWIDTH // 2,
+    )
+
+    def __init__(
+            self,
+            sensitivity_matrix: np.array,
+            class_mapping: dict,
+            cav_names: np.array,
+            performer_birth_years: np.array,
+            sensitivity_type: str = 'TCAV Sign Count'
+    ):
+        super().__init__()
+        self.class_mapping = class_mapping
+        self.sensitivity_type = sensitivity_type
+        self.cav_names = cav_names
+        self.performer_birth_years = performer_birth_years
+        self.sorters = np.argsort(self.performer_birth_years)[::-1]
+        self.df = self._format_df(sensitivity_matrix)
+        self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH))
+
+    def _format_df(self, sensitivity_matrix):
+        res_df = pd.DataFrame(sensitivity_matrix, columns=self.cav_names)
+        res_df['performer'] = [f'{p}, ({b})' for p, b in zip(self.class_mapping.values(), self.performer_birth_years)]
+        return res_df.reindex(self.sorters).set_index('performer')
+
+    def _create_plot(self):
+        _ = sns.heatmap(
+            self.df, ax=self.ax, **self.HEATMAP_KWS,
+            cbar_kws=dict(label=self.sensitivity_type, shrink=0.75)
+        )
+
+    def _format_ax(self):
+        fmt_heatmap_axis(self.ax)
+        # Set axis and tick thickness
+        self.ax.set(
+            xlabel="Harmony CAV (→→→ $increasing$ $complexity$ →→→)",
+            ylabel="Pianist (→→→ $increasing$ $birth$ $year$ →→→)"
+        )
+        self.ax.invert_yaxis()
+
+    def _format_fig(self):
+        self.fig.tight_layout()
+
+    def save_fig(self):
+        fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations")
+        if not os.path.isdir(fold):
+            os.makedirs(fold)
+        fp = os.path.join(fold, f"cav_plots/{self.sensitivity_type.replace(' ', '_').lower()}_heatmap.png")
+        self.fig.savefig(fp, **SAVE_KWS)
