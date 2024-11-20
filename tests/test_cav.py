@@ -9,7 +9,7 @@ import unittest
 import numpy as np
 
 from deep_pianist_identification import utils
-from deep_pianist_identification.explainability.cav_dataloader import VoicingLoaderReal
+from deep_pianist_identification.explainability.cav_utils import VoicingLoaderReal
 
 
 class CAVVoicingTest(unittest.TestCase):
