@@ -25,6 +25,8 @@ from deep_pianist_identification.extractors import get_piano_roll
 __all__ = ["VoicingLoaderReal", "VoicingLoaderFake", "ConceptExplainer"]
 
 SCALER = StandardScaler()
+BATCH_SIZE = 10
+TRANSPOSE_RANGE = 6  # Transpose exercise MIDI files +/- 6 semitones (up and down a tri-tone)
 
 
 def get_attribution_fn(attr_fn_str: str) -> Callable:
@@ -44,7 +46,7 @@ class VoicingLoaderReal(Dataset):
             self,
             cav_number: int,
             n_clips: int = None,
-            transpose_range: int = 6,
+            transpose_range: int = TRANSPOSE_RANGE,
             use_rootless: bool = True
     ):
         super().__init__()
@@ -165,7 +167,7 @@ class VoicingLoaderFake(VoicingLoaderReal):
             self,
             avoid_cav_number: int,
             n_clips: int,
-            transpose_range: int = 6,
+            transpose_range: int = TRANSPOSE_RANGE,
             use_rootless: bool = True
     ):
         super().__init__(
@@ -205,7 +207,7 @@ class ConceptExplainer:
             layer_attribution: str = "gradient_x_activation",
             multiply_by_inputs: bool = True,
             n_clips: int = None,
-            transpose_range: int = 6
+            transpose_range: int = TRANSPOSE_RANGE
     ):
         # Create the dataloaders for the desired CAV
         self.cav_idx = cav_idx
@@ -291,15 +293,16 @@ class ConceptExplainer:
 
     def compute_sensitivity(self, feat: np.array, targ: np.array) -> float:
         # Copy the tensor, move to GPU, and add batch dimension in
-        # TODO: do we need to mask melody/rhythm/dynamics embeddings? does it change anything?
         inputs = feat.detach().clone().to(utils.DEVICE).unsqueeze(0)
+        # Apply masks to every roll other than the harmony roll
+        for mask_idx in [0, 2, 3]:
+            inputs[:, mask_idx, :, :] = torch.zeros_like(inputs[:, mask_idx, :, :])
         # Set the input tensor to require grad
-        # TODO: is this necessary?
         # inputs.requires_grad_()
         # Compute layer activations for final convolutional layer of harmony concept WRT target
         acts = self.layer_attribution.attribute(inputs, targ.item())
         # Flatten to get C * W * H (captum does this)
-        flatted = acts.flatten()  # only using one element batches, so no need for start_dim yet
+        flatted = acts.flatten()  # only using one element batches, so no need for start_dim
         # Compute dot product against the target CAV
         dotted = torch.dot(flatted.cpu(), self.cav).item()
         return dotted
@@ -313,7 +316,7 @@ class ConceptExplainer:
         return (torch.sum(tcav > 0.0, dim=0).float() / tcav.shape[0]).item()
 
     def interpret(self, features: np.array, targets: np.array, class_mapping: dict):
-        # TODO: maybe faster to batch this?
+        # Compute sensitivity for all clips: shape (N_clips, N_performers)
         self.sens = np.array([
             self.compute_sensitivity(f, t)
             for f, t in tqdm(
@@ -323,12 +326,16 @@ class ConceptExplainer:
             )
         ])
 
-        all_signs = []
-        all_mags = []
+        all_signs, all_mags = [], []
+        # Iterate over each class idx
         for class_idx in class_mapping:
+            # Get idxs of clips by this performer
             clip_idxs = torch.argwhere(targets == class_idx)
+            # Get the CAV sensitivity values for the corresponding clips
             tcav_score = torch.tensor(self.sens[clip_idxs].flatten())
+            # Get the sign count and magnitude for this performer and CAV combination
             all_signs.append(self.get_sign_count(tcav_score))
             all_mags.append(self.get_magnitude(tcav_score))
+        # Convert all sign counts and magnitudes to a 1D vector, shape (N_performers)
         self.sign_counts = np.array(all_signs)
         self.magnitudes = np.array(all_mags)

@@ -22,7 +22,7 @@ import deep_pianist_identification.plotting as plotting
 from deep_pianist_identification import utils
 from deep_pianist_identification.extractors import get_piano_roll, ExtractorError
 
-__all__ = ["BIRTH_YEARS", "HeatmapPianistCAV", "HeatmapCAVKernelSensitivity", "HeatmapCAVKernelSensitivityInteractive"]
+__all__ = ["BIRTH_YEARS", "HeatmapCAVKernelSensitivity", "HeatmapCAVKernelSensitivityInteractive"]
 
 # Array of pianist birth years and indexes needed to sort these in order
 BIRTH_YEARS = np.genfromtxt(

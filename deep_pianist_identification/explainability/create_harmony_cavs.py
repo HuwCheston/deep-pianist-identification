@@ -120,8 +120,8 @@ def main(
     interpreted = interpret_all_cavs(explainers, features, targets, tm.class_mapping)
     # Get sign counts and magnitudes for all performers
     # Each `i.sign_count` is a 1D vector of shape (N_performers), so we stack to get (N_performers, N_cavs)
-    sign_counts = np.vstack([i.sign_counts for i in interpreted])
-    magnitudes = np.vstack([i.magnitudes for i in interpreted])
+    sign_counts = np.column_stack([i.sign_counts for i in interpreted])
+    magnitudes = np.column_stack([i.magnitudes for i in interpreted])
     # Create heatmaps
     for df, name in zip([sign_counts, magnitudes], ['TCAV Sign Count', 'TCAV Magnitude']):
         hm = plotting.HeatmapCAVSensitivity(
