@@ -10,7 +10,9 @@ import numpy as np
 import torch
 
 from deep_pianist_identification import utils
-from deep_pianist_identification.explainability.cav_utils import VoicingLoaderReal, VoicingLoaderFake, ConceptExplainer
+from deep_pianist_identification.explainability.cav_utils import (
+    VoicingLoaderReal, VoicingLoaderFake, get_magnitude, get_sign_count
+)
 
 
 class VoicingLoaderTest(unittest.TestCase):
@@ -20,7 +22,7 @@ class VoicingLoaderTest(unittest.TestCase):
             r = VoicingLoaderReal(1, n_clips=10)
             f = VoicingLoaderFake(1, n_clips=len(r))
         # Little hack for my local machine which doesn't have enough memory to create the above classes
-        except OSError:
+        except (OSError, MemoryError):
             self.fail("Not enough system resources to create dataloaders!")
         # Test __getitem__ functions return expected output
         for target_class, loader in enumerate([f, r]):
@@ -153,17 +155,15 @@ class VoicingLoaderTest(unittest.TestCase):
 
 class ExplainerTest(unittest.TestCase):
     def test_metrics(self):
-        # Create the explainer class
-        exp = ConceptExplainer
         # Test sign counts metric works as expected
         test_vector = torch.tensor([-1.1, 1.2, 0.1, -5.5])
         expected = 0.5
-        actual = exp.get_sign_count(test_vector)
+        actual = get_sign_count(test_vector)
         self.assertEqual(expected, actual)
         # Test magnitude metric works
         test_vector = torch.tensor([1.2, 0.8, -1.1, -0.9, -1., -1.])
         expected = 1 / 3
-        actual = exp.get_magnitude(test_vector)
+        actual = get_magnitude(test_vector)
         self.assertEqual(expected, actual)
 
 

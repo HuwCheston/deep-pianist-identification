@@ -9,6 +9,7 @@ from random import shuffle
 from typing import Callable
 
 import numpy as np
+import scipy.stats as stats
 import torch
 from captum.attr import LayerIntegratedGradients, LayerGradientXActivation
 from joblib import Parallel, delayed
@@ -24,20 +25,298 @@ from tqdm import tqdm
 from deep_pianist_identification import utils
 from deep_pianist_identification.extractors import get_piano_roll
 
-__all__ = ["VoicingLoaderReal", "VoicingLoaderFake", "ConceptExplainer"]
-
+TEST_SIZE = 1 / 3  # same as initial TCAV implementation
 SCALER = StandardScaler()
 BATCH_SIZE = 10
 TRANSPOSE_RANGE = 6  # Transpose exercise MIDI files +/- 6 semitones (up and down a tri-tone)
 
 
 def get_attribution_fn(attr_fn_str: str) -> Callable:
+    """Returns correct layer attribution function from `captum` depending on input `attr_fn_str`"""
     accept = ['integrated_gradients', 'gradient_x_activation']
     assert attr_fn_str in accept, f'{attr_fn_str} not in {", ".join(accept)}'
     if attr_fn_str == 'integrated_gradients':
         return LayerIntegratedGradients
     else:
         return LayerGradientXActivation
+
+
+def get_activations(
+        loader: DataLoader,
+        model: torch.nn.Module,
+        layer: torch.nn.Module
+) -> np.array:
+    """Gets activattions for `model`.`layer` using data contained in `loader`"""
+    acts = {}
+
+    def hooky(_, __, out: torch.tensor):
+        acts['values'] = out
+
+    # Register the handle to get the activations from the desired layer
+    handle = layer.register_forward_hook(hooky)
+    embeds = []
+    for roll, _ in tqdm(loader, desc='Getting activations...'):
+        # roll = (B, 4, W, H)
+        # Create both sets of embeddings
+        with torch.no_grad():
+            # Forward pass through the model
+            _ = model(roll.to(utils.DEVICE))
+        # Get the activations from the hook
+        roll_acts = acts['values']
+        # Channel dimension is either at 1 or 0 depending on if input is batched or not
+        start_dim = 1 if len(roll_acts.size()) == 4 else 0
+        # Captum uses the unpooled output, flattened (i.e., C * W * H), so we do too
+        embed = roll_acts.flatten(start_dim=start_dim)
+        # Append to the list
+        embeds.append(embed.cpu().numpy())
+        acts = {}  # for safety, clear this dictionary
+    # Remove the hook
+    handle.remove()
+    # Concatenate the embeddings
+    return np.concatenate(embeds)
+
+
+def get_cav(
+        real_acts: np.array,
+        rand_acts: np.array,
+        classifier: LogisticRegression,
+        standardize: bool = True
+) -> torch.tensor:
+    """Given `real` and `random` activations, return coefficients orthogonal to decision boundary of the `classifier`"""
+    # Create arrays of targets with same shape as embeddings
+    real_targets, rand_targets = np.ones(real_acts.shape[0]), np.zeros(rand_acts.shape[0])
+    # Combine both real/fake features and targets into single matrix
+    x = np.vstack([real_acts, rand_acts])
+    y = np.hstack([real_targets, rand_targets])
+    # Scale the features if required; not used in initial TCAV implementation
+    if standardize:
+        x = SCALER.fit_transform(x)
+    # Split into train-test sets
+    x_train, x_test, y_train, y_test = train_test_split(
+        x, y, test_size=TEST_SIZE, stratify=y, random_state=utils.SEED
+    )
+    # Log dimensionality of all inputs
+    logger.info(f'Shape of training inputs: X = {x_train.shape}, y = {y_train.shape}')
+    logger.info(f'Shape of testing inputs: X = {x_test.shape}, y = {y_test.shape}')
+    # Fit the model and predict the test set
+    classifier.fit(x_train, y_train)
+    y_pred = classifier.predict(x_test)
+    # Get test set accuracy and log
+    acc = accuracy_score(y_test, y_pred)
+    logger.info(f'Test accuracy: {acc:.5f}')
+    # Extract coefficients - these are our CAVs
+    return torch.tensor(classifier.coef_.astype(np.float32)).flatten()
+
+
+def compute_cav_sensitivity(feat: np.array, targ: np.array, layer_attribution, cav: torch.tensor) -> float:
+    """Given input `features` and `targets`, compute sensitivitiy to provided `cav`"""
+    # Copy the tensor, move to GPU, and add batch dimension in
+    inputs = feat.detach().clone().to(utils.DEVICE).unsqueeze(0)
+    # Apply masks to every roll other than the harmony roll
+    for mask_idx in [0, 2, 3]:
+        inputs[:, mask_idx, :, :] = torch.zeros_like(inputs[:, mask_idx, :, :])
+    # We don't seem to require setting inputs.requires_grad_ = True
+    # Compute layer activations for final convolutional layer of harmony concept WRT target
+    acts = layer_attribution.attribute(inputs, targ.item())
+    # Flatten to get C * W * H (captum does this)
+    flatted = acts.flatten()  # only using one element batches, so no need for start_dim
+    # Compute dot product against the target CAV
+    dotted = torch.dot(flatted.cpu(), cav).item()
+    return dotted
+
+
+def get_magnitude(tcav: torch.tensor) -> float:
+    """Get magnitude of values in provided `tcav` vector (an array of sensitivities, one per clip)"""
+    return torch.sum(torch.abs(tcav * (tcav > 0.0).float()), dim=0) / torch.sum(torch.abs(tcav), dim=0).item()
+
+
+def get_sign_count(tcav: torch.tensor) -> float:
+    """Get sign count of values in provided `tcav` vector (an array of sensitivities, one per clip)"""
+    return (torch.sum(tcav > 0.0, dim=0).float() / tcav.shape[0]).item()
+
+
+class CAV:
+    def __init__(
+            self,
+            cav_idx: int,
+            model: torch.nn.Module,
+            layer: torch.nn.Module,
+            layer_attribution: str = "gradient_x_activation",
+            multiply_by_inputs: bool = True,
+            n_clips: int = None,
+            transpose_range: int = TRANSPOSE_RANGE,
+            standardize: bool = False
+    ):
+        # Create the dataloaders for the desired CAV
+        self.cav_idx = cav_idx
+        self.real = DataLoader(
+            VoicingLoaderReal(
+                self.cav_idx,
+                n_clips=n_clips,
+                transpose_range=transpose_range
+            ),
+            shuffle=True,
+            batch_size=BATCH_SIZE,
+            drop_last=False
+        )
+        self.fake = DataLoader(
+            VoicingLoaderFake(
+                self.cav_idx,
+                n_clips=len(self.real.dataset),
+                transpose_range=transpose_range
+            ),
+            shuffle=True,
+            batch_size=BATCH_SIZE,
+            drop_last=False
+        )
+        assert len(self.real.dataset) == len(self.fake.dataset)
+        self.layer = layer
+        self.model = model
+        attr_fn = get_attribution_fn(layer_attribution)
+        self.layer_attribution = attr_fn(self.model, self.layer, multiply_by_inputs=multiply_by_inputs)
+        self.predictor = LogisticRegression
+        self.standardize = standardize
+        # All of these variables will be updated when creating the CAV
+        self.cav = None
+        self.sens = None
+        self.magnitudes = {}
+        self.sign_counts = {}
+
+    def fit(self):
+        """Fits the classifier to the concept and random datasets and gets the CAV"""
+        # Get embeddings from both dataloaders
+        real_embeds = get_activations(self.real, self.model, self.layer)
+        fake_embeds = get_activations(self.fake, self.model, self.layer)
+        # Initialise the classifier class
+        clf_init = self.predictor(random_state=utils.SEED, max_iter=10000)
+        # Get the CAV
+        self.cav = get_cav(real_embeds, fake_embeds, clf_init, self.standardize)
+
+    def interpret(self, features: np.array, targets: np.array, class_mapping: dict):
+        """Get CAV sensitivity for all provided `features` and `targets`"""
+        # Compute sensitivity for all clips: shape (N_clips, N_performers)
+        self.sens = np.array([
+            compute_cav_sensitivity(f, t, self.layer_attribution, self.cav)
+            for f, t in tqdm(
+                zip(features, targets),
+                total=len(targets),
+                desc=f'Computing sensitivity for CAV {self.cav_idx}'
+            )
+        ])
+
+        all_signs, all_mags = [], []
+        # Iterate over each class idx
+        for class_idx in class_mapping:
+            # Get idxs of clips by this performer
+            clip_idxs = torch.argwhere(targets == class_idx)
+            # Get the CAV sensitivity values for the corresponding clips
+            tcav_score = torch.tensor(self.sens[clip_idxs].flatten())
+            # Get the sign count and magnitude for this performer and CAV combination
+            all_signs.append(get_sign_count(tcav_score))
+            all_mags.append(get_magnitude(tcav_score))
+        # Convert all sign counts and magnitudes to a 1D vector, shape (N_performers)
+        self.sign_counts = np.array(all_signs)
+        self.magnitudes = np.array(all_mags)
+
+
+class TCAV(CAV):
+    def __init__(
+            self,
+            n_experiments: int,
+            cav_idx: int,
+            model: torch.nn.Module,
+            layer: torch.nn.Module,
+            layer_attribution: str = "gradient_x_activation",
+            multiply_by_inputs: bool = True,
+            n_clips: int = None,
+            transpose_range: int = TRANSPOSE_RANGE,
+            standardize: bool = False
+    ):
+        super().__init__(
+            cav_idx=cav_idx,
+            model=model,
+            layer=layer,
+            layer_attribution=layer_attribution,
+            multiply_by_inputs=multiply_by_inputs,
+            n_clips=n_clips,
+            transpose_range=transpose_range,
+            standardize=standardize
+        )
+        # We need to create additional random dataloaders beyond the one created in `CAV.__init__`
+        additional_fake_loaders = [DataLoader(
+            VoicingLoaderFake(
+                self.cav_idx,
+                n_clips=len(self.real.dataset),
+                transpose_range=transpose_range
+            ),
+            shuffle=True,
+            batch_size=BATCH_SIZE,
+            drop_last=False
+        ) for _ in range(n_experiments - 1)]
+        # Combine all the random dataloaders together: should be the same length as provided `n_experiments`
+        self.fake = [self.fake, *additional_fake_loaders]
+        assert len(self.fake) == n_experiments
+        # These variables will be updated when we run `fit` and `interpret`
+        self.real_cavs = []
+        self.fake_cavs = []
+        self.p_vals = []
+
+    def fit(self):
+        # Get embeddings from "real" dataloader
+        real_embeds = get_activations(self.real, self.model, self.layer)
+        # Iterate over the number of fake dataloaders we're creating
+        for rand_dataset_idx in range(len(self.fake)):
+            # Get the "current" random dataset
+            rand_dataset = self.fake[rand_dataset_idx]
+            # Get activations for this dataset
+            rand_embeds = get_activations(rand_dataset, self.model, self.layer)
+            # Get the CAV for this random dataset and our real dataset
+            clf_init = self.predictor(random_state=utils.SEED, max_iter=10000)
+            real_cav = get_cav(real_embeds, rand_embeds, clf_init, self.standardize)
+
+            # Now, get another "random" dataset, which we'll treat as our concept dataset
+            choice_idx = np.random.choice([i for i in range(len(self.fake)) if i != rand_dataset_idx])
+            assert choice_idx != rand_dataset_idx
+            fake_concept_dataset = self.fake[choice_idx]
+            # Get the activations for this fake "concept" dataset
+            fake_embeds = get_activations(fake_concept_dataset, self.model, self.layer)
+            # Get the CAV between the fake "concept" dataset and the current "random" dataset
+            clf_init = self.predictor(random_state=utils.SEED)
+            # The accuracy of this model *should* (and seems to!) be significantly lower than that of `real_cav`
+            fake_cav = get_cav(fake_embeds, rand_embeds, clf_init, self.standardize)
+
+            # Append everything to our lists
+            self.real_cavs.append(real_cav)
+            self.fake_cavs.append(fake_cav)
+
+    def interpret(self, features: np.array, targets: np.array, class_mapping: dict):
+        def get_sens(cavs):
+            allsens = []
+            for cav in cavs:
+                allsens.append(np.array([
+                    compute_cav_sensitivity(f, t, self.layer_attribution, cav)
+                    for f, t in tqdm(
+                        zip(features, targets),
+                        total=len(targets),
+                        desc=f'Computing sensitivity...'
+                    )
+                ]))
+            return allsens
+
+        real_sensitivities = get_sens(self.real_cavs)
+        fake_sensitivities = get_sens(self.fake_cavs)
+
+        p_vals = []
+        for class_idx in class_mapping:
+            # Get idxs of clips by this performer
+            clip_idxs = torch.argwhere(targets == class_idx)
+            class_real_sensitivities = np.concatenate([re_s[clip_idxs] for re_s in real_sensitivities]).flatten()
+            class_fake_sensitivities = np.concatenate([ra_s[clip_idxs] for ra_s in fake_sensitivities]).flatten()
+            # Calculate statistical significance
+            _, p_val = stats.ttest_ind(class_fake_sensitivities, class_real_sensitivities)
+            p_vals.append(p_val)
+        assert len(p_vals) == len(class_mapping)
+        self.p_vals = np.array(p_vals)
 
 
 class VoicingLoaderReal(Dataset):
@@ -198,160 +477,3 @@ class VoicingLoaderFake(VoicingLoaderReal):
         # Add masks for remaining (non-harmony) concepts
         # Return with the class index (i.e., False)
         return self.add_masks(targ_midi), 0
-
-
-class ConceptExplainer:
-    TEST_SIZE = 1 / 3  # same as initial TCAV implementation
-
-    def __init__(
-            self,
-            cav_idx: int,
-            model: torch.nn.Module,
-            layer: torch.nn.Module,
-            layer_attribution: str = "gradient_x_activation",
-            multiply_by_inputs: bool = True,
-            n_clips: int = None,
-            transpose_range: int = TRANSPOSE_RANGE,
-            standardize: bool = False
-    ):
-        # Create the dataloaders for the desired CAV
-        self.cav_idx = cav_idx
-        self.real = DataLoader(
-            VoicingLoaderReal(
-                self.cav_idx,
-                n_clips=n_clips,
-                transpose_range=transpose_range
-            ),
-            shuffle=True,
-            batch_size=BATCH_SIZE,
-            drop_last=False
-        )
-        self.fake = DataLoader(
-            VoicingLoaderFake(
-                self.cav_idx,
-                n_clips=len(self.real.dataset),
-                transpose_range=transpose_range
-            ),
-            shuffle=True,
-            batch_size=BATCH_SIZE,
-            drop_last=False
-        )
-        assert len(self.real.dataset) == len(self.fake.dataset)
-        self.layer = layer
-        self.model = model
-        attr_fn = get_attribution_fn(layer_attribution)
-        self.layer_attribution = attr_fn(self.model, self.layer, multiply_by_inputs=multiply_by_inputs)
-        self.predictor = LogisticRegression(random_state=utils.SEED, max_iter=10000)
-        self.standardize = standardize
-        # All of these variables will be updated when creating the CAV
-        self.cav = None
-        self.sens = None
-        self.magnitudes = {}
-        self.sign_counts = {}
-
-    def get_embeds(self):
-        acts = {}
-
-        def hooky(_, __, out):
-            acts['values'] = out
-
-        # Register the handle to get the activations from the desired layer
-        handle = self.layer.register_forward_hook(hooky)
-        real_embeds, fake_embeds = [], []
-        for (real_batch, _), (fake_batch, _) in zip(self.real, self.fake):
-            # real_batch = (B, 4, W, H)
-            # Create both sets of embeddings
-            with torch.no_grad():
-                # Through the model
-                _ = self.model(real_batch.to(utils.DEVICE))
-                # Get the activations from the hook
-                # Captum uses the unpooled output, flattened (i.e., C * W * H), so we do too
-                real_embed = acts['values'].flatten(start_dim=1)
-                acts = {}  # for safety, clear this dictionary
-                # Append to the list
-                real_embeds.append(real_embed.cpu().numpy())
-
-                # Repeat for the 'fake' (random) dataset
-                _ = self.model(fake_batch.to(utils.DEVICE))
-                fake_embed = acts['values'].flatten(start_dim=1)
-                fake_embeds.append(fake_embed.cpu().numpy())
-                acts = {}  # for safety, clear this dictionary
-        # Remove the hook
-        handle.remove()
-        # Concatenate the embeddings
-        return np.concatenate(real_embeds), np.concatenate(fake_embeds)
-
-    def fit(self):
-        # Get embeddings from the model
-        real_embeds, fake_embeds = self.get_embeds()
-        # Create arrays of targets with same shape as embeddings
-        real_targets, fake_targets = np.ones(real_embeds.shape[0]), np.zeros(fake_embeds.shape[0])
-        # Combine both real/fake features and targets into single matrix
-        x = np.vstack([real_embeds, fake_embeds])
-        y = np.hstack([real_targets, fake_targets])
-        # Scale the features if required; not used in initial TCAV implementation
-        if self.standardize:
-            x = SCALER.fit_transform(x)
-        # Split into train-test sets
-        x_train, x_test, y_train, y_test = train_test_split(
-            x, y, test_size=self.TEST_SIZE, stratify=y, random_state=utils.SEED
-        )
-        # Log dimensionality of all inputs
-        logger.info(f'Shape of training inputs: X = {x_train.shape}, y = {y_train.shape}')
-        logger.info(f'Shape of testing inputs: X = {x_test.shape}, y = {y_test.shape}')
-        # Fit the model and predict the test set
-        self.predictor.fit(x_train, y_train)
-        y_pred = self.predictor.predict(x_test)
-        # Get test set accuracy and log
-        acc = accuracy_score(y_test, y_pred)
-        logger.info(f'Test accuracy for CAV {self.cav_idx}: {acc:.5f}')
-        # Extract coefficients - these are our CAVs
-        self.cav = torch.tensor(self.predictor.coef_.astype(np.float32)).flatten()
-
-    def compute_sensitivity(self, feat: np.array, targ: np.array) -> float:
-        # Copy the tensor, move to GPU, and add batch dimension in
-        inputs = feat.detach().clone().to(utils.DEVICE).unsqueeze(0)
-        # Apply masks to every roll other than the harmony roll
-        for mask_idx in [0, 2, 3]:
-            inputs[:, mask_idx, :, :] = torch.zeros_like(inputs[:, mask_idx, :, :])
-        # We don't seem to require setting inputs.requires_grad_ = True
-        # Compute layer activations for final convolutional layer of harmony concept WRT target
-        acts = self.layer_attribution.attribute(inputs, targ.item())
-        # Flatten to get C * W * H (captum does this)
-        flatted = acts.flatten()  # only using one element batches, so no need for start_dim
-        # Compute dot product against the target CAV
-        dotted = torch.dot(flatted.cpu(), self.cav).item()
-        return dotted
-
-    @staticmethod
-    def get_magnitude(tcav: torch.tensor) -> float:
-        return torch.sum(torch.abs(tcav * (tcav > 0.0).float()), dim=0) / torch.sum(torch.abs(tcav), dim=0).item()
-
-    @staticmethod
-    def get_sign_count(tcav: torch.tensor) -> float:
-        return (torch.sum(tcav > 0.0, dim=0).float() / tcav.shape[0]).item()
-
-    def interpret(self, features: np.array, targets: np.array, class_mapping: dict):
-        # Compute sensitivity for all clips: shape (N_clips, N_performers)
-        self.sens = np.array([
-            self.compute_sensitivity(f, t)
-            for f, t in tqdm(
-                zip(features, targets),
-                total=len(targets),
-                desc=f'Computing sensitivity for CAV {self.cav_idx}'
-            )
-        ])
-
-        all_signs, all_mags = [], []
-        # Iterate over each class idx
-        for class_idx in class_mapping:
-            # Get idxs of clips by this performer
-            clip_idxs = torch.argwhere(targets == class_idx)
-            # Get the CAV sensitivity values for the corresponding clips
-            tcav_score = torch.tensor(self.sens[clip_idxs].flatten())
-            # Get the sign count and magnitude for this performer and CAV combination
-            all_signs.append(self.get_sign_count(tcav_score))
-            all_mags.append(self.get_magnitude(tcav_score))
-        # Convert all sign counts and magnitudes to a 1D vector, shape (N_performers)
-        self.sign_counts = np.array(all_signs)
-        self.magnitudes = np.array(all_mags)
