@@ -14,7 +14,7 @@ from loguru import logger
 from tqdm import tqdm
 
 from deep_pianist_identification import utils, plotting
-from deep_pianist_identification.explainability.cav_utils import ConceptExplainer
+from deep_pianist_identification.explainability.cav_utils import CAV, TCAV
 from deep_pianist_identification.training import DEFAULT_CONFIG, TrainModule
 
 DEFAULT_MODEL = ("disentangle-resnet-channel/"
@@ -40,18 +40,20 @@ def get_training_module(cfg_path: str) -> TrainModule:
     return TrainModule(**cfg)
 
 
-def get_all_cavs(
+def create_all_cavs(
         model: torch.nn.Module,
         layer: torch.nn.Module,
+        features: torch.tensor,
+        targets: torch.tensor,
+        class_mapping: dict,
         attribution_fn: str = "gradient_x_activation",
         multiply_by_inputs: bool = True,
-        n_cavs: int = 20
-) -> list[ConceptExplainer]:
-    """Get CAV coefficient vectors for all concepts"""
+        n_cavs: int = 20,
+) -> list[CAV]:
     explainers = []
     for idx in tqdm(range(1, n_cavs + 1), desc='Creating all CAVs: '):
         # Create the Explainer instance, passing in the correct dataloaders, and fit
-        explain = ConceptExplainer(
+        explain = CAV(
             cav_idx=idx,
             model=model,
             layer=layer,
@@ -59,32 +61,69 @@ def get_all_cavs(
             multiply_by_inputs=multiply_by_inputs
         )
         explain.fit()
+        # Interpret using the features and targets
+        explain.interpret(features, targets, class_mapping)
         explainers.append(explain)
-    # Concatenate all the CAV coefficients to an array of (n_cavs, d)
     return explainers
 
 
-def interpret_all_cavs(
-        cavs: list[ConceptExplainer],
+def create_all_tcavs(
+        model: torch.nn.Module,
+        layer: torch.nn.Module,
         features: torch.tensor,
         targets: torch.tensor,
-        class_mapping: dict
-) -> list[ConceptExplainer]:
-    interpreted_cavs = []
-    for cav in cavs:
-        cav.interpret(features, targets, class_mapping)
-        interpreted_cavs.append(cav)
-    return interpreted_cavs
+        class_mapping: dict,
+        attribution_fn: str = "gradient_x_activation",
+        multiply_by_inputs: bool = True,
+        n_cavs: int = 20,
+        n_experiments: int = 10
+) -> list[TCAV]:
+    explainers = []
+    for idx in tqdm(range(1, n_cavs + 1), desc='Creating all TCAVs: '):
+        # Create the Explainer instance, passing in the correct dataloaders, and fit
+        explain = TCAV(
+            n_experiments=n_experiments,
+            cav_idx=idx,
+            model=model,
+            layer=layer,
+            layer_attribution=attribution_fn,
+            multiply_by_inputs=multiply_by_inputs
+        )
+        explain.fit()
+        # Interpret using the features and targets
+        explain.interpret(features, targets, class_mapping)
+        explainers.append(explain)
+    return explainers
 
 
-def get_all_features_targets(loaders: list) -> tuple[torch.tensor, torch.tensor]:
+def get_all_data(loaders: list) -> tuple[torch.tensor, torch.tensor, np.array]:
     """Get all features and targets from all dataloaders"""
-    features, targets = [], []
+    features, targets, track_names = [], [], []
+    # Foscarin et al. only use (unseen/held-out) test data
     for loader in loaders:
-        for rolls, targs, _ in tqdm(loader, total=len(loader), desc="Getting inputs..."):
-            features.append(rolls)
-            targets.append(targs)
-    return torch.cat(targets), torch.cat(features)
+        # This is the number of tracks in the dataloader
+        idxs = range(len(loader.dataset))
+        # Iterate over all indexes
+        for idx in tqdm(idxs, desc='Getting inputs...'):
+            # Unpack the idx to get clip metadata
+            track_path, tmp_class, _, clip_idx = loader.dataset.clips[idx]
+            # Get the corresponding batched output
+            batch = loader.dataset.__getitem__(idx)
+            # Skip over cases where piano roll can't be generated correctly
+            if batch is None:
+                continue
+            # Unpack the batch
+            roll, targ, tmp_path = batch
+            # Get the full path to this clip
+            path = os.path.join(track_path, f'clip_{str(clip_idx).zfill(3)}.mid')
+            # Check to make sure everything is correct
+            assert tmp_class == targ
+            assert track_path.split(os.path.sep)[-1] == tmp_path
+            # Append everything to our lists
+            features.append(roll)
+            targets.append(targ)
+            track_names.append(path)
+    return torch.tensor(np.stack(features)), torch.tensor(targets), np.hstack(track_names)
 
 
 def main(
@@ -101,23 +140,28 @@ def main(
     # Get the training module
     tm = get_training_module(cfg_loc)
     model = tm.model.to(utils.DEVICE)
-    # Extract all CAVs
-    logger.info("Extracting CAVs...")
-    explainers = get_all_cavs(
-        model=model,
-        layer=model.harmony_concept.layer4,
-        attribution_fn=attribution_fn,
-        multiply_by_inputs=multiply_by_inputs
-    )
-    logger.info(f'... got {len(explainers)} CAVs')
     # Get all data from held-out sets
     alldata = [tm.test_loader, tm.validation_loader]
     logger.info('Getting data...')
-    features, targets = get_all_features_targets(alldata)
+    features, targets, track_names = get_all_data(alldata)
     logger.info(f"... got data with shape {features.shape}")
     # Interpret all CAVs
-    logger.info('Interpreting CAVs...')
-    interpreted = interpret_all_cavs(explainers, features, targets, tm.class_mapping)
+    logger.info('Creating CAVs...')
+    interpreted = create_all_cavs(
+        model,
+        model.harmony_concept.layer4,
+        features,
+        targets,
+        tm.class_mapping,
+        attribution_fn=attribution_fn,
+        multiply_by_inputs=multiply_by_inputs,
+        n_cavs=20
+    )
+    logger.info(f'... created {len(interpreted)} CAVs')
+    # Log CAV classifier accuracy
+    all_accs = np.array([i.acc for i in interpreted])
+    logger.info(f'... mean classifier acc: {np.mean(all_accs):.5f}, SD: {np.std(all_accs):.5f}')
+    logger.info(f'... min: {np.min(all_accs):.5f}, max: {np.max(all_accs):.5f}')
     # Get sign counts and magnitudes for all performers
     # Each `i.sign_count` is a 1D vector of shape (N_performers), so we stack to get (N_performers, N_cavs)
     sign_counts = np.column_stack([i.sign_counts for i in interpreted])
@@ -133,36 +177,28 @@ def main(
         )
         hm.create_plot()
         hm.save_fig()
+    # Create pairwise correlation heatmaps for sensitivity
+    cav_df = pd.DataFrame(np.vstack([i.sens for i in interpreted]).T, columns=CAV_MAPPING)
+    hmpc = plotting.HeatmapCAVPairwiseCorrelation(cav_df)
+    hmpc.create_plot()
+    hmpc.save_fig()
 
-    # # Create heatmaps for top-K clips for all CAVs
-    # logger.info(f'... CAV heatmaps will be size {heatmap_size} using kernel {kernel_size}')
-    # for cav_idx, (cav_name, topk_tracks, cav) in enumerate(zip(CAV_MAPPING, list(topk_dict.values()), cavs)):
-    #     for track in topk_tracks:
-    #         # Create the non-interactive (matplotlib) heatmap
-    #         hmks = HeatmapCAVKernelSensitivity(
-    #             track,
-    #             cav,
-    #             encoder=harmony_concept,
-    #             cav_name=cav_name,
-    #             extractor_cls=HarmonyExtractor,
-    #             cav_type="Voicings"
-    #         )
-    #         hmks.create_plot()
-    #         hmks.save_fig()
-    #         logger.info(f'... kernel sensitivity plot done for track {track}, CAV {cav_name}')
-    #         # Create the interactive (plotly) heatmap
-    #         hmks = HeatmapCAVKernelSensitivityInteractive(
-    #             track,
-    #             cav,
-    #             encoder=harmony_concept,
-    #             cav_name=cav_name,
-    #             extractor_cls=HarmonyExtractor,
-    #             cav_type="Voicings",
-    #             cav_idx=cav_idx
-    #         )
-    #         hmks.create_plot()
-    #         hmks.save_fig()
-    #         logger.info(f'... interactive kernel sensitivity plot done for track {track}, CAV {cav_name}')
+    # TCAVS
+    logger.info('Creating TCAVs...')
+    tcavs = create_all_tcavs(
+        model,
+        model.harmony_concept.layer4,
+        features,
+        targets,
+        tm.class_mapping,
+        attribution_fn=attribution_fn,
+        multiply_by_inputs=multiply_by_inputs,
+        n_cavs=20
+    )
+    tcav_sign_counts = np.column_stack([i.sign_counts for i in tcavs])
+    np.savetxt('sign_counts.txt', tcav_sign_counts)
+    tcav_pvals = np.column_stack([i.p_vals for i in tcavs])
+    np.savetxt('pvals.txt', tcav_pvals)
 
 
 def parse_me(argparser: ArgumentParser) -> dict:
@@ -197,5 +233,6 @@ if __name__ == '__main__':
     # Run the CAV creation and plotting script with given arguments from the console
     main(
         model=args["model"],
-
+        attribution_fn=args["attribution_fn"],
+        multiply_by_inputs=args["multiply_by_inputs"]
     )

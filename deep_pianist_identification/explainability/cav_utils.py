@@ -311,7 +311,7 @@ class TCAV(CAV):
         real_sens = get_sens(self.real_cavs)
         fake_sens = get_sens(self.fake_cavs)
 
-        p_vals = []
+        p_vals, sign_counts = [], []
         for class_idx in class_mapping:
             # Get idxs of clips by this performer
             clip_idxs = torch.argwhere(targets == class_idx)
@@ -319,12 +319,12 @@ class TCAV(CAV):
             class_real_sign_counts = np.array([get_sign_count(re_r[clip_idxs]) for re_r in real_sens])
             class_fake_sign_counts = np.array([get_sign_count(re_f[clip_idxs]) for re_f in fake_sens])
             # Append mean of real sign counts for this class to our list
-            self.sign_counts.append(np.mean(class_real_sign_counts))
+            sign_counts.append(np.mean(class_real_sign_counts))
             # Calculate statistical significance
             _, p_val = stats.ttest_ind(class_fake_sign_counts, class_real_sign_counts)
             p_vals.append(p_val)
         assert len(p_vals) == len(class_mapping)
-        # TODO: we need a function that applies Bonferroni correction across TCAV class instances
+        self.sign_counts = np.array(sign_counts)
         self.p_vals = np.array(p_vals)
 
 
