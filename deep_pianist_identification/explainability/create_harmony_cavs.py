@@ -8,6 +8,7 @@ from argparse import ArgumentParser
 
 import numpy as np
 import pandas as pd
+import pickle
 import torch
 import yaml
 from loguru import logger
@@ -93,6 +94,8 @@ def create_all_tcavs(
         # Interpret using the features and targets
         explain.interpret(features, targets, class_mapping)
         explainers.append(explain)
+        with open(f'tcav_{idx}.p', 'wb') as f:
+            pickle.dump(explain, f)
     return explainers
 
 
