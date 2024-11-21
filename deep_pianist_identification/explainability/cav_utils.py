@@ -293,7 +293,9 @@ class ConceptExplainer:
         if self.standardize:
             x = SCALER.fit_transform(x)
         # Split into train-test sets
-        x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=self.TEST_SIZE, stratify=y)
+        x_train, x_test, y_train, y_test = train_test_split(
+            x, y, test_size=self.TEST_SIZE, stratify=y, random_state=utils.SEED
+        )
         # Log dimensionality of all inputs
         logger.info(f'Shape of training inputs: X = {x_train.shape}, y = {y_train.shape}')
         logger.info(f'Shape of testing inputs: X = {x_test.shape}, y = {y_test.shape}')
