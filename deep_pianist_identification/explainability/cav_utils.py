@@ -196,8 +196,8 @@ class VoicingLoaderFake(VoicingLoaderReal):
         # Get target midi
         targ_midi = self.midis[idx]
         # Add masks for remaining (non-harmony) concepts
-        # Return with the class index (i.e., True)
-        return self.add_masks(targ_midi), 1
+        # Return with the class index (i.e., False)
+        return self.add_masks(targ_midi), 0
 
 
 class ConceptExplainer:
