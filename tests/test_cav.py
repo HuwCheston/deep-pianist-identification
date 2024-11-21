@@ -7,21 +7,30 @@ import os
 import unittest
 
 import numpy as np
+import torch
 
 from deep_pianist_identification import utils
-from deep_pianist_identification.explainability.cav_utils import VoicingLoaderReal
+from deep_pianist_identification.explainability.cav_utils import VoicingLoaderReal, VoicingLoaderFake, ConceptExplainer
 
 
-class CAVVoicingTest(unittest.TestCase):
-    # This test works, but my computer doesn't have enough memory to run it without getting a MemoryError
-    # def test_real_fake_dataloaders(self):
-    #     # Create both real and fake dataloaders
-    #     r = VoicingLoaderReal(1)
-    #     f = VoicingLoaderFake(1, n_clips=len(r))
-    #     # Both dataloaders should have the same length
-    #     self.assertEqual(len(r), len(f))
-    #     # Neither dataloader should overlap
-    #     self.assertTrue(len(list(set(r.cav_midis) & set(f.cav_midis))) == 0)
+class VoicingLoaderTest(unittest.TestCase):
+    def test_real_fake_dataloaders(self):
+        # Create both real and fake dataloaders
+        try:
+            r = VoicingLoaderReal(1, n_clips=10)
+            f = VoicingLoaderFake(1, n_clips=len(r))
+        # Little hack for my local machine which doesn't have enough memory to create the above classes
+        except OSError:
+            self.fail("Not enough system resources to create dataloaders!")
+        # Test __getitem__ functions return expected output
+        for target_class, loader in enumerate([f, r]):
+            roll, cls = loader.__getitem__(0)
+            self.assertEqual(roll.shape, (4, utils.PIANO_KEYS, utils.FPS * utils.CLIP_LENGTH))
+            self.assertEqual(cls, target_class)
+        # Both dataloaders should have the same length
+        self.assertEqual(len(r), len(f))
+        # Neither dataloader should overlap
+        self.assertTrue(len(list(set(r.cav_midis) & set(f.cav_midis))) == 0)
 
     def test_combine_hands(self):
         # Test a left-hand with multiple notes
@@ -140,6 +149,22 @@ class CAVVoicingTest(unittest.TestCase):
             # Should always be 5 notes in this case as the bass note should always be there
             n_notes = np.unique(t, axis=1).sum()
             self.assertTrue(n_notes == 5)
+
+
+class ExplainerTest(unittest.TestCase):
+    def test_metrics(self):
+        # Create the explainer class
+        exp = ConceptExplainer
+        # Test sign counts metric works as expected
+        test_vector = torch.tensor([-1.1, 1.2, 0.1, -5.5])
+        expected = 0.5
+        actual = exp.get_sign_count(test_vector)
+        self.assertEqual(expected, actual)
+        # Test magnitude metric works
+        test_vector = torch.tensor([1.2, 0.8, -1.1, -0.9, -1., -1.])
+        expected = 1 / 3
+        actual = exp.get_magnitude(test_vector)
+        self.assertEqual(expected, actual)
 
 
 if __name__ == '__main__':
