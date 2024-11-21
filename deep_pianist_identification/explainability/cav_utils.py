@@ -15,6 +15,8 @@ from joblib import Parallel, delayed
 from loguru import logger
 from pretty_midi import PrettyMIDI
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
@@ -199,6 +201,8 @@ class VoicingLoaderFake(VoicingLoaderReal):
 
 
 class ConceptExplainer:
+    TEST_SIZE = 1 / 3  # same as initial TCAV implementation
+
     def __init__(
             self,
             cav_idx: int,
@@ -207,7 +211,8 @@ class ConceptExplainer:
             layer_attribution: str = "gradient_x_activation",
             multiply_by_inputs: bool = True,
             n_clips: int = None,
-            transpose_range: int = TRANSPOSE_RANGE
+            transpose_range: int = TRANSPOSE_RANGE,
+            standardize: bool = False
     ):
         # Create the dataloaders for the desired CAV
         self.cav_idx = cav_idx
@@ -218,7 +223,7 @@ class ConceptExplainer:
                 transpose_range=transpose_range
             ),
             shuffle=True,
-            batch_size=10,
+            batch_size=BATCH_SIZE,
             drop_last=False
         )
         self.fake = DataLoader(
@@ -228,7 +233,7 @@ class ConceptExplainer:
                 transpose_range=transpose_range
             ),
             shuffle=True,
-            batch_size=10,
+            batch_size=BATCH_SIZE,
             drop_last=False
         )
         assert len(self.real.dataset) == len(self.fake.dataset)
@@ -237,6 +242,8 @@ class ConceptExplainer:
         attr_fn = get_attribution_fn(layer_attribution)
         self.layer_attribution = attr_fn(self.model, self.layer, multiply_by_inputs=multiply_by_inputs)
         self.predictor = LogisticRegression(random_state=utils.SEED, max_iter=10000)
+        self.standardize = standardize
+        # All of these variables will be updated when creating the CAV
         self.cav = None
         self.sens = None
         self.magnitudes = {}
@@ -248,6 +255,7 @@ class ConceptExplainer:
         def hooky(_, __, out):
             acts['values'] = out
 
+        # Register the handle to get the activations from the desired layer
         handle = self.layer.register_forward_hook(hooky)
         real_embeds, fake_embeds = [], []
         for (real_batch, _), (fake_batch, _) in zip(self.real, self.fake):
@@ -281,13 +289,20 @@ class ConceptExplainer:
         # Combine both real/fake features and targets into single matrix
         x = np.vstack([real_embeds, fake_embeds])
         y = np.hstack([real_targets, fake_targets])
-        # Scale the features
-        x = SCALER.fit_transform(x)
-        # Create the model
-        logger.info(f'Shape of classifier inputs: X = {x.shape}, y = {y.shape}')
-        self.predictor.fit(x, y)
-        acc = self.predictor.score(x, y)
-        logger.info(f'Accuracy for CAV {self.cav_idx}: {acc:.2f}')
+        # Scale the features if required; not used in initial TCAV implementation
+        if self.standardize:
+            x = SCALER.fit_transform(x)
+        # Split into train-test sets
+        x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=self.TEST_SIZE, stratify=y)
+        # Log dimensionality of all inputs
+        logger.info(f'Shape of training inputs: X = {x_train.shape}, y = {y_train.shape}')
+        logger.info(f'Shape of testing inputs: X = {x_test.shape}, y = {y_test.shape}')
+        # Fit the model and predict the test set
+        self.predictor.fit(x_train, y_train)
+        y_pred = self.predictor.predict(x_test)
+        # Get test set accuracy and log
+        acc = accuracy_score(y_test, y_pred)
+        logger.info(f'Test accuracy for CAV {self.cav_idx}: {acc:.5f}')
         # Extract coefficients - these are our CAVs
         self.cav = torch.tensor(self.predictor.coef_.astype(np.float32)).flatten()
 
@@ -297,8 +312,7 @@ class ConceptExplainer:
         # Apply masks to every roll other than the harmony roll
         for mask_idx in [0, 2, 3]:
             inputs[:, mask_idx, :, :] = torch.zeros_like(inputs[:, mask_idx, :, :])
-        # Set the input tensor to require grad
-        # inputs.requires_grad_()
+        # We don't seem to require setting inputs.requires_grad_ = True
         # Compute layer activations for final convolutional layer of harmony concept WRT target
         acts = self.layer_attribution.attribute(inputs, targ.item())
         # Flatten to get C * W * H (captum does this)
