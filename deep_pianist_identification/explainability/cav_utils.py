@@ -261,6 +261,7 @@ class TCAV(CAV):
         # These variables will be updated when we run `fit` and `interpret`
         self.real_cavs, self.fake_cavs = [], []
         self.real_accs, self.fake_accs = [], []
+        self.sign_counts = []
         self.p_vals = []
 
     def fit(self):
@@ -297,7 +298,7 @@ class TCAV(CAV):
         def get_sens(cavs):
             allsens = []
             for cav in cavs:
-                allsens.append(np.array([
+                allsens.append(torch.tensor([
                     compute_cav_sensitivity(f, t, self.layer_attribution, cav)
                     for f, t in tqdm(
                         zip(features, targets),
@@ -307,17 +308,20 @@ class TCAV(CAV):
                 ]))
             return allsens
 
-        real_sensitivities = get_sens(self.real_cavs)
-        fake_sensitivities = get_sens(self.fake_cavs)
+        real_sens = get_sens(self.real_cavs)
+        fake_sens = get_sens(self.fake_cavs)
 
         p_vals = []
         for class_idx in class_mapping:
             # Get idxs of clips by this performer
             clip_idxs = torch.argwhere(targets == class_idx)
-            class_real_sensitivities = np.concatenate([re_s[clip_idxs] for re_s in real_sensitivities]).flatten()
-            class_fake_sensitivities = np.concatenate([ra_s[clip_idxs] for ra_s in fake_sensitivities]).flatten()
+            # Get real and fake sign counts
+            class_real_sign_counts = np.array([get_sign_count(re_r[clip_idxs]) for re_r in real_sens])
+            class_fake_sign_counts = np.array([get_sign_count(re_f[clip_idxs]) for re_f in fake_sens])
+            # Append mean of real sign counts for this class to our list
+            self.sign_counts.append(np.mean(class_real_sign_counts))
             # Calculate statistical significance
-            _, p_val = stats.ttest_ind(class_fake_sensitivities, class_real_sensitivities)
+            _, p_val = stats.ttest_ind(class_fake_sign_counts, class_real_sign_counts)
             p_vals.append(p_val)
         assert len(p_vals) == len(class_mapping)
         # TODO: we need a function that applies Bonferroni correction across TCAV class instances
