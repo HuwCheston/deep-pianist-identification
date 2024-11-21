@@ -456,7 +456,7 @@ class HeatmapCAVSensitivity(BasePlot):
         _ = sns.heatmap(
             self.df, ax=self.ax, **self.HEATMAP_KWS,
             cbar_kws=dict(
-                label=self.sensitivity_type, shrink=0.75, labels=[0., 0.25, 0.5, 0.75, 1.], location="right",
+                label=self.sensitivity_type, shrink=0.75, ticks=[0., 0.25, 0.5, 0.75, 1.], location="right",
             )
         )
 
