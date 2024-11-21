@@ -426,8 +426,8 @@ if __name__ == "__main__":
 
 class HeatmapCAVSensitivity(BasePlot):
     HEATMAP_KWS = dict(
-        square=True, cmap="rocket", linecolor=WHITE,
-        linewidth=LINEWIDTH // 2,
+        square=True, cmap="vlag", center=0.5, linecolor=WHITE, linewidth=LINEWIDTH // 2,
+        annot=False, vmin=0., vmax=1.
     )
 
     def __init__(
@@ -455,7 +455,9 @@ class HeatmapCAVSensitivity(BasePlot):
     def _create_plot(self):
         _ = sns.heatmap(
             self.df, ax=self.ax, **self.HEATMAP_KWS,
-            cbar_kws=dict(label=self.sensitivity_type, shrink=0.75)
+            cbar_kws=dict(
+                label=self.sensitivity_type, shrink=0.75, labels=[0., 0.25, 0.5, 0.75, 1.], location="right",
+            )
         )
 
     def _format_ax(self):
@@ -475,4 +477,38 @@ class HeatmapCAVSensitivity(BasePlot):
         if not os.path.isdir(fold):
             os.makedirs(fold)
         fp = os.path.join(fold, f"cav_plots/{self.sensitivity_type.replace(' ', '_').lower()}_heatmap.png")
+        self.fig.savefig(fp, **SAVE_KWS)
+
+
+class HeatmapCAVPairwiseCorrelation(BasePlot):
+    HEATMAP_KWS = dict(
+        cmap="vlag", linecolor=WHITE, square=True, annot=False, fmt='.0f', linewidths=LINEWIDTH // 2, vmin=-1., vmax=1.,
+        cbar_kws=dict(label='Correlation ($r$)', location="right", shrink=0.75, ticks=[-1., -0.5, 0., 0.5, 1.]),
+        center=0.
+    )
+
+    def __init__(
+            self,
+            cav_sensitivities: pd.DataFrame,
+    ):
+        super().__init__()
+        self.df = cav_sensitivities
+        if self.df.shape[0] != self.df.shape[1]:
+            self.df = self.df.corr()
+        self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH))
+
+    def _create_plot(self):
+        return sns.heatmap(self.df, ax=self.ax, **self.HEATMAP_KWS)
+
+    def _format_ax(self):
+        fmt_heatmap_axis(self.ax)
+
+    def _format_fig(self):
+        self.fig.tight_layout()
+
+    def save_fig(self):
+        fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations")
+        if not os.path.isdir(fold):
+            os.makedirs(fold)
+        fp = os.path.join(fold, f"cav_plots/cav_sensitivity_pairwise_correlation_heatmap.png")
         self.fig.savefig(fp, **SAVE_KWS)
