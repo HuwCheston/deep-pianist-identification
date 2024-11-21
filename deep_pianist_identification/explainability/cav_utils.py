@@ -81,7 +81,7 @@ def get_cav(
         rand_acts: np.array,
         classifier: LogisticRegression,
         standardize: bool = True
-) -> torch.tensor:
+) -> tuple[torch.tensor, float]:
     """Given `real` and `random` activations, return coefficients orthogonal to decision boundary of the `classifier`"""
     # Create arrays of targets with same shape as embeddings
     real_targets, rand_targets = np.ones(real_acts.shape[0]), np.zeros(rand_acts.shape[0])
@@ -105,7 +105,7 @@ def get_cav(
     acc = accuracy_score(y_test, y_pred)
     logger.info(f'Test accuracy: {acc:.5f}')
     # Extract coefficients - these are our CAVs
-    return torch.tensor(classifier.coef_.astype(np.float32)).flatten()
+    return torch.tensor(classifier.coef_.astype(np.float32)).flatten(), acc
 
 
 def compute_cav_sensitivity(feat: np.array, targ: np.array, layer_attribution, cav: torch.tensor) -> float:
@@ -177,6 +177,7 @@ class CAV:
         self.predictor = LogisticRegression
         self.standardize = standardize
         # All of these variables will be updated when creating the CAV
+        self.acc = None  # Accuracy of linear model separating concept and random datasets
         self.cav = None
         self.sens = None
         self.magnitudes = {}
@@ -189,8 +190,8 @@ class CAV:
         fake_embeds = get_activations(self.fake, self.model, self.layer)
         # Initialise the classifier class
         clf_init = self.predictor(random_state=utils.SEED, max_iter=10000)
-        # Get the CAV
-        self.cav = get_cav(real_embeds, fake_embeds, clf_init, self.standardize)
+        # Get the CAV and accuracy scores
+        self.cav, self.acc = get_cav(real_embeds, fake_embeds, clf_init, self.standardize)
 
     def interpret(self, features: np.array, targets: np.array, class_mapping: dict):
         """Get CAV sensitivity for all provided `features` and `targets`"""
@@ -232,6 +233,7 @@ class TCAV(CAV):
             transpose_range: int = TRANSPOSE_RANGE,
             standardize: bool = False
     ):
+        assert n_experiments > 1, "`n_experiments` must be greater than 1"
         super().__init__(
             cav_idx=cav_idx,
             model=model,
@@ -257,8 +259,8 @@ class TCAV(CAV):
         self.fake = [self.fake, *additional_fake_loaders]
         assert len(self.fake) == n_experiments
         # These variables will be updated when we run `fit` and `interpret`
-        self.real_cavs = []
-        self.fake_cavs = []
+        self.real_cavs, self.fake_cavs = [], []
+        self.real_accs, self.fake_accs = [], []
         self.p_vals = []
 
     def fit(self):
@@ -272,7 +274,7 @@ class TCAV(CAV):
             rand_embeds = get_activations(rand_dataset, self.model, self.layer)
             # Get the CAV for this random dataset and our real dataset
             clf_init = self.predictor(random_state=utils.SEED, max_iter=10000)
-            real_cav = get_cav(real_embeds, rand_embeds, clf_init, self.standardize)
+            real_cav, real_acc = get_cav(real_embeds, rand_embeds, clf_init, self.standardize)
 
             # Now, get another "random" dataset, which we'll treat as our concept dataset
             choice_idx = np.random.choice([i for i in range(len(self.fake)) if i != rand_dataset_idx])
@@ -283,11 +285,13 @@ class TCAV(CAV):
             # Get the CAV between the fake "concept" dataset and the current "random" dataset
             clf_init = self.predictor(random_state=utils.SEED)
             # The accuracy of this model *should* (and seems to!) be significantly lower than that of `real_cav`
-            fake_cav = get_cav(fake_embeds, rand_embeds, clf_init, self.standardize)
+            fake_cav, fake_acc = get_cav(fake_embeds, rand_embeds, clf_init, self.standardize)
 
             # Append everything to our lists
             self.real_cavs.append(real_cav)
             self.fake_cavs.append(fake_cav)
+            self.real_accs.append(real_acc)
+            self.fake_accs.append(fake_acc)
 
     def interpret(self, features: np.array, targets: np.array, class_mapping: dict):
         def get_sens(cavs):
@@ -316,6 +320,7 @@ class TCAV(CAV):
             _, p_val = stats.ttest_ind(class_fake_sensitivities, class_real_sensitivities)
             p_vals.append(p_val)
         assert len(p_vals) == len(class_mapping)
+        # TODO: we need a function that applies Bonferroni correction across TCAV class instances
         self.p_vals = np.array(p_vals)
 
 
