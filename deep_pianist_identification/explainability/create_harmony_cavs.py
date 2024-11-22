@@ -150,6 +150,10 @@ def main(
     logger.info(f'... created {len(cav_list)} concept CAVs!')
     random_cav = create_random_cav(**cav_args, n_clips=n_random_clips)
     logger.info(f'... created random CAV!')
+    # Log accuracies for all CAVs
+    all_accs = np.concatenate([i.acc for i in cav_list])
+    for func, name in zip([np.mean, np.std, np.max, np.min], ['mean', 'std', 'max', 'min']):
+        logger.info(f'CAV accuracy {name}: {func(all_accs):5f}')
     # Get matrices of average sign count and p-values
     all_sign_counts = np.column_stack([i.sign_counts.mean(axis=1) for i in cav_list])
     p_vals = np.column_stack([cav_utils.get_pvals(sc.sign_counts, random_cav.sign_counts) for sc in cav_list])
