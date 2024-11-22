@@ -470,12 +470,20 @@ class VoicingLoaderFake(VoicingLoaderReal):
         )
 
     def get_midi_paths(self, cav_number):
-        fmt_cav_paths = [
-            os.path.join(self.SPLIT_PATH, i) for i in os.listdir(self.SPLIT_PATH) if i != f"{cav_number}_cav"
-        ]
+        # Get folders for all concepts
+        # When cav_number is None, we can use any concept to create this random dataset
+        if cav_number is None:
+            fmt_cav_paths = [os.path.join(self.SPLIT_PATH, i) for i in os.listdir(self.SPLIT_PATH)]
+        # When cav_number is an int, we'll avoid using the target concept to create the random dataset
+        else:
+            fmt_cav_paths = [
+                os.path.join(self.SPLIT_PATH, i) for i in os.listdir(self.SPLIT_PATH) if i != f"{cav_number}_cav"
+            ]
+        # Get midi filepaths for all concepts
         all_cavs = []
         for path in fmt_cav_paths:
             all_cavs.extend([os.path.join(self.SPLIT_PATH, path, i) for i in os.listdir(path) if i.endswith('.mid')])
+        # Shuffle all midi filepaths
         shuffle(all_cavs)
         # Only return the first N paths as this will mean we don't have to process all the data
         return all_cavs[:self.n_clips]
