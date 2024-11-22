@@ -31,6 +31,18 @@ class VoicingLoaderTest(unittest.TestCase):
         self.assertEqual(len(r), len(f))
         # Neither dataloader should overlap
         self.assertTrue(len(list(set(r.cav_midis) & set(f.cav_midis))) == 0)
+        # Fake dataloader should use fewer than 20 concepts (target concept should be missing)
+        assert len(set([int(i.split(os.path.sep)[-2].replace('_cav', '')) for i in f.cav_midis])) < 20
+
+    def test_fake_dataloader_any_midi(self):
+        # Setting cav_number=None to this class will allow us to use any MIDI file in the dataloader
+        try:
+            loader = cav_utils.VoicingLoaderFake(None, n_clips=250)
+        # Little hack for my local machine which doesn't have enough memory to create the above classes
+        except (OSError, MemoryError):
+            self.fail("Not enough system resources to create dataloaders!")
+        # Fake dataloader should use all 20 concepts
+        assert len(set([int(i.split(os.path.sep)[-2].replace('_cav', '')) for i in loader.cav_midis])) == 20
 
     def test_combine_hands(self):
         # Test a left-hand with multiple notes
