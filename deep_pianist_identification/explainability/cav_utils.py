@@ -387,7 +387,7 @@ class RandomCAV(CAV):
     def fit(self, n_experiments: int = N_EXPERIMENTS) -> None:
         """Fits the classifier to two random datasets and gets the CAVs and accuracy scores"""
         # Iterate through all random datasets
-        for _ in range(n_experiments):
+        for _ in tqdm(range(n_experiments), desc='Computing CAVs...'):
             # Get one random dataset and compute activations
             rand_dataset_1 = self.initialise_random_dataloader(n_clips=self.n_clips)
             rand_acts_1 = self.get_activations(rand_dataset_1)

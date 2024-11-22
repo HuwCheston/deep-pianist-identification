@@ -439,10 +439,11 @@ class HeatmapCAVSensitivity(BasePlot):
         super().__init__()
         self.class_mapping = class_mapping
         self.sensitivity_type = sensitivity_type
-        self.significance_asterisks = significance_asterisks
         self.cav_names = cav_names
         self.performer_birth_years = performer_birth_years
         self.sorters = np.argsort(self.performer_birth_years)[::-1]
+        # TODO: check that this is sorting significance asterisks properly
+        self.significance_asterisks = significance_asterisks[self.sorters, :]
         self.df = self._format_df(sensitivity_matrix)
         self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH))
 

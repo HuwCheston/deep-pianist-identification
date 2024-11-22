@@ -4,6 +4,7 @@
 """Create and plot harmony CAVs using MIDI from Dan Haerle's 'Jazz Piano Voicing Skills'"""
 
 import os
+import pickle
 from argparse import ArgumentParser
 
 import numpy as np
@@ -156,6 +157,11 @@ def main(
     logger.info(f'... created {len(cav_list)} concept CAVs!')
     random_cav = create_random_cav(**cav_args, n_clips=n_random_clips)
     logger.info(f'... created random CAV!')
+    # Dump CAVs and random CAV to disk
+    with open('cavs.p', 'wb') as f:
+        pickle.dump(cav_list, f)
+    with open('random_cav.p', 'wb') as f:
+        pickle.dump(random_cav, f)
     # Log accuracies for all CAVs
     all_accs = np.concatenate([i.acc for i in cav_list])
     for func, name in zip([np.mean, np.std, np.max, np.min], ['mean', 'std', 'max', 'min']):
