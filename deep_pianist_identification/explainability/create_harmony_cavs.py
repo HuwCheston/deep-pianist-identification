@@ -43,7 +43,8 @@ def create_all_cavs(
         batch_size: int = cav_utils.BATCH_SIZE
 ) -> list[cav_utils.CAV]:
     all_cavs = []
-    for idx in tqdm(range(1, n_cavs + 1), desc='Creating all CAVs: '):
+    for idx in range(1, n_cavs + 1):
+        logger.info(f'Creating CAV {idx}...')
         cav = cav_utils.CAV(
             cav_idx=idx,
             model=model,
@@ -132,6 +133,7 @@ def main(
     # Get the training module
     tm = get_training_module(cfg_loc)
     model = tm.model.to(utils.DEVICE)
+    model.eval()
     # Use the default layer
     # TODO: this should be changeable based on an argument
     layer = model.harmony_concept.layer4

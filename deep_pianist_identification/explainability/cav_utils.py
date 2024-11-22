@@ -307,7 +307,7 @@ class CAV:
     @staticmethod
     def get_magnitude(tcav: torch.tensor) -> float:
         """Get magnitude of values in provided `tcav` vector (an array of sensitivities, one per clip)"""
-        return torch.sum(torch.abs(tcav * (tcav > 0.0).float()), dim=0) / torch.sum(torch.abs(tcav), dim=0).item()
+        return (torch.sum(torch.abs(tcav * (tcav > 0.0).float()), dim=0) / torch.sum(torch.abs(tcav), dim=0)).item()
 
     @staticmethod
     def get_sign_count(tcav: torch.tensor) -> float:
@@ -319,7 +319,7 @@ class CAV:
         # Get activations from the concept dataset
         real_acts = self.get_activations(self.concept_dataset)
         # Iterate through all random datasets
-        for _ in tqdm(range(n_experiments), desc='Computing CAVs...'):
+        for _ in tqdm(range(n_experiments), desc='Fitting classifiers'):
             # Get a random dataloader
             rand_dataset = self.initialise_random_dataloader(n_clips=len(self.concept_dataset.dataset))
             # Get activations from this dataloader
@@ -387,7 +387,7 @@ class RandomCAV(CAV):
     def fit(self, n_experiments: int = N_EXPERIMENTS) -> None:
         """Fits the classifier to two random datasets and gets the CAVs and accuracy scores"""
         # Iterate through all random datasets
-        for _ in tqdm(range(n_experiments), desc='Computing CAVs...'):
+        for _ in tqdm(range(n_experiments), desc='Fitting classifiers'):
             # Get one random dataset and compute activations
             rand_dataset_1 = self.initialise_random_dataloader(n_clips=self.n_clips)
             rand_acts_1 = self.get_activations(rand_dataset_1)
