@@ -425,10 +425,7 @@ if __name__ == "__main__":
 
 
 class HeatmapCAVSensitivity(BasePlot):
-    HEATMAP_KWS = dict(
-        square=True, cmap="vlag", center=0.5, linecolor=WHITE, linewidth=LINEWIDTH // 2,
-        annot=False, vmin=0., vmax=1.
-    )
+    HEATMAP_KWS = dict(square=True, cmap="vlag", center=0.5, linecolor=WHITE, linewidth=LINEWIDTH // 2, vmin=0, vmax=1)
 
     def __init__(
             self,
@@ -436,11 +433,13 @@ class HeatmapCAVSensitivity(BasePlot):
             class_mapping: dict,
             cav_names: np.array,
             performer_birth_years: np.array,
-            sensitivity_type: str = 'TCAV Sign Count'
+            significance_asterisks: np.array,
+            sensitivity_type: str = 'TCAV Sign Count',
     ):
         super().__init__()
         self.class_mapping = class_mapping
         self.sensitivity_type = sensitivity_type
+        self.significance_asterisks = significance_asterisks
         self.cav_names = cav_names
         self.performer_birth_years = performer_birth_years
         self.sorters = np.argsort(self.performer_birth_years)[::-1]
@@ -454,7 +453,7 @@ class HeatmapCAVSensitivity(BasePlot):
 
     def _create_plot(self):
         _ = sns.heatmap(
-            self.df, ax=self.ax, **self.HEATMAP_KWS,
+            self.df, ax=self.ax, annot=self.significance_asterisks, fmt="", **self.HEATMAP_KWS,
             cbar_kws=dict(
                 label=self.sensitivity_type, shrink=0.75, ticks=[0., 0.25, 0.5, 0.75, 1.], location="right",
             )
