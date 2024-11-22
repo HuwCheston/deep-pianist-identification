@@ -29,6 +29,7 @@ TEST_SIZE = 1 / 3  # same as initial TCAV implementation
 SCALER = StandardScaler()
 BATCH_SIZE = 10
 TRANSPOSE_RANGE = 6  # Transpose exercise MIDI files +/- 6 semitones (up and down a tri-tone)
+N_JOBS = 1  # seems to be faster than parallel processing?
 
 
 def get_attribution_fn(attr_fn_str: str) -> Callable:
@@ -425,7 +426,8 @@ class VoicingLoaderReal(Dataset):
         return all_rolls
 
     def create_midi(self):
-        with Parallel(n_jobs=-1, verbose=1) as par:
+        # Parallel processing doesn't seem to be any faster? But we leave this in so `N_JOBS` can be changed if needed
+        with Parallel(n_jobs=N_JOBS, verbose=0) as par:
             midis = par(delayed(self._create_midi)(mid) for mid in self.cav_midis)
             midis = [m for ms in midis for m in ms]
         # midis = [list(self._create_midi(midi)) for midi in self.cav_midis]
@@ -475,7 +477,8 @@ class VoicingLoaderFake(VoicingLoaderReal):
         for path in fmt_cav_paths:
             all_cavs.extend([os.path.join(self.SPLIT_PATH, path, i) for i in os.listdir(path) if i.endswith('.mid')])
         shuffle(all_cavs)
-        return all_cavs
+        # Only return the first N paths as this will mean we don't have to process all the data
+        return all_cavs[:self.n_clips]
 
     def __len__(self):
         return self.n_clips
