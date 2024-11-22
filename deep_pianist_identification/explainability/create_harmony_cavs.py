@@ -39,6 +39,7 @@ def create_all_cavs(
         n_cavs: int,
         attribution_fn: str = "gradient_x_activation",
         multiply_by_inputs: bool = True,
+        batch_size: int = cav_utils.BATCH_SIZE
 ) -> list[cav_utils.CAV]:
     all_cavs = []
     for idx in tqdm(range(1, n_cavs + 1), desc='Creating all CAVs: '):
@@ -47,7 +48,8 @@ def create_all_cavs(
             model=model,
             layer=layer,
             layer_attribution=attribution_fn,
-            multiply_by_inputs=multiply_by_inputs
+            multiply_by_inputs=multiply_by_inputs,
+            batch_size=batch_size
         )
         cav.fit(n_experiments=n_experiments)
         # Interpret using the features and targets
@@ -66,13 +68,15 @@ def create_random_cav(
         n_clips: int,
         attribution_fn: str = "gradient_x_activation",
         multiply_by_inputs: bool = True,
+        batch_size: int = cav_utils.BATCH_SIZE
 ) -> cav_utils.RandomCAV:
     rc = cav_utils.RandomCAV(
         n_clips=n_clips,
         model=model,
         layer=layer,
         layer_attribution=attribution_fn,
-        multiply_by_inputs=multiply_by_inputs
+        multiply_by_inputs=multiply_by_inputs,
+        batch_size=batch_size
     )
     rc.fit(n_experiments=n_experiments)
     rc.interpret(features, targets, class_mapping)
@@ -116,6 +120,7 @@ def main(
         n_experiments: int,
         n_random_clips: int,
         n_cavs: int,
+        batch_size: int
 ):
     """Creates all CAVs, generates similarity matrix, and saves plots"""
     logger.info(f"Initialising model with config file {model}")
@@ -145,6 +150,7 @@ def main(
         attribution_fn=attribution_fn,
         multiply_by_inputs=multiply_by_inputs,
         n_experiments=n_experiments,
+        batch_size=batch_size
     )
     cav_list = create_all_cavs(**cav_args, n_cavs=n_cavs)
     logger.info(f'... created {len(cav_list)} concept CAVs!')
@@ -186,5 +192,6 @@ if __name__ == '__main__':
         multiply_by_inputs=args["multiply_by_inputs"],
         n_experiments=args["n_experiments"],
         n_random_clips=args["n_random_clips"],
-        n_cavs=args['n_cavs']
+        n_cavs=args['n_cavs'],
+        batch_size=args['batch_size']
     )

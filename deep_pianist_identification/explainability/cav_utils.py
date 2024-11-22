@@ -84,6 +84,12 @@ def parse_arguments(argparser) -> dict:
         type=int,
         help='Number of CAVs to create, defaults to 20'
     )
+    argparser.add_argument(
+        '-b', '--batch-size',
+        default=BATCH_SIZE,
+        type=int,
+        help='Size of batches to use for GPU processing'
+    )
     return vars(argparser.parse_args())
 
 
@@ -135,7 +141,7 @@ def get_pval_significance(
 
 
 class CAV:
-    DL_KWARGS = dict(shuffle=True, batch_size=BATCH_SIZE, drop_last=False)
+    DL_KWARGS = dict(shuffle=True, drop_last=False)
 
     def __init__(
             self,
@@ -145,8 +151,10 @@ class CAV:
             layer_attribution: str = "gradient_x_activation",
             multiply_by_inputs: bool = True,
             standardize: bool = False,
+            batch_size: int = BATCH_SIZE
     ):
         self.cav_idx = cav_idx
+        self.batch_size = batch_size
         # Create one concept dataset, used in every experiment
         self.concept_dataset = self.initialise_concept_dataloader()
         # Set model and layer to attributes
@@ -172,6 +180,7 @@ class CAV:
                 n_clips=None,  # use all possible clips for the concept
                 transpose_range=TRANSPOSE_RANGE
             ),
+            batch_size=self.batch_size,
             **self.DL_KWARGS
         )
 
@@ -182,6 +191,7 @@ class CAV:
                 n_clips=n_clips,  # Use the size of the concept loader dataset
                 transpose_range=TRANSPOSE_RANGE
             ),
+            batch_size=self.batch_size,
             **self.DL_KWARGS
         )
 
@@ -278,22 +288,15 @@ class CAV:
         # Create dataloader which returns piano roll and target for each item in batches
         tensor_dataloader = DataLoader(
             TensorDataset(features, targets),
-            batch_size=BATCH_SIZE,
+            batch_size=self.batch_size,
             shuffle=False,  # No real need for this
             drop_last=False  # we want to keep all elements
         )
         # For every CAV we've created for this concept
         sensitivities = []
-        for cav_num, cav in enumerate(self.cav, 1):
+        for cav_num, cav in tqdm(enumerate(self.cav, 1), total=len(self.cav), desc='Computing sensitivities'):
             # Compute the sensitivity of all features and targets
-            cav_sensitivities = [
-                self.compute_cav_sensitivity(f, t, cav)
-                for f, t in tqdm(
-                    tensor_dataloader,
-                    total=len(tensor_dataloader),
-                    desc=f'Computing sensitivity with CAV {cav_num}'
-                )
-            ]
+            cav_sensitivities = [self.compute_cav_sensitivity(f, t, cav) for f, t in tensor_dataloader]
             # Concatenate the list: shape is now (n_clips)
             sensitivities.append(torch.cat(cav_sensitivities))
         # Stack to an array of shape (n_experiments, n_clips)
@@ -357,15 +360,17 @@ class RandomCAV(CAV):
             layer_attribution: str = "gradient_x_activation",
             multiply_by_inputs: bool = True,
             standardize: bool = False,
+            batch_size: int = BATCH_SIZE
     ):
         self.n_clips = n_clips
         super().__init__(
-            None,
-            model,
-            layer,
-            layer_attribution,
-            multiply_by_inputs,
-            standardize,
+            cav_idx=None,  # means that we'll use any MIDI file to create the dataset
+            model=model,
+            layer=layer,
+            layer_attribution=layer_attribution,
+            multiply_by_inputs=multiply_by_inputs,
+            standardize=standardize,
+            batch_size=batch_size
         )
 
     def initialise_concept_dataloader(self) -> None:
