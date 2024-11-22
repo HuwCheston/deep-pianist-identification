@@ -36,11 +36,12 @@ def create_all_cavs(
         targets: torch.tensor,
         class_mapping: dict,
         n_experiments: int,
+        n_cavs: int,
         attribution_fn: str = "gradient_x_activation",
         multiply_by_inputs: bool = True,
 ) -> list[cav_utils.CAV]:
     all_cavs = []
-    for idx in tqdm(range(1, 21), desc='Creating all CAVs: '):
+    for idx in tqdm(range(1, n_cavs + 1), desc='Creating all CAVs: '):
         cav = cav_utils.CAV(
             cav_idx=idx,
             model=model,
@@ -113,7 +114,8 @@ def main(
         attribution_fn: str,
         multiply_by_inputs: bool,
         n_experiments: int,
-        n_random_clips: int
+        n_random_clips: int,
+        n_cavs: int,
 ):
     """Creates all CAVs, generates similarity matrix, and saves plots"""
     logger.info(f"Initialising model with config file {model}")
@@ -144,7 +146,7 @@ def main(
         multiply_by_inputs=multiply_by_inputs,
         n_experiments=n_experiments,
     )
-    cav_list = create_all_cavs(**cav_args)
+    cav_list = create_all_cavs(**cav_args, n_cavs=n_cavs)
     logger.info(f'... created {len(cav_list)} concept CAVs!')
     random_cav = create_random_cav(**cav_args, n_clips=n_random_clips)
     logger.info(f'... created random CAV!')
@@ -179,5 +181,6 @@ if __name__ == '__main__':
         attribution_fn=args["attribution_fn"],
         multiply_by_inputs=args["multiply_by_inputs"],
         n_experiments=args["n_experiments"],
-        n_random_clips=args["n_random_clips"]
+        n_random_clips=args["n_random_clips"],
+        n_cavs=args['n_Cavs']
     )

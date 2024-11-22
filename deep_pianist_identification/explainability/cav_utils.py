@@ -73,10 +73,16 @@ def parse_arguments(argparser) -> dict:
         help='Number of experiments to run (i.e., number of CAVs to create per concept)'
     )
     argparser.add_argument(
-        '-c', '--n-random-clips',
+        '-r', '--n-random-clips',
         default=N_RANDOM_CLIPS,
         type=int,
         help='Number of clips to use when creating random CAV'
+    )
+    argparser.add_argument(
+        '-c', '--n-cavs',
+        default=len(CAV_MAPPING),
+        type=int,
+        help='Number of CAVs to create, defaults to 20'
     )
     return vars(argparser.parse_args())
 
