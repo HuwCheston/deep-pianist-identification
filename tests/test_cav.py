@@ -11,7 +11,7 @@ import torch
 
 from deep_pianist_identification import utils
 from deep_pianist_identification.explainability.cav_utils import (
-    VoicingLoaderReal, VoicingLoaderFake, get_magnitude, get_sign_count
+    VoicingLoaderReal, VoicingLoaderFake, CAV
 )
 
 
@@ -158,13 +158,16 @@ class ExplainerTest(unittest.TestCase):
         # Test sign counts metric works as expected
         test_vector = torch.tensor([-1.1, 1.2, 0.1, -5.5])
         expected = 0.5
-        actual = get_sign_count(test_vector)
+        actual = CAV.get_sign_count(test_vector)
         self.assertEqual(expected, actual)
         # Test magnitude metric works
         test_vector = torch.tensor([1.2, 0.8, -1.1, -0.9, -1., -1.])
         expected = 1 / 3
-        actual = get_magnitude(test_vector)
+        actual = CAV.get_magnitude(test_vector)
         self.assertEqual(expected, actual)
+
+    def test_pvals(self):
+        
 
 
 if __name__ == '__main__':

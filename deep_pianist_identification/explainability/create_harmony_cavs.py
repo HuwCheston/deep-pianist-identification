@@ -7,26 +7,14 @@ import os
 from argparse import ArgumentParser
 
 import numpy as np
-import pandas as pd
-import pickle
 import torch
 import yaml
 from loguru import logger
 from tqdm import tqdm
 
 from deep_pianist_identification import utils, plotting
-from deep_pianist_identification.explainability.cav_utils import CAV, TCAV
+from deep_pianist_identification.explainability import cav_utils
 from deep_pianist_identification.training import DEFAULT_CONFIG, TrainModule
-
-DEFAULT_MODEL = ("disentangle-resnet-channel/"
-                 "disentangle-jtd+pijama-resnet18-mask30concept3-augment50-noattention-avgpool-onefc")
-# Array of names for all CAVs
-_mapping_loc = os.path.join(utils.get_project_root(), 'references/_unsupervised_resources/voicings/cav_mapping.csv')
-CAV_MAPPING = np.array([row.iloc[0] for i, row in pd.read_csv(_mapping_loc, index_col=1).iterrows()])
-# Array of pianist birth years (not sorted)
-BIRTH_YEARS = np.genfromtxt(
-    os.path.join(utils.get_project_root(), 'references/data_splits/20class_80min/birth_years.txt'), dtype=int
-)
 
 
 def get_training_module(cfg_path: str) -> TrainModule:
@@ -47,56 +35,47 @@ def create_all_cavs(
         features: torch.tensor,
         targets: torch.tensor,
         class_mapping: dict,
+        n_experiments: int,
         attribution_fn: str = "gradient_x_activation",
         multiply_by_inputs: bool = True,
-        n_cavs: int = 20,
-) -> list[CAV]:
-    explainers = []
-    for idx in tqdm(range(1, n_cavs + 1), desc='Creating all CAVs: '):
-        # Create the Explainer instance, passing in the correct dataloaders, and fit
-        explain = CAV(
+) -> list[cav_utils.CAV]:
+    all_cavs = []
+    for idx in tqdm(range(1, 21), desc='Creating all CAVs: '):
+        cav = cav_utils.CAV(
             cav_idx=idx,
             model=model,
             layer=layer,
             layer_attribution=attribution_fn,
             multiply_by_inputs=multiply_by_inputs
         )
-        explain.fit()
+        cav.fit(n_experiments=n_experiments)
         # Interpret using the features and targets
-        explain.interpret(features, targets, class_mapping)
-        explainers.append(explain)
-    return explainers
+        cav.interpret(features, targets, class_mapping)
+        all_cavs.append(cav)
+    return all_cavs
 
 
-def create_all_tcavs(
+def create_random_cav(
         model: torch.nn.Module,
         layer: torch.nn.Module,
         features: torch.tensor,
         targets: torch.tensor,
         class_mapping: dict,
+        n_experiments: int,
+        n_clips: int,
         attribution_fn: str = "gradient_x_activation",
         multiply_by_inputs: bool = True,
-        n_cavs: int = 20,
-        n_experiments: int = 10
-) -> list[TCAV]:
-    explainers = []
-    for idx in tqdm(range(1, n_cavs + 1), desc='Creating all TCAVs: '):
-        # Create the Explainer instance, passing in the correct dataloaders, and fit
-        explain = TCAV(
-            n_experiments=n_experiments,
-            cav_idx=idx,
-            model=model,
-            layer=layer,
-            layer_attribution=attribution_fn,
-            multiply_by_inputs=multiply_by_inputs
-        )
-        explain.fit()
-        # Interpret using the features and targets
-        explain.interpret(features, targets, class_mapping)
-        explainers.append(explain)
-        with open(f'tcav_{idx}.p', 'wb') as f:
-            pickle.dump(explain, f)
-    return explainers
+) -> cav_utils.RandomCAV:
+    rc = cav_utils.RandomCAV(
+        n_clips=n_clips,
+        model=model,
+        layer=layer,
+        layer_attribution=attribution_fn,
+        multiply_by_inputs=multiply_by_inputs
+    )
+    rc.fit(n_experiments=n_experiments)
+    rc.interpret(features, targets, class_mapping)
+    return rc
 
 
 def get_all_data(loaders: list) -> tuple[torch.tensor, torch.tensor, np.array]:
@@ -133,6 +112,8 @@ def main(
         model: str,
         attribution_fn: str,
         multiply_by_inputs: bool,
+        n_experiments: int,
+        n_random_clips: int
 ):
     """Creates all CAVs, generates similarity matrix, and saves plots"""
     logger.info(f"Initialising model with config file {model}")
@@ -143,88 +124,47 @@ def main(
     # Get the training module
     tm = get_training_module(cfg_loc)
     model = tm.model.to(utils.DEVICE)
+    # Use the default layer
+    # TODO: this should be changeable based on an argument
+    layer = model.harmony_concept.layer4
     # Get all data from held-out sets
     alldata = [tm.test_loader, tm.validation_loader]
     logger.info('Getting data...')
     features, targets, track_names = get_all_data(alldata)
     logger.info(f"... got data with shape {features.shape}")
-    # Interpret all CAVs
+    # Create all CAVs
     logger.info('Creating CAVs...')
-    interpreted = create_all_cavs(
-        model,
-        model.harmony_concept.layer4,
-        features,
-        targets,
-        tm.class_mapping,
+    cav_args = dict(
+        model=model,
+        layer=layer,
+        features=features,
+        targets=targets,
+        class_mapping=tm.class_mapping,
         attribution_fn=attribution_fn,
         multiply_by_inputs=multiply_by_inputs,
-        n_cavs=20
+        n_experiments=n_experiments,
     )
-    logger.info(f'... created {len(interpreted)} CAVs')
-    # Log CAV classifier accuracy
-    all_accs = np.array([i.acc for i in interpreted])
-    logger.info(f'... mean classifier acc: {np.mean(all_accs):.5f}, SD: {np.std(all_accs):.5f}')
-    logger.info(f'... min: {np.min(all_accs):.5f}, max: {np.max(all_accs):.5f}')
-    # Get sign counts and magnitudes for all performers
-    # Each `i.sign_count` is a 1D vector of shape (N_performers), so we stack to get (N_performers, N_cavs)
-    sign_counts = np.column_stack([i.sign_counts for i in interpreted])
-    magnitudes = np.column_stack([i.magnitudes for i in interpreted])
-    # Create heatmaps
-    for df, name in zip([sign_counts, magnitudes], ['TCAV Sign Count', 'TCAV Magnitude']):
-        hm = plotting.HeatmapCAVSensitivity(
-            sensitivity_matrix=df,
-            class_mapping=tm.class_mapping,
-            cav_names=CAV_MAPPING,
-            performer_birth_years=BIRTH_YEARS,
-            sensitivity_type=name
-        )
-        hm.create_plot()
-        hm.save_fig()
-    # Create pairwise correlation heatmaps for sensitivity
-    cav_df = pd.DataFrame(np.vstack([i.sens for i in interpreted]).T, columns=CAV_MAPPING)
-    hmpc = plotting.HeatmapCAVPairwiseCorrelation(cav_df)
-    hmpc.create_plot()
-    hmpc.save_fig()
-
-    # TCAVS
-    logger.info('Creating TCAVs...')
-    tcavs = create_all_tcavs(
-        model,
-        model.harmony_concept.layer4,
-        features,
-        targets,
-        tm.class_mapping,
-        attribution_fn=attribution_fn,
-        multiply_by_inputs=multiply_by_inputs,
-        n_cavs=20
+    cav_list = create_all_cavs(**cav_args)
+    logger.info(f'... created {len(cav_list)} concept CAVs!')
+    random_cav = create_random_cav(**cav_args, n_clips=n_random_clips)
+    logger.info(f'... created random CAV!')
+    # Get matrices of average sign count and p-values
+    all_sign_counts = np.column_stack([i.sign_counts.mean(axis=1) for i in cav_list])
+    p_vals = np.column_stack([cav_utils.get_pvals(sc.sign_counts, random_cav.sign_counts) for sc in cav_list])
+    # Convert p-values to asterisks (with Bonferroni correction for multiple tests)
+    ast = cav_utils.get_pval_significance(p_vals)
+    # All should be in the shape: (n_cavs, n_performers)
+    assert p_vals.shape == all_sign_counts.shape == ast.shape
+    # Create heatmap with significance asterisks
+    hm = plotting.HeatmapCAVSensitivity(
+        sensitivity_matrix=all_sign_counts,
+        class_mapping=tm.class_mapping,
+        cav_names=cav_utils.CAV_MAPPING,
+        performer_birth_years=cav_utils.BIRTH_YEARS,
+        significance_asterisks=ast
     )
-    tcav_sign_counts = np.column_stack([i.sign_counts for i in tcavs])
-    np.savetxt('sign_counts.txt', tcav_sign_counts)
-    tcav_pvals = np.column_stack([i.p_vals for i in tcavs])
-    np.savetxt('pvals.txt', tcav_pvals)
-
-
-def parse_me(argparser: ArgumentParser) -> dict:
-    """Adds required CLI arguments to an `ArgumentParser` object and parses them to a dictionary"""
-    argparser.add_argument(
-        '-m', '--model',
-        default=DEFAULT_MODEL,
-        type=str,
-        help="Name of a trained model with saved checkpoints"
-    )
-    argparser.add_argument(
-        '-a', '--attribution-fn',
-        default='gradient_x_activation',
-        type=str,
-        help='Function to use to compute layer attributions (see captum.TCAV)'
-    )
-    argparser.add_argument(
-        '-i', '--multiply-by-inputs',
-        default=True,
-        type=bool,
-        help='Multiply layer activations by input (see captum.TCAV)'
-    )
-    return vars(parser.parse_args())
+    hm.create_plot()
+    hm.save_fig()
 
 
 if __name__ == '__main__':
@@ -232,10 +172,12 @@ if __name__ == '__main__':
     utils.seed_everything(utils.SEED)
     # Declare argument parser and add arguments
     parser = ArgumentParser(description='Create TCAVs for DisentangleNet models')
-    args = parse_me(parser)
+    args = cav_utils.parse_arguments(parser)
     # Run the CAV creation and plotting script with given arguments from the console
     main(
         model=args["model"],
         attribution_fn=args["attribution_fn"],
-        multiply_by_inputs=args["multiply_by_inputs"]
+        multiply_by_inputs=args["multiply_by_inputs"],
+        n_experiments=args["n_experiments"],
+        n_random_clips=args["n_random_clips"]
     )
