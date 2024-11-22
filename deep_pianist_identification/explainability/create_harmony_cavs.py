@@ -182,5 +182,5 @@ if __name__ == '__main__':
         multiply_by_inputs=args["multiply_by_inputs"],
         n_experiments=args["n_experiments"],
         n_random_clips=args["n_random_clips"],
-        n_cavs=args['n_Cavs']
+        n_cavs=args['n_cavs']
     )
