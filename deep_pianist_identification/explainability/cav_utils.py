@@ -237,6 +237,7 @@ class CAV:
         # Concatenate the embeddings
         return np.concatenate(embeds)
 
+    @ignore_warnings(category=ConvergenceWarning)
     def get_cav(
             self,
             real_acts: np.array,
@@ -378,11 +379,6 @@ class RandomCAV(CAV):
     def initialise_concept_dataloader(self) -> None:
         """Overrides parent method to avoid creating a concept dataloader unnecessarily"""
         return
-
-    @ignore_warnings(category=ConvergenceWarning)
-    def get_cav(self, real_acts: np.array, rand_acts: np.array) -> tuple[torch.tensor, float]:
-        # We want to ignore convergence warnings for random CAVs
-        return super().get_cav(real_acts, rand_acts)
 
     def fit(self, n_experiments: int = N_EXPERIMENTS) -> None:
         """Fits the classifier to two random datasets and gets the CAVs and accuracy scores"""
