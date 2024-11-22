@@ -175,6 +175,8 @@ class CAV:
     def initialise_concept_dataloader(self):
         # Create one concept dataset, which we'll use in every experiment
         return DataLoader(
+            # TODO: do we want to set a hard cap on the number of clips to create here?
+            #  Probably only important if we're creating multiple concept datasets, which we're not currently
             VoicingLoaderReal(
                 self.cav_idx,
                 n_clips=None,  # use all possible clips for the concept
@@ -205,7 +207,7 @@ class CAV:
         else:
             return LayerGradientXActivation
 
-    def get_activations(self, loader: DataLoader, layer_name: str = '') -> np.array:
+    def get_activations(self, loader: DataLoader) -> np.array:
         """Gets activations for `model`.`layer` using data contained in `loader`"""
         acts = {}
 
@@ -215,7 +217,7 @@ class CAV:
         # Register the handle to get the activations from the desired layer
         handle = self.layer.register_forward_hook(hooky)
         embeds = []
-        for roll, _ in tqdm(loader, desc=f'Getting {layer_name} activations'):
+        for roll, _ in loader:
             # roll = (B, 4, W, H)
             # Create both sets of embeddings
             with torch.no_grad():
@@ -253,9 +255,9 @@ class CAV:
         x_train, x_test, y_train, y_test = train_test_split(
             x, y, test_size=TEST_SIZE, stratify=y, random_state=utils.SEED
         )
-        # Log dimensionality of all inputs
-        logger.info(f'Shape of training inputs: X = {x_train.shape}, y = {y_train.shape}')
-        logger.info(f'Shape of testing inputs: X = {x_test.shape}, y = {y_test.shape}')
+        # # Log dimensionality of all inputs
+        # logger.info(f'Shape of training inputs: X = {x_train.shape}, y = {y_train.shape}')
+        # logger.info(f'Shape of testing inputs: X = {x_test.shape}, y = {y_test.shape}')
         # Initialise the classifier class
         classifier = self.classifier(random_state=utils.SEED)
         # Fit the model and predict the test set
@@ -315,20 +317,20 @@ class CAV:
     def fit(self, n_experiments: int = N_EXPERIMENTS) -> None:
         """Fits the classifier to concept and random datasets and gets the CAVs and accuracy scores"""
         # Get activations from the concept dataset
-        real_acts = self.get_activations(self.concept_dataset, 'concept dataset')
+        real_acts = self.get_activations(self.concept_dataset)
         # Iterate through all random datasets
-        for exp_idx in range(n_experiments):
+        for _ in tqdm(range(n_experiments), desc='Computing CAVs...'):
             # Get a random dataloader
             rand_dataset = self.initialise_random_dataloader(n_clips=len(self.concept_dataset.dataset))
             # Get activations from this dataloader
-            rand_acts = self.get_activations(rand_dataset, f'random dataset {exp_idx + 1}')
+            rand_acts = self.get_activations(rand_dataset)
             # Get the CAV and accuracy scores
             cav, acc = self.get_cav(real_acts, rand_acts)
-            # Log the accuracy to the console
-            logger.info(f'Test accuracy for experiment {exp_idx + 1}: {acc:.5f}')
             # Append everything to a list
             self.acc.append(acc)
             self.cav.append(cav)
+        # Log the accuracy to the console
+        logger.info(f'Mean test accuracy for CAV: {np.mean(self.acc):.5f}, SD {np.std(self.acc):.5f}')
 
     def interpret(self, features: torch.tensor, targets: torch.tensor, class_mapping: list) -> None:
         # Get sensitivity for all features/targets to all CAVs
@@ -385,20 +387,20 @@ class RandomCAV(CAV):
     def fit(self, n_experiments: int = N_EXPERIMENTS) -> None:
         """Fits the classifier to two random datasets and gets the CAVs and accuracy scores"""
         # Iterate through all random datasets
-        for exp_idx in range(n_experiments):
+        for _ in range(n_experiments):
             # Get one random dataset and compute activations
             rand_dataset_1 = self.initialise_random_dataloader(n_clips=self.n_clips)
-            rand_acts_1 = self.get_activations(rand_dataset_1, f'random dataset {exp_idx + 1}A')
+            rand_acts_1 = self.get_activations(rand_dataset_1)
             # Get a different random dataset and compute activations
             rand_dataset_2 = self.initialise_random_dataloader(n_clips=len(rand_dataset_1.dataset))
-            rand_acts_2 = self.get_activations(rand_dataset_2, f'random dataset {exp_idx + 1}B')
+            rand_acts_2 = self.get_activations(rand_dataset_2)
             # Get the CAV and accuracy score for this combination of random datasets
             cav, acc = self.get_cav(rand_acts_1, rand_acts_2)
-            # Log the accuracy to the console, we'll expect this to be at about chance (or 50%)
-            logger.info(f'Test accuracy for experiment {exp_idx + 1}: {acc:.5f}')
             # Append everything to a list
             self.acc.append(acc)
             self.cav.append(cav)
+        # Log the accuracy to the console, should be about 50%
+        logger.info(f'Mean test accuracy for random CAV: {np.mean(self.acc):.5f}, SD {np.std(self.acc):.5f}')
 
 
 class VoicingLoaderReal(Dataset):
