@@ -10,17 +10,15 @@ import numpy as np
 import torch
 
 from deep_pianist_identification import utils
-from deep_pianist_identification.explainability.cav_utils import (
-    VoicingLoaderReal, VoicingLoaderFake, CAV
-)
+from deep_pianist_identification.explainability import cav_utils
 
 
 class VoicingLoaderTest(unittest.TestCase):
     def test_real_fake_dataloaders(self):
         # Create both real and fake dataloaders
         try:
-            r = VoicingLoaderReal(1, n_clips=10)
-            f = VoicingLoaderFake(1, n_clips=len(r))
+            r = cav_utils.VoicingLoaderReal(1, n_clips=10)
+            f = cav_utils.VoicingLoaderFake(1, n_clips=len(r))
         # Little hack for my local machine which doesn't have enough memory to create the above classes
         except (OSError, MemoryError):
             self.fail("Not enough system resources to create dataloaders!")
@@ -41,7 +39,7 @@ class VoicingLoaderTest(unittest.TestCase):
         # Upper left hand note should be added to the right hand
         expected_lh = [(0.0, 2.0, 40, 1), (4.0, 6.0, 60, 1)]
         expected_rh = [(0.0, 2.0, 50, 1), (0.0, 2.0, 60, 1), (0.0, 2.0, 70, 1), (4.0, 6.0, 70, 1)]
-        actual_lh, actual_rh = VoicingLoaderReal.combine_hands(lh, rh)
+        actual_lh, actual_rh = cav_utils.VoicingLoaderReal.combine_hands(lh, rh)
         self.assertEqual(actual_lh, expected_lh)
         self.assertEqual(actual_rh, expected_rh)
 
@@ -51,7 +49,7 @@ class VoicingLoaderTest(unittest.TestCase):
         # Upper left hand note should be added to the right hand
         expected_lh = lh
         expected_rh = rh
-        actual_lh, actual_rh = VoicingLoaderReal.combine_hands(lh, rh)
+        actual_lh, actual_rh = cav_utils.VoicingLoaderReal.combine_hands(lh, rh)
         self.assertEqual(actual_lh, expected_lh)
         self.assertEqual(actual_rh, expected_rh)
 
@@ -64,7 +62,7 @@ class VoicingLoaderTest(unittest.TestCase):
             [(0.0, 2.0, 62, 1), (0.0, 2.0, 70, 1), (0.0, 2.0, 72, 1)]  # Second inversion
             # No third inversion as would be identical to root (but up an octave)
         ]
-        actual = VoicingLoaderReal.get_inversions(rh)
+        actual = cav_utils.VoicingLoaderReal.get_inversions(rh)
         self.assertEqual(actual, expected)
 
         # Test with multiple chords
@@ -89,7 +87,7 @@ class VoicingLoaderTest(unittest.TestCase):
                 (2.0, 4.0, 62, 1), (2.0, 4.0, 70, 1), (2.0, 4.0, 72, 1), (2.0, 4.0, 80, 1)
             ]
         ]
-        actual = VoicingLoaderReal.get_inversions(rh)
+        actual = cav_utils.VoicingLoaderReal.get_inversions(rh)
         self.assertEqual(actual, expected)
 
     def test_adjust_durations_and_transposition(self):
@@ -102,14 +100,14 @@ class VoicingLoaderTest(unittest.TestCase):
             (0.0, 15.0, 50, 1), (0.0, 15.0, 60, 1), (0.0, 15.0, 70, 1),  # chord 1
             (15.0, 30.0, 50, 1), (15.0, 30.0, 60, 1), (15.0, 30.0, 70, 1)  # chord 2
         ]
-        actual = VoicingLoaderReal.adjust_durations_and_transpose(rh, transpose_value=0)
+        actual = cav_utils.VoicingLoaderReal.adjust_durations_and_transpose(rh, transpose_value=0)
         self.assertEqual(actual, expected)
         # Test with transposition -2 semitones
         expected = [
             (0.0, 15.0, 48, 1), (0.0, 15.0, 58, 1), (0.0, 15.0, 68, 1),  # chord 1
             (15.0, 30.0, 48, 1), (15.0, 30.0, 58, 1), (15.0, 30.0, 68, 1)  # chord 2
         ]
-        actual = VoicingLoaderReal.adjust_durations_and_transpose(rh, transpose_value=-2)
+        actual = cav_utils.VoicingLoaderReal.adjust_durations_and_transpose(rh, transpose_value=-2)
         self.assertEqual(actual, expected)
         # Test with three chords and +3 semitones
         rh = [
@@ -122,11 +120,11 @@ class VoicingLoaderTest(unittest.TestCase):
             (10.0, 20.0, 53, 1), (10.0, 20.0, 63, 1), (10.0, 20.0, 73, 1),  # chord 2
             (20.0, 30.0, 53, 1), (20.0, 30.0, 63, 1), (20.0, 30.0, 73, 1)  # chord 3
         ]
-        actual = VoicingLoaderReal.adjust_durations_and_transpose(rh, transpose_value=3)
+        actual = cav_utils.VoicingLoaderReal.adjust_durations_and_transpose(rh, transpose_value=3)
         self.assertEqual(actual, expected)
 
     def test_midi_creation(self):
-        r = VoicingLoaderReal(1, transpose_range=1, use_rootless=True)
+        r = cav_utils.VoicingLoaderReal(1, transpose_range=1, use_rootless=True)
         # This is simply the notes C - C - E - G - B (major 7)
         tester = os.path.join(
             utils.get_project_root(),
@@ -158,16 +156,51 @@ class ExplainerTest(unittest.TestCase):
         # Test sign counts metric works as expected
         test_vector = torch.tensor([-1.1, 1.2, 0.1, -5.5])
         expected = 0.5
-        actual = CAV.get_sign_count(test_vector)
+        actual = cav_utils.CAV.get_sign_count(test_vector)
         self.assertEqual(expected, actual)
         # Test magnitude metric works
         test_vector = torch.tensor([1.2, 0.8, -1.1, -0.9, -1., -1.])
         expected = 1 / 3
-        actual = CAV.get_magnitude(test_vector)
+        actual = cav_utils.CAV.get_magnitude(test_vector)
         self.assertEqual(expected, actual)
 
     def test_pvals(self):
-        
+        # Create two arrays, one with a much higher mean than another
+        a1 = np.array([[9.1, 7.7, 8.8, 9.3, 5.5]])
+        a2 = np.array([[0.1, 0.2, 0.6, 0.7, 0.3]])
+        # Get p-values: these should be significant at a low value of p
+        pval1 = cav_utils.get_pvals(a1, a2)
+        self.assertLess(pval1[0], 1e-4)
+        # Create another array, similar to the first
+        a3 = np.array([[0.1, 0.3, 0.6, 0.7, 0.1]])
+        # Should not be significant at a low value of p
+        pval2 = cav_utils.get_pvals(a2, a3)
+        self.assertGreater(pval2[0], 1e-4)
+
+    def test_pvals_to_asterisks(self):
+        # First, test without correction
+        p_matrix = np.array([
+            [0.04, 0.03, 0.012, 0.045],
+            [0.54, 0.009, 0.44, 0.99],
+            [1e-9, 1e-7, 1e-4, 1e-8]
+        ])
+        expected = np.array([
+            ['*', '*', '*', '*'],
+            ['', '**', '', ''],
+            ['***', '***', '***', '***']
+        ])
+        ast_matrix = cav_utils.get_pval_significance(p_matrix, bonferroni=False)
+        self.assertEqual(ast_matrix.shape, expected.shape)
+        self.assertTrue(np.array_equal(ast_matrix, expected))
+        # Now, test with correction
+        expected = np.array([
+            ['', '', '*', ''],
+            ['', '*', '', ''],
+            ['***', '***', '***', '***']
+        ])
+        ast_matrix = cav_utils.get_pval_significance(p_matrix, bonferroni=True)
+        self.assertEqual(ast_matrix.shape, expected.shape)
+        self.assertTrue(np.array_equal(ast_matrix, expected))
 
 
 if __name__ == '__main__':
