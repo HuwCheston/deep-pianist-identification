@@ -446,9 +446,16 @@ class HeatmapCAVSensitivity(BasePlot):
         self.df = self._format_df(sensitivity_matrix)
         self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH))
 
-    def _format_df(self, sensitivity_matrix):
-        res_df = pd.DataFrame(sensitivity_matrix, columns=self.cav_names)
+    def _format_df(self, sensitivity_matrix: np.array):
+        # Allow for passing in a sensitivity matrix with fewer columns than CAVs
+        cols = self.cav_names
+        if sensitivity_matrix.shape[1] < len(cols):
+            cols = cols[:sensitivity_matrix.shape[1]]
+        # Create the dataframe
+        res_df = pd.DataFrame(sensitivity_matrix, columns=cols)
+        # Add performer birth year into the column
         res_df['performer'] = [f'{p}, ({b})' for p, b in zip(self.class_mapping.values(), self.performer_birth_years)]
+        # Sort by birth year and set performer to index
         return res_df.reindex(self.sorters).set_index('performer')
 
     def _create_plot(self):
