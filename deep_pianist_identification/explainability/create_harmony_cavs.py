@@ -193,6 +193,7 @@ if __name__ == '__main__':
     # Declare argument parser and add arguments
     parser = ArgumentParser(description='Create TCAVs for DisentangleNet models')
     args = cav_utils.parse_arguments(parser)
+    logger.info(f'Creating CAVs using args {args}')
     # Run the CAV creation and plotting script with given arguments from the console
     main(
         model=args["model"],

@@ -280,7 +280,8 @@ class CAV:
             inputs[:, mask_idx, :, :] = torch.zeros_like(inputs[:, mask_idx, :, :])
         # We don't seem to require setting inputs.requires_grad_ = True
         # Compute layer activations for final convolutional layer of harmony concept WRT target
-        acts = self.layer_attribution.attribute(inputs, targ)
+        # We set target=targ to get LayerIntegratedGradients to work as this expects a 2nd positional arg
+        acts = self.layer_attribution.attribute(inputs, target=targ)
         # Flatten to get C * W * H (captum does this)
         # We can probably detach at this point to save memory
         flatted = acts.flatten(start_dim=1).detach()
