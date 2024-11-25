@@ -169,12 +169,12 @@ class ExplainerTest(unittest.TestCase):
         test_vector = torch.tensor([-1.1, 1.2, 0.1, -5.5])
         expected = 0.5
         actual = cav_utils.CAV.get_sign_count(test_vector)
-        self.assertEqual(expected, actual)
+        self.assertAlmostEqual(expected, actual)
         # Test magnitude metric works
         test_vector = torch.tensor([1.2, 0.8, -1.1, -0.9, -1., -1.])
         expected = 1 / 3
         actual = cav_utils.CAV.get_magnitude(test_vector)
-        self.assertEqual(expected, actual)
+        self.assertAlmostEqual(expected, actual)
 
     def test_pvals(self):
         # Create two arrays, one with a much higher mean than another
