@@ -33,6 +33,17 @@ HOP_SIZE = 30
 CLIP_PADDING = 30  # Added to the end of each clip to facilitate random cropping/time dilation
 
 
+def string_to_bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise TypeError('Boolean value expected.')
+
+
 def get_class_mapping(dataset_name: str) -> dict:
     """With a given dataset, returns a dictionary of class_idx: class_name"""
     csv_loc = os.path.join(get_project_root(), 'references/data_splits', dataset_name, 'pianist_mapping.csv')

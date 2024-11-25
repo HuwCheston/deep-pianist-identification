@@ -63,7 +63,7 @@ def parse_arguments(argparser) -> dict:
     argparser.add_argument(
         '-i', '--multiply-by-inputs',
         default=True,
-        type=bool,
+        type=utils.string_to_bool,
         help='Multiply layer activations by input (see captum.TCAV)'
     )
     argparser.add_argument(
