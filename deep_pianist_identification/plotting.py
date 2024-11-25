@@ -107,9 +107,10 @@ class BasePlot:
 
 
 class HeatmapConfusionMatrix(BasePlot):
-    def __init__(self, confusion_mat: np.ndarray, pianist_mapping: dict, **kwargs):
+    def __init__(self, confusion_mat: np.ndarray, pianist_mapping: dict, title: str = '', **kwargs):
         super().__init__(**kwargs)
         self.mat = confusion_mat
+        self.title = title
         self.pianist_mapping = pianist_mapping
         self.num_classes = len(self.pianist_mapping.keys())
         self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH))
@@ -125,7 +126,7 @@ class HeatmapConfusionMatrix(BasePlot):
 
     def _format_ax(self):
         self.ax.set(
-            xlabel="Predicted pianist", ylabel="Actual pianist",
+            xlabel="Predicted pianist", ylabel="Actual pianist", title=self.title,
             xticks=range(self.num_classes), yticks=range(self.num_classes)
         )
         # Set axis ticks correctly
@@ -145,19 +146,28 @@ class HeatmapConfusionMatrix(BasePlot):
         self.ax.invert_yaxis()
         self.fig.tight_layout()
 
+    def save_fig(self):
+        fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations/confusion_matrices")
+        if not os.path.isdir(fold):
+            os.makedirs(fold)
+        fp = os.path.join(fold, f"heatmap_confusion_matrix_{self.title}.png")
+        self.fig.savefig(fp, **SAVE_KWS)
+
 
 class BarPlotMaskedConceptsAccuracy(BasePlot):
     def __init__(self, df, **kwargs):
         super().__init__(**kwargs)
         self.df = self._format_df(df.dropna(subset="concepts"))
-        self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH // 2))
+        self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH // 3))
 
     def _format_df(self, df):
         pd.options.mode.chained_assignment = None
         counter = lambda x: abs(x.count('+') - 3)
         df["n_concepts"] = df['concepts'].apply(counter)
+        full_acc = df[df['concepts'] == 'melody+harmony+rhythm+dynamics']['track_acc'].iloc[0]
         sort_and_title = lambda x: ', '.join(sorted([i.title() for i in x.split('+')]))
         df["concepts"] = df["concepts"].apply(sort_and_title)
+        df['accuracy_loss'] = df['track_acc'] - full_acc
         pd.options.mode.chained_assignment = "warn"
         return (
             df.sort_values(by=["n_concepts", "track_acc"], ascending=[True, False])
@@ -166,19 +176,39 @@ class BarPlotMaskedConceptsAccuracy(BasePlot):
 
     def _create_plot(self) -> None:
         return sns.barplot(
-            self.df, y="concepts", x="track_acc", hue="n_concepts", palette="tab10", legend=True,
-            edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, ax=self.ax, zorder=10
+            self.df, y="concepts", x="track_acc", hue="n_concepts",
+            palette="tab10", legend=True,
+            edgecolor=BLACK, linewidth=LINEWIDTH,
+            linestyle=LINESTYLE, ax=self.ax, zorder=10
         )
 
+    def _add_bar_labels(self):
+        for idx, row in self.df.iterrows():
+            if idx == 0:
+                continue
+            self.ax.text(
+                row['track_acc'] + 0.01, idx,
+                '{:.3f}'.format(round(row['accuracy_loss'], 3)),
+                va='center', ha='left'
+            )
+
     def _format_ax(self):
+        self._add_bar_labels()
         sns.move_legend(self.ax, loc="lower right", title='$N$ masks', **LEGEND_KWS)
-        self.ax.set(ylabel="Concepts", xlabel="Accuracy (track-level)")
+        self.ax.set(ylabel="Musical dimensions", xlabel="Accuracy (track-level)", xlim=(0, 1))
         plt.setp(self.ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
         self.ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
         self.ax.grid(axis="x", zorder=0, **GRID_KWS)
 
     def _format_fig(self):
         self.fig.tight_layout()
+
+    def save_fig(self):
+        fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations")
+        if not os.path.isdir(fold):
+            os.makedirs(fold)
+        fp = os.path.join(fold, f"barplot_masked_concept_accuracy.png")
+        self.fig.savefig(fp, **SAVE_KWS)
 
 
 class StripplotTopKFeatures(BasePlot):
@@ -413,20 +443,6 @@ class BarPlotWhiteboxDatabaseCoeficients(BasePlot):
         self.fig.savefig(outpath, **SAVE_KWS)
 
 
-if __name__ == "__main__":
-    # Test the StripplotTopKFeatures plotting class
-    tmp = dict(
-        top_ors=np.array([1.2, 1.15, 1.10, 1.05, 1.01]),
-        bottom_ors=np.array([0.8, 0.85, 0.9, 0.95, 0.975]),
-        top_std=np.array([0.01, 0.01, 0.01, 0.01, 0.01]),
-        bottom_std=np.array([0.01, 0.01, 0.01, 0.01, 0.01]),
-        top_names=np.array(["M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]"]),
-        bottom_names=np.array(["M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]"])
-    )
-    sp = StripplotTopKFeatures(tmp, "Tempy McTempface", "melody")
-    sp.create_plot()
-
-
 class HeatmapCAVSensitivity(BasePlot):
     HEATMAP_KWS = dict(square=True, cmap="vlag", center=0.5, linecolor=WHITE, linewidth=LINEWIDTH // 2, vmin=0, vmax=1)
 
@@ -622,4 +638,70 @@ class BarPlotDatasetDurationCount(BasePlot):
         if not os.path.isdir(fold):
             os.makedirs(fold)
         fp = os.path.join(fold, f"dataset_recording_durations_count.png")
+        self.fig.savefig(fp, **SAVE_KWS)
+
+
+class HeatmapConfusionMatrices(BasePlot):
+    HM_KWS = dict(
+        cmap="Reds", linecolor=WHITE, square=True, annot=False,
+        fmt='.0f', linewidths=LINEWIDTH // 2, vmin=0, vmax=100,
+        cbar_kws=dict(label='Percentage of Instances', ticks=[0, 25, 50, 75, 100])
+    )
+
+    def __init__(self, confusion_matrices: list[np.array], matrix_names: list[str], pianist_mapping: dict, **kwargs):
+        super().__init__(**kwargs)
+        self.mat = confusion_matrices
+        self.matrix_names = matrix_names
+        self.pianist_mapping = pianist_mapping
+        self.num_classes = len(self.pianist_mapping.keys())
+        self.fig = plt.figure(figsize=(WIDTH, WIDTH))
+        gs = self.fig.add_gridspec(2, 3, width_ratios=[20, 20, 1])
+        self.hm_axs = [self.fig.add_subplot(gs[x, y]) for x, y in zip([0, 0, 1, 1], [0, 1, 1, 0])]
+        self.cbar_ax = self.fig.add_subplot(gs[:, 2])
+
+    def _create_plot(self) -> None:
+        for matrix, ax, name in zip(self.mat, self.hm_axs, self.matrix_names):
+            sns.heatmap(data=matrix, ax=ax, cbar_ax=self.cbar_ax, **self.HM_KWS)
+            ax.set(title=name.title())
+
+    def _format_ax(self):
+        for num, ax in enumerate(self.hm_axs):
+            ax.set(xticks=range(self.num_classes), yticks=range(self.num_classes))
+            # Set axis ticks correctly
+            if num == 2:
+                ax.set_xticks([i + 0.5 for i in ax.get_xticks()], self.pianist_mapping.values(), rotation=90)
+            elif num == 1:
+                pass
+            elif num == 3:
+                ax.set_xticks([i + 0.5 for i in ax.get_xticks()], self.pianist_mapping.values(), rotation=90)
+                ax.set_yticks([i + 0.5 for i in ax.get_yticks()], self.pianist_mapping.values(), rotation=0)
+            else:
+                ax.set_yticks([i + 0.5 for i in ax.get_yticks()], self.pianist_mapping.values(), rotation=0)
+
+            # Set axis and tick thickness
+            plt.setp(ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
+            ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
+            # Invert y-axis for symmetry between x and y-axis ticks
+            ax.invert_yaxis()
+        # Make all spines visible on both axis and colorbar
+        for ax in [*self.hm_axs, self.cbar_ax]:
+            for spine in ax.spines.values():
+                spine.set_visible(True)
+                spine.set_color(BLACK)
+                spine.set_linewidth(LINEWIDTH)
+
+    def _format_fig(self):
+        self.fig.supxlabel("Predicted pianist")
+        self.fig.supylabel("Actual pianist")
+        self.fig.tight_layout()
+        self.fig.subplots_adjust(hspace=0.000001)
+        pos1 = self.cbar_ax.get_position()  # get the original position
+        pos2 = [pos1.x0, pos1.y0 + 0.025, pos1.width, pos1.height * 0.94]
+        self.cbar_ax.set_position(pos2)  # set a new position
+
+    def save_fig(self):
+        fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations")
+        if not os.path.isdir(fold):
+            os.makedirs(fold)
+        fp = os.path.join(fold, f"heatmap_single_concept_prediction_accuracy.png")
         self.fig.savefig(fp, **SAVE_KWS)
