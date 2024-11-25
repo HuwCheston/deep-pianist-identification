@@ -39,6 +39,9 @@ MARKERSCALE = 1.6
 MARKERS = ['o', 's', 'D']
 HATCHES = ['/', '\\', '|', '-', '+', 'x', 'o', 'O', '.', '*']
 
+DOTTED = 'dotted'
+DASHED = 'dashed'
+
 SAVE_KWS = dict(format='png', facecolor=WHITE)
 
 # Keyword arguments to use when applying a grid to a plot
@@ -390,7 +393,7 @@ class BarPlotWhiteboxDatabaseCoeficients(BasePlot):
     def _create_plot(self):
         for concept, ax in zip(['Melody', 'Harmony'], self.ax.flatten()):
             sub = self.df[self.df['feature'] == concept].reset_index(drop=True)
-            g = sns.barplot(data=sub, x='corr', y='perf_name', hue='perf_name', ax=ax, **self.BAR_KWS)
+            sns.barplot(data=sub, x='corr', y='perf_name', hue='perf_name', ax=ax, **self.BAR_KWS)
             ax.errorbar(sub['corr'], sub['perf_name'], xerr=[sub['low'], sub['high']], **self.ERROR_KWS)
 
     def _format_ax(self):
@@ -518,4 +521,105 @@ class HeatmapCAVPairwiseCorrelation(BasePlot):
         if not os.path.isdir(fold):
             os.makedirs(fold)
         fp = os.path.join(fold, f"cav_plots/cav_sensitivity_pairwise_correlation_heatmap.png")
+        self.fig.savefig(fp, **SAVE_KWS)
+
+
+class BarPlotDatasetDurationCount(BasePlot):
+    """Creates figures relating to dataset duration and count. Accepts input in form from utils.get_track_metadata()"""
+
+    X_LABELS = ['Number of recordings', 'Duration of recordings (minutes)', 'Recording duration (minutes)']
+    Y_LABELS = ['Pianist', 'Pianist', 'Number of recordings']
+    BAR_KWS = dict(stacked=True, edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, zorder=10, width=0.75)
+    HIST_KWS = dict(multiple='stack', alpha=ALPHA, edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, bins=100)
+    VLINE_KWS = dict(ymin=0, ymax=1, zorder=100, linewidth=LINEWIDTH * 2, linestyle=DASHED)
+    LEGEND_KWS = dict(title='Dataset', **LEGEND_KWS)
+    MIN_MINUTES = 80
+
+    def __init__(self, track_metadata: pd.DataFrame):
+        super().__init__()
+        self.duration_df, self.count_df, self.hist_df = self._format_df(track_metadata)
+        self.fig, self.bar_ax, self.hist_ax = self._get_fig_ax()
+
+    @staticmethod
+    def _get_fig_ax():
+        fig = plt.figure(figsize=(WIDTH, WIDTH // 1.5))
+        gs = fig.add_gridspec(2, 2, height_ratios=[2, 1])
+        ax1 = fig.add_subplot(gs[0, 0])
+        ax2 = fig.add_subplot(gs[0, 1])
+        ax3 = fig.add_subplot(gs[1, :])
+        return fig, [ax1, ax2], ax3
+
+    def _format_df(self, df: pd.DataFrame):
+        df['dataset'] = df['dataset'].map({'jtd': 'JTD', 'pijama': 'PiJAMA'})
+        total_duration = (
+                             df.groupby(['pianist', 'dataset'])
+                             ['duration']
+                             .sum()
+                             .reset_index(drop=False)
+                             .pivot_table(index='pianist', columns=['dataset'], values='duration', margins=True)
+                             .sort_values('All', ascending=True)
+                             .drop('All', axis=1)
+                             .sort_values('All', ascending=True, axis=1)
+                             .drop('All')
+                         ) / 60
+        total_count = (
+            df.groupby(['pianist', 'dataset'])
+            ['duration']
+            .count()
+            .reset_index(drop=False)
+            .pivot_table(index='pianist', columns=['dataset'], values='duration', margins=False)
+            .reindex(total_duration.index)
+        )
+        included_pianists = total_duration[total_duration.sum(axis=1) > self.MIN_MINUTES].index
+        histdf = df[df['pianist'].isin(included_pianists)]
+        histdf['duration'] /= 60
+        return total_duration, total_count, histdf
+
+    def _create_bar_plots(self):
+        for a, dat, xlab, ylab in zip(self.bar_ax, [self.count_df, self.duration_df], self.X_LABELS, self.Y_LABELS):
+            dat.plot.barh(ax=a, **self.BAR_KWS)
+            a.set(ylabel=ylab, xlabel=xlab)
+
+    def _format_bar_ax(self):
+        for a in self.bar_ax:
+            a.axhspan(4.5, 25.5, 0, 1, color=BLACK, alpha=ALPHA)
+            a.text(0.6, 0.225, 'Included', color=WHITE, transform=a.transAxes, fontsize=FONTSIZE * 2)
+            sns.move_legend(a, loc="lower right", **self.LEGEND_KWS)
+
+    def _create_hist_plot(self):
+        g = sns.histplot(data=self.hist_df, x='duration', hue='dataset', ax=self.hist_ax, **self.HIST_KWS)
+        for (_, dataset), col_idx in zip(self.hist_df.groupby('dataset'), range(2)):
+            g.axvline(dataset['duration'].median(), color=plt.get_cmap('tab10')(col_idx), **self.VLINE_KWS)
+
+    def _format_hist_plot(self):
+        # handles, labels = self.hist_ax.get_legend_handles_labels()
+        # self.hist_ax.get_legend().remove()
+        # custom_dashed_line = lines.Line2D([0], [0], color=BLACK, linestyle=DASHED, lw=LINEWIDTH, label='')
+        # self.hist_ax.legend(handles=[*handles, custom_dashed_line], labels=[*labels, 'Median'])
+        sns.move_legend(self.hist_ax, loc="upper right", **self.LEGEND_KWS)
+        self.hist_ax.set(xlabel=self.X_LABELS[-1], ylabel=self.Y_LABELS[-1], xticks=[0, 5, 10, 15, 20], xlim=(0, 20))
+
+    def _format_ax(self):
+        self._format_bar_ax()
+        self._format_hist_plot()
+        for a, griddy in zip([*self.bar_ax, self.hist_ax], ['x', 'x', 'y']):
+            plt.setp(a.spines.values(), linewidth=LINEWIDTH, color=BLACK)
+            a.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
+            a.grid(axis=griddy, zorder=0, **GRID_KWS)
+
+    def _format_fig(self):
+        self.fig.tight_layout()
+        pos1 = self.hist_ax.get_position()  # get the original position
+        pos2 = [pos1.x0 - 0.075, pos1.y0, pos1.width + 0.075, pos1.height]
+        self.hist_ax.set_position(pos2)  # set a new position
+
+    def _create_plot(self):
+        self._create_bar_plots()
+        self._create_hist_plot()
+
+    def save_fig(self):
+        fold = os.path.join(utils.get_project_root(), "reports/figures/dataset_figures")
+        if not os.path.isdir(fold):
+            os.makedirs(fold)
+        fp = os.path.join(fold, f"dataset_recording_durations_count.png")
         self.fig.savefig(fp, **SAVE_KWS)
