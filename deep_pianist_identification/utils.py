@@ -16,6 +16,7 @@ from typing import ContextManager
 import numpy as np
 import pandas as pd
 import torch
+from pretty_midi import PrettyMIDI
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 SEED = 42
@@ -98,3 +99,36 @@ def get_pianist_names(datasets: tuple = ('jtd', 'pijama')) -> set:
         res[database] = set(res[database])
     # Getting the overlap
     return set.intersection(*res.values())
+
+
+def get_track_metadata(pianist_names: set) -> pd.DataFrame:
+    """Gets metadata (dataset name, recording duration) for all tracks by performers in `pianist_names"""
+    res = []
+    # Iterate over all datasets
+    for dataset in ['jtd', 'pijama']:
+        # Get the root path for this dataset
+        root = os.path.join(get_project_root(), 'data/raw', dataset)
+        # Iterate through all tracks in the dataset
+        for track in os.listdir(root):
+            # Get the paths for both the raw MIDI and metadata JSON
+            mid = os.path.join(root, track, 'piano_midi.mid')
+            meta = os.path.join(root, track, 'metadata.json')
+            # If we don't have the files for whatever reason, skip to the next file
+            if not os.path.isfile(meta) or not os.path.isfile(mid):
+                continue
+            # Load the metadata JSON and get the name of the pianist
+            loaded = json.load(open(meta, 'r'))
+            pianist = loaded['pianist']
+            # If this pianist is in our list
+            if pianist in pianist_names:
+                # For pijama, get the duration from the midi file
+                if dataset == 'pijama':
+                    pm = PrettyMIDI(mid)
+                    dur = pm.get_end_time()
+                # Otherwise, get the duration from the metadata file (quicker)
+                else:
+                    minutes, seconds = loaded['excerpt_duration'].split(':')
+                    dur = (int(minutes) * 60) + int(seconds)
+                res.append({'pianist': pianist, 'dataset': dataset, 'duration': dur})
+    # Create the dataframe and return
+    return pd.DataFrame(res)
