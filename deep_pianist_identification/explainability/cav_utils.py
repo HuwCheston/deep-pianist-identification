@@ -4,7 +4,8 @@
 """Utility modules (dataloaders, etc.) for generating CAVs using MIDI from textbooks"""
 
 import os
-from itertools import groupby
+from copy import deepcopy
+from itertools import groupby, product
 from random import shuffle
 from typing import Callable
 
@@ -26,7 +27,7 @@ from torch.utils.data import Dataset, DataLoader, TensorDataset
 from tqdm import tqdm
 
 from deep_pianist_identification import utils
-from deep_pianist_identification.extractors import get_piano_roll
+from deep_pianist_identification.extractors import get_piano_roll, HarmonyExtractor, normalize_array
 
 DEFAULT_MODEL = ("disentangle-resnet-channel/"
                  "disentangle-jtd+pijama-resnet18-mask30concept3-augment50-noattention-avgpool-onefc")
@@ -271,7 +272,7 @@ class CAV:
         # TODO: still unsure whether something needs to happen for `orthogonal` here
         return torch.tensor(classifier.coef_.astype(np.float32)).flatten(), acc
 
-    def compute_cav_sensitivity(self, feat: torch.tensor, targ: torch.tensor, cav: torch.tensor) -> float:
+    def compute_cav_sensitivity(self, feat: torch.tensor, targ: torch.tensor, cav: torch.tensor) -> torch.tensor:
         """Given input `features` and `targets`, compute sensitivitiy to provided `cav`"""
         # Copy the tensor and move to GPU
         inputs = feat.to(utils.DEVICE)
@@ -571,3 +572,115 @@ class VoicingLoaderFake(VoicingLoaderReal):
         # Add masks for remaining (non-harmony) concepts
         # Return with the class index (i.e., False)
         return self.add_masks(targ_midi), 0
+
+
+class CAVKernelSlider:
+    """Slides a kernel over an input clip and computes proportional change in CAV sensitivity"""
+
+    CAV_DIM = 512 * 3 * 94
+
+    def __init__(
+            self,
+            clip_path: str,
+            cav: CAV,
+            class_mapping: dict,
+            kernel_size: tuple[int, int] = None,
+            stride: tuple[int, int] = None,
+    ):
+        super().__init__()
+        self.class_mapping = class_mapping
+        # Path to the midi file for the clip
+        self.clip_path = clip_path
+        assert os.path.isfile(self.clip_path), f"Could not find input MIDI {self.clip_path}"
+        # Target class for this clip
+        target_idx = self.get_target(clip_path)
+        self.target = torch.tensor(target_idx)  # Convert to one-element tensor
+        # Convert the input MIDI to PrettyMIDI and piano roll format
+        self.clip_midi = PrettyMIDI(self.clip_path)
+        self.clip_roll = get_piano_roll(
+            [(i.start, i.end, i.pitch, i.velocity) for i in self.clip_midi.instruments[0].notes]
+        )
+        self.clip_representation = self.get_input_representation(self.clip_midi)
+        # Array of coefficients obtained for the CAV
+        self.cav_cls = cav
+        self.cav = self.cav_cls.cav[0]  # use the first CAV we've created
+        assert len(self.cav) == self.CAV_DIM, f"Input CAV did not have expected shape of {self.CAV_DIM} dims"
+        # Size of the kernel that will be slid over the MIDI (H, W) = (semitones, seconds)
+        self.kernel_size = kernel_size if kernel_size is not None else (24., 2.5)
+        # Size of the stride to use when creating the kernels
+        self.stride = stride if stride is not None else (2., 2.)
+        # Crete kernels as list of (H value, W value)
+        self.kernels = self.get_kernels()
+        self.heatmap_size = self.get_heatmap_size()
+        # Get the original sensitivity using the entire piano roll
+        self.original_sensitivity = self.cav_cls.compute_cav_sensitivity(
+            self.clip_representation, self.target, self.cav
+        ).item()
+        # Will hold the array of kernel sensitivities
+        self.sensitivity_array = None
+
+    def get_target(self, clip_path: str):
+        performer = clip_path.split(os.path.sep)[-2].split('-')[0][:-1]
+        return [k for k, v in self.class_mapping.items() if performer in v.lower()][0]
+
+    @staticmethod
+    def get_input_representation(input_midi: PrettyMIDI) -> torch.tensor:
+        # Extract harmony from the input MIDI
+        harm = normalize_array(HarmonyExtractor(input_midi).roll)
+        assert harm.max() == 1.
+        assert len(np.unique(harm.flatten())) <= 2
+        # Create similar arrays of zeros to act as our masks
+        mask = np.zeros_like(harm, dtype=harm.dtype)
+        # Stack into a tensor and add the batch dimension to the start
+        representation = torch.tensor(np.array([mask, harm, mask, mask])).float().unsqueeze(0)
+        # Should be in the shape (B, C=4, H, W)
+        assert representation.size() == (1, 4, utils.PIANO_KEYS, utils.CLIP_LENGTH * utils.FPS)
+        # First, third, and last channels (=melody, rhythm, dynamics) are masked
+        for channel in [0, 2, 3]:
+            assert not np.any(representation[0, channel, :, :].numpy())
+        return representation
+
+    def get_heatmap_size(self) -> tuple[int, int]:
+        a = np.array(self.kernels)
+        width = len(np.where(a[:, 0] == 0)[0])
+        height = len(np.where(a[:, 1] == 0)[0])
+        return height, width
+
+    def get_kernels(self):
+        s_h, s_w = self.stride
+        # Get array of heights
+        heights = np.arange(0, utils.PIANO_KEYS, s_h)
+        assert all([int(i) == i for i in heights]), "All height values should be ints"
+        # Get array of widths (can possibly be floats?)
+        widths = np.arange(0, utils.CLIP_LENGTH, s_w)
+        # Get the combinations of both arrays and return
+        return list(product(heights, widths))
+
+    def _sensitivity_for_one_kernel(self, h_low: float, w_low: float) -> float:
+        # Unpack kernel size for readability
+        k_h, k_w = self.kernel_size
+        # Get upper boundaries of the kernel
+        h_hi = h_low + k_h
+        w_hi = w_low + k_w
+        # Deep copy so we don't modify the underlying data (maybe not needed?)
+        temp = deepcopy(self.clip_midi)
+        # Remove notes that are contained within the kernel
+        temp.instruments[0].notes = [
+            n for n in temp.instruments[0].notes
+            if not (h_low <= n.pitch - utils.MIDI_OFFSET <= h_hi)
+               or not any([(w_low <= n.start <= w_hi), (w_low <= n.end <= w_hi)])
+        ]
+        # Compute the input representation
+        representation = self.get_input_representation(temp)
+        # Compute the sensitivity with this masked MIDI object
+        sensitivity = self.cav_cls.compute_cav_sensitivity(representation, self.target, self.cav).item()
+        return sensitivity
+
+    def compute_kernel_sensitivities(self) -> np.array:
+        all_sensitivities = []
+        for h_low, w_low in self.kernels:
+            kernel_sen = self._sensitivity_for_one_kernel(h_low, w_low)
+            all_sensitivities.append(kernel_sen)
+        self.sensitivity_array = np.array(all_sensitivities).reshape(self.heatmap_size)
+        self.sensitivity_array /= self.original_sensitivity
+        return self.sensitivity_array

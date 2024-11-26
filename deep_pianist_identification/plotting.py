@@ -3,7 +3,9 @@
 
 """Plotting classes, functions, and variables."""
 
+import json
 import os
+from datetime import timedelta
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -15,6 +17,7 @@ from music21.chord import Chord
 from music21.note import Note
 from music21.stream import Stream
 from pretty_midi import note_name_to_number, note_number_to_name
+from skimage.transform import resize
 
 from deep_pianist_identification import utils
 
@@ -704,4 +707,102 @@ class HeatmapConfusionMatrices(BasePlot):
         if not os.path.isdir(fold):
             os.makedirs(fold)
         fp = os.path.join(fold, f"heatmap_single_concept_prediction_accuracy.png")
+        self.fig.savefig(fp, **SAVE_KWS)
+
+
+class HeatmapCAVKernelSensitivity(BasePlot):
+    def __init__(
+            self,
+            clip_path: str,
+            sensitivity_array: np.array,
+            clip_roll: np.array,
+            cav_name: str = ""
+    ):
+        super().__init__()
+        self.clip_name = os.path.sep.join(clip_path.split(os.path.sep)[-2:])
+        self.clip_path = clip_path
+        self.sensitivity_array = sensitivity_array
+        self.clip_roll = clip_roll
+        self.cav_name = cav_name
+        # Matplotlib figure and axis
+        self.clip_start, self.clip_end = self.parse_clip_start_stop(clip_path)
+        self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH // 3))
+
+    @staticmethod
+    def seconds_to_timedelta(seconds: int):
+        # Format in %M:%S format
+        td = timedelta(seconds=seconds)
+        return str(td)[2:]
+
+    @staticmethod
+    def parse_clip_start_stop(clip_path: str):
+        """Parse clip start and stop time from clip number using filepath"""
+        clip_num = int(clip_path.split(os.path.sep)[-1].replace('clip_', '').replace('.mid', ''))
+        clip_start = utils.CLIP_LENGTH * clip_num
+        clip_end = clip_start + utils.CLIP_LENGTH
+        return clip_start, clip_end
+
+    def parse_human_readable_trackname(self):
+        tmp = os.path.sep.join(self.clip_path.split(os.path.sep)[-3:-1])
+        clip_start_fmt = self.seconds_to_timedelta(self.clip_start)
+        clip_end_fmt = self.seconds_to_timedelta(self.clip_end)
+        json_path = os.path.join(utils.get_project_root(), 'data/raw', tmp, 'metadata.json')
+        loaded = json.load(open(json_path, 'r'))
+        return (f'{loaded["bandleader"]} — "{loaded["track_name"]}" ({clip_start_fmt}—{clip_end_fmt}) '
+                f'from ${loaded["album_name"]}$, {loaded["recording_year"]} (CAV: {self.cav_name})')
+
+    def _create_plot(self):
+        # Create the background for the heatmap by resizing to the same size as the piano roll
+        background = resize(self.sensitivity_array, (utils.PIANO_KEYS, utils.CLIP_LENGTH * utils.FPS))
+        sns.heatmap(
+            background,
+            ax=self.ax,
+            alpha=0.7,
+            cmap="mako",
+            cbar_kws={'label': 'Sensitivity (1 = original)', 'pad': -0.07}
+        )
+        # Plot the original piano roll
+        self.clip_roll[self.clip_roll == 0] = np.nan  # set 0 values to NaN to make transparent
+        sns.heatmap(
+            self.clip_roll,
+            ax=self.ax,
+            alpha=1.0,
+            cbar_kws={'label': 'Velocity', 'pad': 0.01},
+            cmap="rocket",
+            vmin=0,
+            vmax=utils.MAX_VELOCITY
+        )
+
+    def _format_fig(self):
+        # Figure aesthetics
+        self.fig.subplots_adjust(right=1.07, left=0.05, top=0.93, bottom=0.20)
+
+    def _format_ax(self):
+        # Axis aesthetics
+        self.ax.set(
+            xticks=range(0, utils.CLIP_LENGTH * utils.FPS, utils.FPS),
+            xticklabels=[self.seconds_to_timedelta(i) for i in range(self.clip_start, self.clip_end, 1)],
+            yticks=range(0, utils.PIANO_KEYS, 12),
+            title=self.parse_human_readable_trackname(),
+            xlabel="Time (seconds)",
+            ylabel="Note",
+            yticklabels=[note_number_to_name(i + utils.MIDI_OFFSET) for i in range(0, utils.PIANO_KEYS, 12)],
+        )
+        fmt_heatmap_axis(self.ax)
+
+    def save_fig(self):
+        # Get the directory to save the heatmap in
+        cn = self.cav_name.lower().replace(" ", "_")
+        di = os.path.join(
+            utils.get_project_root(),
+            "reports/figures/ablated_representations/cav_plots/clip_heatmaps/",
+            cn
+        )
+
+        if not os.path.isdir(di):
+            os.makedirs(di)
+        # Format track and cav name
+        tn = self.clip_name.lower().replace(os.path.sep, '_').replace('.mid', '')
+        fp = os.path.join(di, f'{tn}_{cn}.png')
+        # Save the figure
         self.fig.savefig(fp, **SAVE_KWS)
