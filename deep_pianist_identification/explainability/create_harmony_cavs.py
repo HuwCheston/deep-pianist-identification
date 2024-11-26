@@ -155,9 +155,9 @@ def create_or_load_cavs(
         random_cav = create_random_cav(**cav_args, n_clips=n_random_clips)
         logger.info(f'... created random CAV!')
         # Dump CAVs and random CAV to disk
-        with open(os.path.join(save_loc, 'cavs.p', 'wb')) as f:
+        with open(os.path.join(save_loc, 'cavs.p'), 'wb') as f:
             pickle.dump(cav_list, f)
-        with open(os.path.join(save_loc, 'random_cav.p', 'wb')) as f:
+        with open(os.path.join(save_loc, 'random_cav.p'), 'wb') as f:
             pickle.dump(random_cav, f)
         logger.info(f'... dumped CAVs to {save_loc}!')
     else:
