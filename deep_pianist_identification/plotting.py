@@ -806,3 +806,5 @@ class HeatmapCAVKernelSensitivity(BasePlot):
         fp = os.path.join(di, f'{tn}_{cn}.png')
         # Save the figure
         self.fig.savefig(fp, **SAVE_KWS)
+        # Close the figure
+        plt.close(self.fig)
