@@ -518,12 +518,11 @@ class HeatmapCAVPairwiseCorrelation(BasePlot):
 
     def __init__(
             self,
-            cav_sensitivities: pd.DataFrame,
+            cav_matrix: pd.DataFrame,
+            cav_mapping: list
     ):
         super().__init__()
-        self.df = cav_sensitivities
-        if self.df.shape[0] != self.df.shape[1]:
-            self.df = self.df.corr()
+        self.df = pd.DataFrame(cav_matrix, columns=cav_mapping).corr()
         self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH))
 
     def _create_plot(self):

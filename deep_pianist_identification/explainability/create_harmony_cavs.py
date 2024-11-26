@@ -166,6 +166,29 @@ def create_or_load_cavs(
     return cav_list, random_cav
 
 
+def create_kernel_heatmaps(track_names: list[str], cavs: list[cav_utils.CAV], class_mapping: dict) -> None:
+    """Creates kernel heatmaps for all combinations of tracks and CAVs"""
+    for track_name in tqdm(track_names, desc='Creating heatmaps...'):
+        for cav_idx in range(len(cavs)):
+            # Create the slider instance: slides a kernel over transcription and comptues change in sensitivity to CAV
+            slider = cav_utils.CAVKernelSlider(
+                clip_path=track_name,
+                cav=cavs[cav_idx],
+                kernel_size=(24, 2.5),
+                stride=(2.0, 2.0),
+                class_mapping=class_mapping
+            )
+            # Create the plot, which takes in the attributes computed from the CAVKernelSlider class
+            hm = plotting.HeatmapCAVKernelSensitivity(
+                clip_path=track_name,
+                sensitivity_array=slider.compute_kernel_sensitivities(),
+                clip_roll=slider.clip_roll,
+                cav_name=cav_utils.CAV_MAPPING[cav_idx],
+            )
+            hm.create_plot()
+            hm.save_fig()
+
+
 def main(
         model: str,
         attribution_fn: str,
@@ -204,21 +227,28 @@ def main(
         logger.info(f'CAV accuracy {name}: {func(all_accs):.5f}')
     # Get matrices of average sign count and p-values
     all_sign_counts = np.column_stack([i.sign_counts.mean(axis=1) for i in cav_list])
-    p_vals = np.column_stack([cav_utils.get_pvals(sc.sign_counts, random_cav.sign_counts) for sc in cav_list])
+    # p_vals = np.column_stack([cav_utils.get_pvals(sc.sign_counts, random_cav.sign_counts) for sc in cav_list])
     # Convert p-values to asterisks (with Bonferroni correction for multiple tests)
-    ast = cav_utils.get_pval_significance(p_vals)
+    # ast = cav_utils.get_pval_significance(p_vals)
     # All should be in the shape: (n_cavs, n_performers)
-    assert p_vals.shape == all_sign_counts.shape == ast.shape
+    # assert p_vals.shape == all_sign_counts.shape == ast.shape
     # Create heatmap with significance asterisks
     hm = plotting.HeatmapCAVSensitivity(
         sensitivity_matrix=all_sign_counts,
         class_mapping=tm.class_mapping,
         cav_names=cav_utils.CAV_MAPPING,
         performer_birth_years=cav_utils.BIRTH_YEARS,
-        significance_asterisks=ast
+        significance_asterisks=np.empty_like(all_sign_counts, dtype=str)
     )
     hm.create_plot()
     hm.save_fig()
+    # Create correlation heatmap between sign-count values for different concepts
+    sign_counts = np.stack([c.sign_counts.flatten() for c in cav_list]).T
+    hmpc = plotting.HeatmapCAVPairwiseCorrelation(sign_counts, cav_utils.CAV_MAPPING)
+    hmpc.create_plot()
+    hmpc.save_fig()
+    # Create plots for individual tracks
+    create_kernel_heatmaps(track_names, cav_list, tm.class_mapping)
 
 
 if __name__ == '__main__':
