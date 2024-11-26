@@ -851,7 +851,7 @@ class BarPlotCAVMixedLMCoefficients(BasePlot):
         # Get the directory to save the heatmap in
         di = os.path.join(
             utils.get_project_root(),
-            "reports/figures/ablated_representations/",
+            "reports/figures/ablated_representations/cav_plots",
         )
         if not os.path.isdir(di):
             os.makedirs(di)
