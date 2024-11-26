@@ -161,7 +161,8 @@ class CAV:
         self.model = model
         self.layer = layer
         # Get layer attribution function
-        attr_fn = self.get_attribution_fn(layer_attribution)
+        self._att_str = layer_attribution
+        attr_fn = self.get_attribution_fn(self._att_str)
         self.layer_attribution = attr_fn(model, layer, multiply_by_inputs=multiply_by_inputs)
         # Variables for linear classifier separating concept and random activations
         self.classifier = LogisticRegression
@@ -279,12 +280,14 @@ class CAV:
         for mask_idx in [0, 2, 3]:
             inputs[:, mask_idx, :, :] = torch.zeros_like(inputs[:, mask_idx, :, :])
         # We don't seem to require setting inputs.requires_grad_ = True
+        # Use a smaller value of n_steps to reduce VRAM: we follow Foscarin et al. in using 5
+        act_kws = dict(n_steps=5) if self._att_str == "integrated_gradients" else dict()
         # Compute layer activations for final convolutional layer of harmony concept WRT target
         # We set target=targ to get LayerIntegratedGradients to work as this expects a 2nd positional arg
-        acts = self.layer_attribution.attribute(inputs, target=targ)
+        acts = self.layer_attribution.attribute(inputs, target=targ, **act_kws)
         # Flatten to get C * W * H (captum does this)
         # We can probably detach at this point to save memory
-        flatted = acts.flatten(start_dim=1).detach()
+        flatted = acts.flatten(start_dim=1).detach().float()
         # Compute dot product against the target CAV
         return torch.matmul(flatted, cav.to(utils.DEVICE)).cpu()
 
