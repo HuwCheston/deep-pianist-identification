@@ -5,9 +5,9 @@
 
 import os
 from copy import deepcopy
+from functools import lru_cache
 from itertools import groupby, product
 from random import shuffle
-from typing import Callable
 
 import numpy as np
 import pandas as pd
@@ -161,10 +161,9 @@ class CAV:
         # Set model and layer to attributes
         self.model = model
         self.layer = layer
+        self.multiply_by_inputs = multiply_by_inputs
         # Get layer attribution function
-        self._att_str = layer_attribution
-        attr_fn = self.get_attribution_fn(self._att_str)
-        self.layer_attribution = attr_fn(model, layer, multiply_by_inputs=multiply_by_inputs)
+        self.attr_fn_str = layer_attribution
         # Variables for linear classifier separating concept and random activations
         self.classifier = LogisticRegression
         self.standardize = standardize
@@ -199,15 +198,16 @@ class CAV:
             **self.DL_KWARGS
         )
 
-    @staticmethod
-    def get_attribution_fn(attr_fn_str: str) -> Callable:
+    @lru_cache
+    def get_attribution_fn(self):
         """Returns correct layer attribution function from `captum` depending on input `attr_fn_str`"""
+        # NB. making this a function means we don't have to pickle the attribution function
         accept = ['integrated_gradients', 'gradient_x_activation']
-        assert attr_fn_str in accept, f'{attr_fn_str} not in {", ".join(accept)}'
-        if attr_fn_str == 'integrated_gradients':
-            return LayerIntegratedGradients
+        assert self.attr_fn_str in accept, f'{self.attr_fn_str} not in {", ".join(accept)}'
+        if self.attr_fn_str == 'integrated_gradients':
+            return LayerIntegratedGradients(self.model, self.layer, multiply_by_inputs=self.multiply_by_inputs)
         else:
-            return LayerGradientXActivation
+            return LayerGradientXActivation(self.model, self.layer, multiply_by_inputs=self.multiply_by_inputs)
 
     def get_activations(self, loader: DataLoader) -> np.array:
         """Gets activations for `model`.`layer` using data contained in `loader`"""
@@ -282,10 +282,10 @@ class CAV:
             inputs[:, mask_idx, :, :] = torch.zeros_like(inputs[:, mask_idx, :, :])
         # We don't seem to require setting inputs.requires_grad_ = True
         # Use a smaller value of n_steps to reduce VRAM: we follow Foscarin et al. in using 5
-        act_kws = dict(n_steps=5) if self._att_str == "integrated_gradients" else dict()
+        act_kws = dict(n_steps=5) if self.attr_fn_str == "integrated_gradients" else dict()
         # Compute layer activations for final convolutional layer of harmony concept WRT target
         # We set target=targ to get LayerIntegratedGradients to work as this expects a 2nd positional arg
-        acts = self.layer_attribution.attribute(inputs, target=targ, **act_kws)
+        acts = self.get_attribution_fn().attribute(inputs, target=targ, **act_kws)
         # Flatten to get C * W * H (captum does this)
         # We can probably detach at this point to save memory
         flatted = acts.flatten(start_dim=1).detach().float()
