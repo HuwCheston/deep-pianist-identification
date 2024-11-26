@@ -115,6 +115,57 @@ def get_all_data(loaders: list) -> tuple[torch.tensor, torch.tensor, np.array]:
     return torch.tensor(np.stack(features)), torch.tensor(targets), np.hstack(track_names)
 
 
+def create_or_load_cavs(
+        model: torch.nn.Module,
+        layer: torch.nn.Module,
+        features: torch.tensor,
+        targets: torch.tensor,
+        class_mapping: dict,
+        attribution_fn: str,
+        multiply_by_inputs: bool,
+        n_experiments: int,
+        batch_size: int,
+        n_cavs: int,
+        n_random_clips: int,
+        save_loc: str = os.path.join(utils.get_project_root(), 'references/cavs')
+) -> tuple[list[cav_utils.CAV], cav_utils.CAV]:
+    """Load CAVs from disk at `save_loc` or create them from scratch with given arguments"""
+    logger.info('Creating CAVs...')
+    try:
+        # Try unpickling all objects at provided location
+        cav_list = pickle.load(open(os.path.join(save_loc, 'cavs.p'), 'rb'))
+        random_cav = pickle.load(open(os.path.join(save_loc, 'random_cav.p'), 'rb'))
+    except FileNotFoundError:
+        logger.info(f"... couldn't find CAVs at {save_loc}, creating them from scratch!")
+        # Create concept AVs
+        cav_args = dict(
+            model=model,
+            layer=layer,
+            features=features,
+            targets=targets,
+            class_mapping=class_mapping,
+            attribution_fn=attribution_fn,
+            multiply_by_inputs=multiply_by_inputs,
+            n_experiments=n_experiments,
+            batch_size=batch_size
+        )
+        cav_list = create_all_cavs(**cav_args, n_cavs=n_cavs)
+        logger.info(f'... created {len(cav_list)} concept CAVs!')
+        # Create random AVs
+        random_cav = create_random_cav(**cav_args, n_clips=n_random_clips)
+        logger.info(f'... created random CAV!')
+        # Dump CAVs and random CAV to disk
+        with open(os.path.join(save_loc, 'cavs.p', 'wb')) as f:
+            pickle.dump(cav_list, f)
+        with open(os.path.join(save_loc, 'random_cav.p', 'wb')) as f:
+            pickle.dump(random_cav, f)
+        logger.info(f'... dumped CAVs to {save_loc}!')
+    else:
+        logger.info(f'... loaded {len(cav_list)} concept CAVs from {save_loc}!')
+        logger.info(f'... loaded random CAV from {save_loc}!')
+    return cav_list, random_cav
+
+
 def main(
         model: str,
         attribution_fn: str,
@@ -142,28 +193,11 @@ def main(
     logger.info('Getting data...')
     features, targets, track_names = get_all_data(alldata)
     logger.info(f"... got data with shape {features.shape}")
-    # Create all CAVs
-    logger.info('Creating CAVs...')
-    cav_args = dict(
-        model=model,
-        layer=layer,
-        features=features,
-        targets=targets,
-        class_mapping=tm.class_mapping,
-        attribution_fn=attribution_fn,
-        multiply_by_inputs=multiply_by_inputs,
-        n_experiments=n_experiments,
-        batch_size=batch_size
+    # Load CAVs from disk or create them from scratch
+    cav_list, random_cav = create_or_load_cavs(
+        model, layer, features, targets, tm.class_mapping, attribution_fn,
+        multiply_by_inputs, n_experiments, batch_size, n_cavs, n_random_clips,
     )
-    cav_list = create_all_cavs(**cav_args, n_cavs=n_cavs)
-    logger.info(f'... created {len(cav_list)} concept CAVs!')
-    random_cav = create_random_cav(**cav_args, n_clips=n_random_clips)
-    logger.info(f'... created random CAV!')
-    # Dump CAVs and random CAV to disk
-    with open('cavs.p', 'wb') as f:
-        pickle.dump(cav_list, f)
-    with open('random_cav.p', 'wb') as f:
-        pickle.dump(random_cav, f)
     # Log accuracies for all CAVs
     all_accs = np.concatenate([i.acc for i in cav_list])
     for func, name in zip([np.mean, np.std, np.max, np.min], ['mean', 'std', 'max', 'min']):
