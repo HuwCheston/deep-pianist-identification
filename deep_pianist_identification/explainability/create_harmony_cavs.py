@@ -161,6 +161,11 @@ def create_or_load_cavs(
             pickle.dump(random_cav, f)
         logger.info(f'... dumped CAVs to {save_loc}!')
     else:
+        # For backwards compatibility, add in some attributes that might be missing to each cav
+        for cav in [*cav_list, random_cav]:
+            for attr, val in zip(["attr_fn_str", "multiply_by_inputs"], [attribution_fn, multiply_by_inputs]):
+                if not hasattr(cav, attr):
+                    setattr(cav, attr, val)
         logger.info(f'... loaded {len(cav_list)} concept CAVs from {save_loc}!')
         logger.info(f'... loaded random CAV from {save_loc}!')
     return cav_list, random_cav
@@ -187,6 +192,32 @@ def create_kernel_heatmaps(track_names: list[str], cavs: list[cav_utils.CAV], cl
             )
             hm.create_plot()
             hm.save_fig()
+
+
+def create_mixed_effects_models(
+        cavs: list[cav_utils.CAV],
+        inputs: torch.tensor,
+        targets: torch.tensor,
+        track_names: torch.tensor
+) -> list[cav_utils.CAVMixedLM]:
+    import json
+
+    def get_recording_year(track_name: str):
+        json_path = os.path.sep.join(track_name.replace('clips', 'raw').split(os.path.sep)[:-1]) + '/metadata.json'
+        assert os.path.isfile(json_path)
+        with open(json_path, 'r') as f:
+            loaded = json.load(f)
+        return int(loaded['recording_year'])
+
+    recording_years = torch.tensor(np.array([get_recording_year(t) for t in track_names]))
+    res = []
+    for cav_idx in range(len(cavs)):
+        mlm = cav_utils.CAVMixedLM(cavs[cav_idx], 3)
+        mlm.get_data(inputs, targets, recording_years)
+        mlm.fit()
+        logger.info(f'{cav_utils.CAV_MAPPING[cav_idx]}: mean {mlm.coef}, ci {mlm.ci}')
+        res.append(mlm)
+    return res
 
 
 def main(
@@ -247,6 +278,15 @@ def main(
     hmpc = plotting.HeatmapCAVPairwiseCorrelation(sign_counts, cav_utils.CAV_MAPPING)
     hmpc.create_plot()
     hmpc.save_fig()
+    # Create mixed effects models and plot coefficients
+    mlms = create_mixed_effects_models(cav_list, features, targets, track_names)
+    bp = plotting.BarPlotCAVMixedLMCoefficients(
+        mlm_coefs=np.array([mlm.coef for mlm in mlms]),
+        mlm_cis=np.array([mlm.ci for mlm in mlms]),
+        cav_names=cav_utils.CAV_MAPPING,
+    )
+    bp.create_plot()
+    bp.save_fig()
     # Create plots for individual tracks
     create_kernel_heatmaps(track_names, cav_list, tm.class_mapping)
 

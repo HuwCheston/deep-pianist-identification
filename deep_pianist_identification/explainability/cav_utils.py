@@ -12,6 +12,7 @@ from random import shuffle
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
+import statsmodels.formula.api as smf
 import torch
 from captum.attr import LayerIntegratedGradients, LayerGradientXActivation
 from joblib import Parallel, delayed
@@ -23,6 +24,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.utils._testing import ignore_warnings
+from statsmodels.tools.sm_exceptions import ConvergenceWarning as smConvergenceWarning
 from torch.utils.data import Dataset, DataLoader, TensorDataset
 from tqdm import tqdm
 
@@ -155,6 +157,7 @@ class CAV:
             batch_size: int = BATCH_SIZE
     ):
         self.cav_idx = cav_idx
+        self.cav_name = CAV_MAPPING[cav_idx]
         self.batch_size = batch_size
         # Create one concept dataset, used in every experiment
         self.concept_dataset = self.initialise_concept_dataloader()
@@ -684,3 +687,61 @@ class CAVKernelSlider:
         self.sensitivity_array = np.array(all_sensitivities).reshape(self.heatmap_size)
         self.sensitivity_array /= self.original_sensitivity
         return self.sensitivity_array
+
+
+class CAVMixedLM:
+    def __init__(
+            self,
+            concept: CAV,
+            n_iter: int,
+            batch_size: int = BATCH_SIZE
+    ):
+        self.concept = concept
+        self.n_iter = n_iter
+        self.batch_size = batch_size
+        self.all_datas = []
+        self.all_models = []
+        self.coef = None
+        self.ci = None
+
+    def get_data(self, features, targets, years):
+        loader = DataLoader(
+            TensorDataset(features, targets, years),
+            shuffle=False,
+            batch_size=self.batch_size
+        )
+        for desired_cav_idx in tqdm(range(self.n_iter), desc='Getting data'):
+            desired_cav = self.concept.cav[desired_cav_idx]
+            cav_res = []
+            for feat, targ, year in loader:
+                sens = self.concept.compute_cav_sensitivity(feat, targ, desired_cav)
+                for s, t, y in zip(sens.numpy(), targ.numpy(), year.numpy()):
+                    cav_res.append((s, t, y))
+            cav_df = pd.DataFrame(cav_res, columns=["sensitivity", "target", "year"])
+            self.all_datas.append(cav_df)
+        return self.all_datas
+
+    @staticmethod
+    @ignore_warnings(category=smConvergenceWarning)
+    def _fit_model(maybe_normed_data: pd.DataFrame):
+        return smf.mixedlm(
+            'year~sensitivity',
+            data=maybe_normed_data,
+            groups=maybe_normed_data['target'],
+            re_formula='~sensitivity'
+        ).fit()
+
+    def fit(self):
+        if len(self.all_datas) == 0:
+            raise AttributeError('Must call `.get_data` before `.fit`')
+
+        all_coefs = []
+        for d in tqdm(self.all_datas, desc='Fitting models'):
+            normed = deepcopy(d)
+            normed['sensitivity'] = stats.zscore(normed['sensitivity'])
+            md = self._fit_model(normed)
+            self.all_models.append(md)
+            all_coefs.append(md.params['sensitivity'])
+        self.coef = np.mean(all_coefs)
+        low, high = np.quantile(all_coefs, 0.025), np.quantile(all_coefs, 0.975)
+        self.ci = (low, high)
