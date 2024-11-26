@@ -198,7 +198,8 @@ def create_mixed_effects_models(
         cavs: list[cav_utils.CAV],
         inputs: torch.tensor,
         targets: torch.tensor,
-        track_names: torch.tensor
+        track_names: torch.tensor,
+        n_experiments: int
 ) -> list[cav_utils.CAVMixedLM]:
     import json
 
@@ -212,7 +213,7 @@ def create_mixed_effects_models(
     recording_years = torch.tensor(np.array([get_recording_year(t) for t in track_names]))
     res = []
     for cav_idx in range(len(cavs)):
-        mlm = cav_utils.CAVMixedLM(cavs[cav_idx], 3)
+        mlm = cav_utils.CAVMixedLM(cavs[cav_idx], n_experiments)
         mlm.get_data(inputs, targets, recording_years)
         mlm.fit()
         logger.info(f'{cav_utils.CAV_MAPPING[cav_idx]}: mean {mlm.coef}, ci {mlm.ci}')
@@ -279,7 +280,7 @@ def main(
     hmpc.create_plot()
     hmpc.save_fig()
     # Create mixed effects models and plot coefficients
-    mlms = create_mixed_effects_models(cav_list, features, targets, track_names)
+    mlms = create_mixed_effects_models(cav_list, features, targets, track_names, n_experiments)
     bp = plotting.BarPlotCAVMixedLMCoefficients(
         mlm_coefs=np.array([mlm.coef for mlm in mlms]),
         mlm_cis=np.array([mlm.ci for mlm in mlms]),
