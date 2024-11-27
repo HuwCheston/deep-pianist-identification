@@ -146,10 +146,10 @@ class CAV:
     ):
         self.cav_idx = cav_idx
         # Try and get CAV name from mapping
-        try:
+        if cav_idx is None:
+            self.cav_name = "Random"
+        else:
             self.cav_name = CAV_MAPPING[cav_idx - 1]  # mapping starts from 0, chapters start from 1
-        except IndexError:
-            self.cav_name = None
         self.batch_size = batch_size
         # Create one concept dataset, used in every experiment
         self.concept_dataset = self.initialise_concept_dataloader()
