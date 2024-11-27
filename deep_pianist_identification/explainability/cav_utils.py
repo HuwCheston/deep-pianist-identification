@@ -743,5 +743,22 @@ class CAVMixedLM:
             self.all_models.append(md)
             all_coefs.append(md.params['sensitivity'])
         self.coef = np.mean(all_coefs)
+        # TODO: maybe a better approach is to use the mean of the upper and lower bounds given by the model?
         low, high = np.quantile(all_coefs, 0.025), np.quantile(all_coefs, 0.975)
         self.ci = (low, high)
+
+
+def update_loaded_cav(concept: CAV, n_experiments: int, attribution_fn: str, multiply_by_inputs: bool) -> None:
+    """Update a loaded `CAV` with required arguments"""
+    # Set these attributes correctly if they haven't already been set
+    for attr, val in zip(["attr_fn_str", "multiply_by_inputs"], [attribution_fn, multiply_by_inputs]):
+        if not hasattr(concept, attr):
+            setattr(concept, attr, val)
+    # Set the number of experiments correctly
+    # I.e., if we created too many random datasets, reduce the number to the one given in the CLI
+    for attr in ["sign_counts", "magnitudes", "cav", "acc"]:
+        loaded = getattr(concept, attr)
+        if isinstance(loaded, list):
+            setattr(concept, attr, loaded[:n_experiments])
+        elif isinstance(loaded, np.ndarray):
+            setattr(concept, attr, loaded[:, :n_experiments])

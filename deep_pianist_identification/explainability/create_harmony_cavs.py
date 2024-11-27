@@ -161,11 +161,9 @@ def create_or_load_cavs(
             pickle.dump(random_cav, f)
         logger.info(f'... dumped CAVs to {save_loc}!')
     else:
-        # For backwards compatibility, add in some attributes that might be missing to each cav
-        for cav in [*cav_list, random_cav]:
-            for attr, val in zip(["attr_fn_str", "multiply_by_inputs"], [attribution_fn, multiply_by_inputs]):
-                if not hasattr(cav, attr):
-                    setattr(cav, attr, val)
+        # For backwards compatibility, add in some attributes that might be missing to each concept
+        for concept in [*cav_list, random_cav]:
+            cav_utils.update_loaded_cav(concept, n_experiments, attribution_fn, multiply_by_inputs)
         logger.info(f'... loaded {len(cav_list)} concept CAVs from {save_loc}!')
         logger.info(f'... loaded random CAV from {save_loc}!')
     return cav_list, random_cav
@@ -275,8 +273,10 @@ def main(
     hm.create_plot()
     hm.save_fig()
     # Create correlation heatmap between sign-count values for different concepts
-    sign_counts = np.stack([c.sign_counts.flatten() for c in cav_list]).T
-    hmpc = plotting.HeatmapCAVPairwiseCorrelation(sign_counts, cav_utils.CAV_MAPPING)
+    hmpc = plotting.HeatmapCAVPairwiseCorrelation(
+        cav_matrix=np.stack([c.sign_counts.flatten() for c in cav_list]).T,
+        cav_mapping=cav_utils.CAV_MAPPING
+    )
     hmpc.create_plot()
     hmpc.save_fig()
     # Create mixed effects models and plot coefficients
