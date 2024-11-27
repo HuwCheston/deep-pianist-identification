@@ -255,26 +255,27 @@ def main(
     all_accs = np.concatenate([i.acc for i in cav_list])
     for func, name in zip([np.mean, np.std, np.max, np.min], ['mean', 'std', 'max', 'min']):
         logger.info(f'CAV accuracy {name}: {func(all_accs):.5f}')
-    # Get matrices of average sign count and p-values
-    all_sign_counts = np.column_stack([i.sign_counts.mean(axis=1) for i in cav_list])
-    # p_vals = np.column_stack([cav_utils.get_pvals(sc.sign_counts, random_cav.sign_counts) for sc in cav_list])
-    # Convert p-values to asterisks (with Bonferroni correction for multiple tests)
-    # ast = cav_utils.get_pval_significance(p_vals)
-    # All should be in the shape: (n_cavs, n_performers)
-    # assert p_vals.shape == all_sign_counts.shape == ast.shape
+    # Shape (n_cavs, n_performers, n_experiments)
+    all_sign_counts = np.stack([cav.sign_counts for cav in cav_list])
+    # Shape (n_performers, n_cavs)
+    mean_sign_counts = all_sign_counts.mean(axis=2).T
+    # Shape (n_performers, n_cavs)
+    ast_sign_counts = cav_utils.get_sign_count_significance(all_sign_counts, random_cav.sign_counts).T
     # Create heatmap with significance asterisks
     hm = plotting.HeatmapCAVSensitivity(
-        sensitivity_matrix=all_sign_counts,
+        sensitivity_matrix=mean_sign_counts,
         class_mapping=tm.class_mapping,
         cav_names=cav_utils.CAV_MAPPING,
         performer_birth_years=cav_utils.BIRTH_YEARS,
-        significance_asterisks=np.empty_like(all_sign_counts, dtype=str)
+        significance_asterisks=ast_sign_counts
     )
     hm.create_plot()
     hm.save_fig()
     # Create correlation heatmap between sign-count values for different concepts
+    # Flatten to (n_performers * n_experiments, n_cavs)
+    flat_sign_counts = all_sign_counts.reshape(all_sign_counts.shape[0], -1).T
     hmpc = plotting.HeatmapCAVPairwiseCorrelation(
-        cav_matrix=np.stack([c.sign_counts.flatten() for c in cav_list]).T,
+        cav_matrix=flat_sign_counts,
         cav_mapping=cav_utils.CAV_MAPPING
     )
     hmpc.create_plot()

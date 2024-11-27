@@ -8,6 +8,7 @@ from copy import deepcopy
 from functools import lru_cache
 from itertools import groupby, product
 from random import shuffle
+from typing import Callable
 
 import numpy as np
 import pandas as pd
@@ -45,7 +46,7 @@ SCALER = StandardScaler()
 BATCH_SIZE = 10
 TRANSPOSE_RANGE = 6  # Transpose exercise MIDI files +/- 6 semitones (up and down a tri-tone)
 N_JOBS = 1  # seems to be faster than parallel processing?
-N_EXPERIMENTS = 100
+N_EXPERIMENTS = 10  # Same as in Foscarin
 N_RANDOM_CLIPS = 250
 
 
@@ -96,51 +97,38 @@ def parse_arguments(argparser) -> dict:
     return vars(argparser.parse_args())
 
 
-def get_pvals(
-        concept_signcounts: np.array,
-        random_signcounts: np.array,
-) -> np.array:
-    """Performs t-test for sign counts from one concept"""
-    assert concept_signcounts.shape == random_signcounts.shape
-    # shape: (n_performers)
-    return np.array([
-        stats.ttest_ind(random, concept)[1] for concept, random
-        in zip(concept_signcounts, random_signcounts)
-    ])
-
-
-def get_pval_significance(
-        pvals: np.array,
-        critical_values: list = None,
+def get_sign_count_significance(
+        concept_sign_counts: np.array,
+        random_sign_counts: np.array,
         bonferroni: bool = True,
+        test: Callable = stats.wilcoxon
 ) -> np.array:
-    # Use default critical values if not provided
-    if critical_values is None:
-        critical_values = [0.05, 0.01, 0.001]
-    # Apply Bonferroni correction to all critical values if required
-    if bonferroni:
-        num_experiments = pvals.shape[0]
-        critical_values = [c / num_experiments for c in critical_values]
-    # Sort critical values in order from largest to smallest
-    critical_values = np.sort(np.array(critical_values))[::-1]
+    """For test distribution (n_cavs, n_performers, n_experiments), get significance vs. null (n_perf, n_exper)"""
 
-    all_sigs = []
-    # Iterate over the metrics for each CAV (shape = n_performers)
-    for experiment in pvals.T:
-        exp_sigs = []
-        # Iterate over each individual p-value
-        for p in experiment:
-            ast = ''
-            # Set the required asterisk vaule
-            for crit_num, crit_value in enumerate(critical_values, 1):
-                if p < crit_value:
-                    ast = '*' * crit_num
-            exp_sigs.append(ast)
-        all_sigs.append(np.array(exp_sigs))
-    fmt = np.column_stack(all_sigs)
-    # Expected shape of this array is (n_cavs, n_performers)
-    assert fmt.shape == pvals.shape
-    return fmt
+    n_cavs, n_performers, _ = concept_sign_counts.shape
+    # Create empty array to store significance values
+    ast = np.empty((n_cavs, n_performers), dtype='<U10')
+    # Set critical values
+    critical_values = [0.05, 0.01, 0.001]
+    asterisks = ['*', '**', '***']
+    # Apply Bonferroni correction to critical values if required
+    if bonferroni:
+        # Use number of performers as number of hypotheses
+        critical_values = [i / n_performers for i in critical_values]
+    # Iterate over all CAVs
+    for cav_idx in range(n_cavs):
+        # Iterate over all performers
+        for performer_idx in range(n_performers):
+            # Get sign count distributions
+            test_dist = concept_sign_counts[cav_idx, performer_idx, :]
+            null_dist = random_sign_counts[performer_idx, :]
+            # Compute significance using provided test (default = Wilcoxon sign-rank test)
+            p = test(null_dist, test_dist, alternative='two-sided')[1]
+            # Iterate over all critical values and update value in array
+            for thresh, asterisk in zip(critical_values, asterisks):
+                if p <= thresh:
+                    ast[cav_idx, performer_idx] = asterisk
+    return ast
 
 
 class CAV:

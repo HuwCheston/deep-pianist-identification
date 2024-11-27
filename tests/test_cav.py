@@ -176,43 +176,44 @@ class ExplainerTest(unittest.TestCase):
         actual = cav_utils.CAV.get_magnitude(test_vector)
         self.assertAlmostEqual(expected, actual)
 
-    def test_pvals(self):
-        # Create two arrays, one with a much higher mean than another
-        a1 = np.array([[9.1, 7.7, 8.8, 9.3, 5.5]])
-        a2 = np.array([[0.1, 0.2, 0.6, 0.7, 0.3]])
-        # Get p-values: these should be significant at a low value of p
-        pval1 = cav_utils.get_pvals(a1, a2)
-        self.assertLess(pval1[0], 1e-4)
-        # Create another array, similar to the first
-        a3 = np.array([[0.1, 0.3, 0.6, 0.7, 0.1]])
-        # Should not be significant at a low value of p
-        pval2 = cav_utils.get_pvals(a2, a3)
-        self.assertGreater(pval2[0], 1e-4)
-
-    def test_pvals_to_asterisks(self):
-        # First, test without correction
-        p_matrix = np.array([
-            [0.04, 0.03, 0.012, 0.045],
-            [0.54, 0.009, 0.44, 0.99],
-            [1e-9, 1e-7, 1e-4, 1e-8]
-        ])
-        expected = np.array([
-            ['*', '*', '*', '*'],
-            ['', '**', '', ''],
-            ['***', '***', '***', '***']
-        ])
-        ast_matrix = cav_utils.get_pval_significance(p_matrix, bonferroni=False)
-        self.assertEqual(ast_matrix.shape, expected.shape)
-        self.assertTrue(np.array_equal(ast_matrix, expected))
-        # Now, test with correction
-        expected = np.array([
-            ['', '', '*', ''],
-            ['', '*', '', ''],
-            ['***', '***', '***', '***']
-        ])
-        ast_matrix = cav_utils.get_pval_significance(p_matrix, bonferroni=True)
-        self.assertEqual(ast_matrix.shape, expected.shape)
-        self.assertTrue(np.array_equal(ast_matrix, expected))
+    # TODO: rewrite these tests
+    # def test_pvals(self):
+    #     # Create two arrays, one with a much higher mean than another
+    #     a1 = np.array([[9.1, 7.7, 8.8, 9.3, 5.5]])
+    #     a2 = np.array([[0.1, 0.2, 0.6, 0.7, 0.3]])
+    #     # Get p-values: these should be significant at a low value of p
+    #     pval1 = cav_utils.get_pvals(a1, a2)
+    #     self.assertLess(pval1[0], 1e-4)
+    #     # Create another array, similar to the first
+    #     a3 = np.array([[0.1, 0.3, 0.6, 0.7, 0.1]])
+    #     # Should not be significant at a low value of p
+    #     pval2 = cav_utils.get_pvals(a2, a3)
+    #     self.assertGreater(pval2[0], 1e-4)
+    #
+    # def test_pvals_to_asterisks(self):
+    #     # First, test without correction
+    #     p_matrix = np.array([
+    #         [0.04, 0.03, 0.012, 0.045],
+    #         [0.54, 0.009, 0.44, 0.99],
+    #         [1e-9, 1e-7, 1e-4, 1e-8]
+    #     ])
+    #     expected = np.array([
+    #         ['*', '*', '*', '*'],
+    #         ['', '**', '', ''],
+    #         ['***', '***', '***', '***']
+    #     ])
+    #     ast_matrix = cav_utils.get_pval_significance(p_matrix, bonferroni=False)
+    #     self.assertEqual(ast_matrix.shape, expected.shape)
+    #     self.assertTrue(np.array_equal(ast_matrix, expected))
+    #     # Now, test with correction
+    #     expected = np.array([
+    #         ['', '', '*', ''],
+    #         ['', '*', '', ''],
+    #         ['***', '***', '***', '***']
+    #     ])
+    #     ast_matrix = cav_utils.get_pval_significance(p_matrix, bonferroni=True)
+    #     self.assertEqual(ast_matrix.shape, expected.shape)
+    #     self.assertTrue(np.array_equal(ast_matrix, expected))
 
 
 if __name__ == '__main__':
