@@ -137,9 +137,13 @@ class ValidateModule:
         logger.debug(f"Saved validation metrics to {save_path}")
         # Save masked concept accuracy barplot
         if self.validation_fn == self.validate_multichannel:
-            bp = plotting.BarPlotMaskedConceptsAccuracy(accuracy_df)
-            bp.create_plot()
-            bp.save_fig()
+            for plot in [plotting.BarPlotMaskedConceptsAccuracy, plotting.LollipopPlotMaskedConceptsAccuracy]:
+                for xvar, xlabel in zip(
+                        ["track_acc", "accuracy_loss"], ["Accuracy (track-level)", "Accuracy loss (track-level)"]
+                ):
+                    bp = plot(accuracy_df, xvar, xlabel)
+                    bp.create_plot()
+                    bp.save_fig()
 
     def create_confusion_matrix(self, predictions, targets, concept: str = ""):
         """Creates a confusion matrix for (track-wise) predictions and targets"""

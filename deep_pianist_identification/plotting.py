@@ -8,6 +8,7 @@ import os
 from datetime import timedelta
 
 import matplotlib as mpl
+import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -158,8 +159,10 @@ class HeatmapConfusionMatrix(BasePlot):
 
 
 class BarPlotMaskedConceptsAccuracy(BasePlot):
-    def __init__(self, df, **kwargs):
+    def __init__(self, df, xvar: str = "track_acc", xlabel: str = "Accuracy (track-level)", **kwargs):
         super().__init__(**kwargs)
+        self.xvar = xvar
+        self.xlabel = xlabel
         self.df = self._format_df(df.dropna(subset="concepts"))
         self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH // 3))
 
@@ -170,7 +173,7 @@ class BarPlotMaskedConceptsAccuracy(BasePlot):
         full_acc = df[df['concepts'] == 'melody+harmony+rhythm+dynamics']['track_acc'].iloc[0]
         sort_and_title = lambda x: ', '.join(sorted([i.title() for i in x.split('+')]))
         df["concepts"] = df["concepts"].apply(sort_and_title)
-        df['accuracy_loss'] = df['track_acc'] - full_acc
+        df['accuracy_loss'] = (df['track_acc'] - full_acc).abs()
         pd.options.mode.chained_assignment = "warn"
         return (
             df.sort_values(by=["n_concepts", "track_acc"], ascending=[True, False])
@@ -179,26 +182,26 @@ class BarPlotMaskedConceptsAccuracy(BasePlot):
 
     def _create_plot(self) -> None:
         return sns.barplot(
-            self.df, y="concepts", x="track_acc", hue="n_concepts",
+            self.df, y="concepts", x=self.xvar, hue="n_concepts",
             palette="tab10", legend=True,
             edgecolor=BLACK, linewidth=LINEWIDTH,
             linestyle=LINESTYLE, ax=self.ax, zorder=10
         )
 
-    def _add_bar_labels(self):
+    def _add_bar_labels(self, x_mult: float = 0.01):
         for idx, row in self.df.iterrows():
             if idx == 0:
                 continue
             self.ax.text(
-                row['track_acc'] + 0.01, idx,
+                row['track_acc'] + x_mult, idx,
                 '{:.3f}'.format(round(row['accuracy_loss'], 3)),
                 va='center', ha='left'
             )
 
     def _format_ax(self):
-        self._add_bar_labels()
+        # self._add_bar_labels()
         sns.move_legend(self.ax, loc="lower right", title='$N$ masks', **LEGEND_KWS)
-        self.ax.set(ylabel="Musical dimensions", xlabel="Accuracy (track-level)", xlim=(0, 1))
+        self.ax.set(ylabel="Musical dimensions", xlabel=self.xlabel, xlim=(0, 1))
         plt.setp(self.ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
         self.ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
         self.ax.grid(axis="x", zorder=0, **GRID_KWS)
@@ -210,7 +213,7 @@ class BarPlotMaskedConceptsAccuracy(BasePlot):
         fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations")
         if not os.path.isdir(fold):
             os.makedirs(fold)
-        fp = os.path.join(fold, f"barplot_masked_concept_accuracy.png")
+        fp = os.path.join(fold, f"barplot_masked_concept_{self.xvar}.png")
         self.fig.savefig(fp, **SAVE_KWS)
 
 
@@ -602,7 +605,6 @@ class BarPlotDatasetDurationCount(BasePlot):
         for a in self.bar_ax:
             a.axhspan(4.5, 25.5, 0, 1, color=BLACK, alpha=ALPHA)
             a.text(0.6, 0.225, 'Included', color=WHITE, transform=a.transAxes, fontsize=FONTSIZE * 2)
-            sns.move_legend(a, loc="lower right", **self.LEGEND_KWS)
 
     def _create_hist_plot(self):
         g = sns.histplot(data=self.hist_df, x='duration', hue='dataset', ax=self.hist_ax, **self.HIST_KWS)
@@ -860,3 +862,52 @@ class BarPlotCAVMixedLMCoefficients(BasePlot):
         self.fig.savefig(fp, **SAVE_KWS)
         # Close the figure
         plt.close(self.fig)
+
+
+class LollipopPlotMaskedConceptsAccuracy(BarPlotMaskedConceptsAccuracy):
+    COLOR_MAPPING = {"Melody": "#ff0000ff", "Harmony": "#00ff00ff", "Rhythm": "#0000ffff", "Dynamics": "#ff9900ff"}
+    LPOP_KWS = dict(width=0.025 * 0.9, height=1 * 0.9, zorder=10000, edgecolor=BLACK, linewidth=LINEWIDTH)
+
+    def __init__(self, df, xvar: str = "track_acc", xlabel: str = "Accuracy (track-level)", **kwargs):
+        super().__init__(df, xvar, xlabel, **kwargs)
+
+    def _create_plot(self) -> None:
+        sns.barplot(
+            self.df, y="concepts", x=self.xvar, width=0, edgecolor=BLACK,
+            linewidth=LINEWIDTH ** 2, linestyle=LINESTYLE, ax=self.ax, zorder=10
+        )
+
+    def _add_lollipop(self):
+        for idx, row in self.df.iterrows():
+            val = row[self.xvar]
+            for n_concept, concept in enumerate(reversed(row['concepts'].split(', '))):
+                color = self.COLOR_MAPPING[concept]
+                circ = mpatches.Ellipse(xy=(val - (n_concept / 30), idx), facecolor=color, **self.LPOP_KWS)
+                self.ax.add_patch(circ)
+
+    def _add_legend(self):
+        hands = []
+        for color in self.COLOR_MAPPING.values():
+            patch = mpatches.Ellipse(xy=(0, 0), facecolor=color, **self.LPOP_KWS)
+            hands.append(patch)
+        labs = list(self.COLOR_MAPPING.keys())
+        self.ax.legend(hands, labs, loc="lower right", title='Dimensions', **LEGEND_KWS)
+
+    def _format_ax(self):
+        self._add_lollipop()
+        self._add_legend()
+        self._add_bar_labels(x_mult=0.02)
+        ymin, ymax = self.ax.get_ylim()
+        self.ax.set(
+            ylabel="Musical dimension", xlabel=self.xlabel, xlim=(0., 1.), ylim=(ymin + 0.1, ymax - 0.1)
+        )
+        plt.setp(self.ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
+        self.ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
+        self.ax.grid(axis="x", zorder=0, **GRID_KWS)
+
+    def save_fig(self):
+        fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations")
+        if not os.path.isdir(fold):
+            os.makedirs(fold)
+        fp = os.path.join(fold, f"lollipop_masked_concept_{self.xvar}.png")
+        self.fig.savefig(fp, **SAVE_KWS)
