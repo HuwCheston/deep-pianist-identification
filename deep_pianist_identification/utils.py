@@ -112,15 +112,22 @@ def get_pianist_names(datasets: tuple = ('jtd', 'pijama')) -> set:
     return set.intersection(*res.values())
 
 
-def get_track_metadata(pianist_names: set) -> pd.DataFrame:
+def get_track_metadata(pianist_names: set, split_path: str = "20class_80min") -> pd.DataFrame:
     """Gets metadata (dataset name, recording duration) for all tracks by performers in `pianist_names"""
+    from tqdm import tqdm
+
     res = []
+    split_tracks = {}
+    for split in ["train", "validation", "test"]:
+        csv_loc = os.path.join(get_project_root(), 'references/data_splits', split_path, f'{split}_split.csv')
+        split_tracks[split] = pd.read_csv(csv_loc)["track"].values
+
     # Iterate over all datasets
     for dataset in ['jtd', 'pijama']:
         # Get the root path for this dataset
         root = os.path.join(get_project_root(), 'data/raw', dataset)
         # Iterate through all tracks in the dataset
-        for track in os.listdir(root):
+        for track in tqdm(os.listdir(root), desc=f"Getting metadata for {dataset}"):
             # Get the paths for both the raw MIDI and metadata JSON
             mid = os.path.join(root, track, 'piano_midi.mid')
             meta = os.path.join(root, track, 'metadata.json')
@@ -140,6 +147,22 @@ def get_track_metadata(pianist_names: set) -> pd.DataFrame:
                 else:
                     minutes, seconds = loaded['excerpt_duration'].split(':')
                     dur = (int(minutes) * 60) + int(seconds)
-                res.append({'pianist': pianist, 'dataset': dataset, 'duration': dur})
+                # Get the number of clips that this track has
+                n_clips = len(os.listdir(os.path.join(root.replace("raw", "clips"), track)))
+                # Get the split where this track can be found
+                tname = f'{dataset}/{track}'
+                tsplit = None
+                for split, tracks in split_tracks.items():
+                    if tname in tracks:
+                        tsplit = split
+                # Append the dictionary to the list
+                res.append({
+                    'pianist': pianist,
+                    'dataset': dataset,
+                    'duration': dur,
+                    "track": tname,
+                    "split": tsplit,
+                    "n_clips": n_clips
+                })
     # Create the dataframe and return
     return pd.DataFrame(res)
