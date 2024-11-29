@@ -5,7 +5,9 @@
 
 import json
 import os
+import urllib.request
 from datetime import timedelta
+from urllib.error import HTTPError
 
 import matplotlib as mpl
 import matplotlib.patches as mpatches
@@ -13,11 +15,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from loguru import logger
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from music21.chord import Chord
 from music21.note import Note
 from music21.stream import Stream
 from pretty_midi import note_name_to_number, note_number_to_name
+from skimage import io
 from skimage.transform import resize
 
 from deep_pianist_identification import utils
@@ -46,11 +50,13 @@ HATCHES = ['/', '\\', '|', '-', '+', 'x', 'o', 'O', '.', '*']
 DOTTED = 'dotted'
 DASHED = 'dashed'
 
+# Remove URL where images of all pianists are stored
+IMG_LOC = "https://raw.githubusercontent.com/HuwCheston/Jazz-Trio-Database/refs/heads/main/references/images/musicians"
+# Used for saving PNG images with the correct background
 SAVE_KWS = dict(format='png', facecolor=WHITE)
-
 # Keyword arguments to use when applying a grid to a plot
 GRID_KWS = dict(color=BLACK, alpha=ALPHA, lw=LINEWIDTH / 2, ls=LINESTYLE)
-
+# Used when adding a legend to an axis
 LEGEND_KWS = dict(frameon=True, framealpha=1, edgecolor=BLACK)
 
 N_BOOT = 10000
@@ -249,7 +255,7 @@ class StripplotTopKFeatures(BasePlot):
         self.concept_dict = concept_dict
         self.pianist_name = pianist_name
         self.concept_name = concept_name
-        self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH // 2))
+        self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH // 2.25))
 
     def _add_notation(self, ngram: str, y: float) -> None:
         """Adds a given feature/ngram as notation onto the axis with a given y coordinate"""
@@ -287,9 +293,9 @@ class StripplotTopKFeatures(BasePlot):
             notes.write("musicxml.png", "tmp.png")
 
         # Read the image in to matplotlib and add to the axes
-        im = plt.imread("tmp-1.png")
-        imagebox = OffsetImage(im, zoom=0.4)
-        ab = AnnotationBbox(imagebox, (1.2, y), xycoords='axes fraction', frameon=False)
+        image = plt.imread("tmp-1.png")
+        imagebox = OffsetImage(image, zoom=0.42)
+        ab = AnnotationBbox(imagebox, (1.025, y), xycoords='axes fraction', frameon=False, box_alignment=(0, 0.5))
         self.ax.add_artist(ab)
         # Remove the temporary files we've created
         os.remove("tmp-1.png")
@@ -299,9 +305,9 @@ class StripplotTopKFeatures(BasePlot):
         """Adds all features as notation onto the axis at a given position"""
         # Hard-coding our y-axis positions is maybe not the best solution for scalability, but works for now
         if direction == 'bottom':
-            ys = [0.95, 0.855, 0.765, 0.675, 0.585]
+            ys = [0.95, 0.85, 0.75, 0.65, 0.55]
         else:
-            ys = [0.41, 0.32, 0.23, 0.14, 0.05]
+            ys = [0.45, 0.35, 0.25, 0.15, 0.05]
         for y, ng in zip(ys, ngram_names):
             self._add_notation(ng, y)
 
@@ -320,30 +326,42 @@ class StripplotTopKFeatures(BasePlot):
             sns.scatterplot(
                 x=self.concept_dict[f"{direction}_ors"][sorters], y=names,
                 facecolor=GREEN if direction == 'top' else RED,
-                **self.SCATTER_KWS, ax=self.ax
+                **self.SCATTER_KWS, ax=self.ax, label=f"{direction.title()}-5",
             )
             self.add_notation(direction, names)
-            # All this line does is add an extra empty "value" to separate the top and bottom k features better visually
-            if direction == 'bottom':
-                sns.scatterplot(x=np.array([1.]), s=0, y=np.array(['']), ax=self.ax)
+        self.ax.legend(**LEGEND_KWS, loc='lower left')
+
+    def _add_performer_image(self):
+        gh = f"{IMG_LOC}/{self.pianist_name.lower().replace(' ', '_')}.png"
+        try:
+            _ = urllib.request.urlopen(gh)
+        except HTTPError:
+            logger.warning(f"Couldn't find performer image for {self.pianist_name} at {gh}!")
+            return
+        image = io.imread(gh)
+        imagebox = OffsetImage(image, zoom=1.0)
+        ab = AnnotationBbox(imagebox, (0.95, 0.95), xycoords='axes fraction', frameon=False, box_alignment=(1., 1.))
+        self.ax.add_artist(ab)
 
     def _format_ax(self):
         """Setting plot aesthetics on an axis-level basis"""
+        self._add_performer_image()
         self.ax.tick_params(right=True)
         self.ax.set(title=f'{self.pianist_name}, {self.concept_name} features', xlabel='Odds ratio', ylabel='Feature')
         self.ax.grid(axis='x', zorder=0, **GRID_KWS)
-        self.ax.axhline(5, 0, 1, linewidth=LINEWIDTH, color=BLACK, alpha=ALPHA, ls='dashed')
+        self.ax.axhline(4.5, 0, 1, linewidth=LINEWIDTH, color=BLACK, alpha=ALPHA, ls=DASHED)
         self.ax.axvline(1, 0, 1, linewidth=LINEWIDTH, color=BLACK)
         plt.setp(self.ax.spines.values(), linewidth=LINEWIDTH)
         self.ax.tick_params(axis='both', width=TICKWIDTH)
 
     def _format_fig(self):
         """Setting plot aeshetics on a figure-level basis"""
-        self.fig.subplots_adjust(left=0.1, top=0.925, bottom=0.1, right=0.75)
+        self.fig.subplots_adjust(left=0.11, top=0.935, bottom=0.11, right=0.8)
 
     def save_fig(self, output_dir: str):
         fp = os.path.join(
-            output_dir, f'topk_stripplot_{self.pianist_name.lower().replace(" ", "_")}_{self.concept_name}.png'
+            output_dir,
+            f'topk_stripplot_{self.pianist_name.lower().replace(" ", "_")}_{self.concept_name}.png'
         )
         self.fig.savefig(fp, **SAVE_KWS)
         plt.close('all')
