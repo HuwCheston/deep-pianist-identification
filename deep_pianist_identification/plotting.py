@@ -5,9 +5,8 @@
 
 import json
 import os
-import urllib.request
 from datetime import timedelta
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 
 import matplotlib as mpl
 import matplotlib.patches as mpatches
@@ -294,7 +293,7 @@ class StripplotTopKFeatures(BasePlot):
 
         # Read the image in to matplotlib and add to the axes
         image = plt.imread("tmp-1.png")
-        imagebox = OffsetImage(image, zoom=0.42)
+        imagebox = OffsetImage(image, zoom=0.35)
         ab = AnnotationBbox(imagebox, (1.025, y), xycoords='axes fraction', frameon=False, box_alignment=(0, 0.5))
         self.ax.add_artist(ab)
         # Remove the temporary files we've created
@@ -334,11 +333,10 @@ class StripplotTopKFeatures(BasePlot):
     def _add_performer_image(self):
         gh = f"{IMG_LOC}/{self.pianist_name.lower().replace(' ', '_')}.png"
         try:
-            _ = urllib.request.urlopen(gh)
-        except HTTPError:
+            image = io.imread(gh)
+        except (HTTPError, URLError):
             logger.warning(f"Couldn't find performer image for {self.pianist_name} at {gh}!")
             return
-        image = io.imread(gh)
         imagebox = OffsetImage(image, zoom=1.0)
         ab = AnnotationBbox(imagebox, (0.95, 0.95), xycoords='axes fraction', frameon=False, box_alignment=(1., 1.))
         self.ax.add_artist(ab)
