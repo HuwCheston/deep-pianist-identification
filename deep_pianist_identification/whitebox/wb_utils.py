@@ -245,7 +245,7 @@ def parse_arguments(parser) -> dict:
     parser.add_argument(
         "-r", "--remove-leaps",
         default=True,
-        type=bool,
+        type=utils.string_to_bool,
         help="Remove leaps of more than +/- 15 semitones",
     )
     parser.add_argument(
@@ -278,7 +278,7 @@ def parse_arguments(parser) -> dict:
     parser.add_argument(
         "-z", "--scale",
         default=True,
-        type=bool,
+        type=utils.string_to_bool,
         help="Whether to scale data using z-transformation or not"
     )
     parser.add_argument(
