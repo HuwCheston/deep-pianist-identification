@@ -385,7 +385,11 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
         # Return the coefficients and stderrs
         return full_model.coef_
 
-    def get_permutation_pval(self, test_statistic: float, null_distribution: np.array):
+    def get_permutation_pval(self, test_statistic: float, null_distribution: np.array, two_sided: bool = True):
+        # If two-sided, express in absolute terms
+        if two_sided:
+            null_distribution = abs(null_distribution)
+            test_statistic = abs(test_statistic)
         as_extreme = len(null_distribution[null_distribution >= test_statistic])
         return as_extreme / self.n_iter
 
