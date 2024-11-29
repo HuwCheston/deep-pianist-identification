@@ -3,6 +3,7 @@
 
 """Create and optimize different white-box classifier types"""
 
+import pickle
 import warnings
 from multiprocessing import Manager, Process
 from time import time
@@ -43,10 +44,15 @@ def fit_classifier(
         train_x, train_y, test_x, test_y, csvpath, n_iter=n_iter, classifier_type=classifier_type
     )
     # Create the optimized random forest model
-    logger.info("Optimization finished, fitting optimized model to test and validation set...")
+    logger.info("Optimization finished!")
     classifier, _ = get_classifier_and_params(classifier_type)
     clf_opt = classifier(**optimized_params)
     clf_opt.fit(train_x, train_y)
+    # Dump the classifier
+    picklepath = csvpath.replace("csv", "p")
+    with open(picklepath, "wb") as f:
+        pickle.dump(clf_opt, f, protocol=5)  # protocol=5 recommended in sklearn documentation
+    logger.info(f"... classifier instance dumped to {picklepath}")
     # Get the optimized test accuracy
     test_y_pred = clf_opt.predict(test_x)
     test_acc = accuracy_score(test_y, test_y_pred)
