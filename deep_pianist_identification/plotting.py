@@ -356,7 +356,7 @@ class StripplotTopKFeatures(BasePlot):
 
     def _format_fig(self):
         """Setting plot aeshetics on a figure-level basis"""
-        self.fig.subplots_adjust(left=0.11, top=0.935, bottom=0.11, right=0.8)
+        self.fig.subplots_adjust(left=0.11, top=0.935, bottom=0.11, right=0.775)
 
     def save_fig(self, output_dir: str):
         fp = os.path.join(
