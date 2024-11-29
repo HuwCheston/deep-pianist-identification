@@ -14,7 +14,7 @@ from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 
 from deep_pianist_identification import utils, plotting
-from deep_pianist_identification.whitebox.wb_utils import get_classifier_and_params
+from deep_pianist_identification.whitebox.wb_utils import get_classifier_and_params, N_ITER
 
 N_BOOT = 10000
 K_COEFS = 2000
@@ -332,7 +332,7 @@ class PermutationExplainer(WhiteBoxExplainer):
         self.df.to_csv(os.path.join(self.output_dir, 'out.csv'))
 
 
-class DatabaseExplainer(WhiteBoxExplainer):
+class DatabasePermutationExplainer(WhiteBoxExplainer):
     """Creates explanations for correlation between top-k melody/harmony features from both source datasets"""
 
     def __init__(
@@ -344,150 +344,119 @@ class DatabaseExplainer(WhiteBoxExplainer):
             class_mapping: dict,
             classifier_params: dict,
             classifier_type: str,
-            topk: int = K_COEFS,
+            bonferroni: bool = True,
+            n_iter=N_ITER // 10,
             n_features: int = None
     ):
         super().__init__(output_dir='database')
         # Set all passed in variables as attributes
         self.full_x = x
         self.full_y = y
-        self.topk = topk
         self.dataset_idxs = dataset_idxs
         self.classifier_params = classifier_params
         self.class_mapping = class_mapping
+        self.n_iter = n_iter
+        self.bonferroni = bonferroni
         # Get the classifier type from the input string
         self.classifier, _ = get_classifier_and_params(classifier_type)
-        # Then, create three classifier objects for 1) all data, 2) jtd only, 3) pijama only
-        #  We'll fit these models later on, when calling `self.explain`
-        self.full_md = self.classifier(**self.classifier_params)
-        self.jtd_md = self.classifier(**self.classifier_params)
-        self.pijama_md = self.classifier(**self.classifier_params)
         # Create arrays of indexes for each feature category: melody and harmony
         self.mel_idxs = np.array([i for i, f in enumerate(feature_names) if f.startswith('M_')])
         self.har_idxs = np.array([i for i, f in enumerate(feature_names) if f.startswith('H_')])
+        # We'll fill these variables later
+        self.mel_coefs, self.mel_ps, self.mel_asts = None, None, None
+        self.har_coefs, self.har_ps, self.har_asts = None, None, None
         # If we want to truncate the number of features (for low-memory systems)
         if n_features is not None:
-            # Take only the first N melody and harmony indexes
-            self.mel_idxs = self.mel_idxs[:n_features // 2]
-            self.har_idxs = self.har_idxs[:n_features // 2]
-            # Reduce the feature space
-            self.full_x = self.full_x[:, [*self.mel_idxs, *self.har_idxs]]
+            # Take only the first N melody and harmony indexes and reduce the feature space
+            reduced_x_idxs = [*self.mel_idxs[:n_features // 2], *self.har_idxs[:n_features // 2]]
+            self.full_x = self.full_x[:, reduced_x_idxs]
+            # Set the idxs properly so we can still subset the reduced feature sapce
+            self.mel_idxs = np.arange(0, n_features // 2)
+            self.har_idxs = np.arange(n_features // 2, n_features)
 
-    def get_topk_coefs_per_concept(self, coefs: np.array):
-        """Gets idxs for the top-k melody and harmony coefficients across all performers"""
-        all_topks_mel = []
-        all_topks_har = []
-        # Iterate through "rows" (performers)
-        for perf in coefs:
-            # Sort the indexes in descending order
-            idxs = np.argsort(perf)[::-1]
-            mel_idxs, har_idxs = [], []
-            # Iterate through the indexes
-            for i in idxs:
-                # Append melody indexes to melody list
-                if i in self.mel_idxs:
-                    mel_idxs.append(i)
-                # Append other indexes to other list
-                else:
-                    har_idxs.append(i)
-            # Convert lists of idxs to arrays
-            mel_arr = np.array(mel_idxs)
-            har_arr = np.array(har_idxs)
-            # Truncate to top-k weights if required
-            if self.topk is not None:
-                mel_arr = mel_arr[:self.topk]
-                har_arr = har_arr[:self.topk]
-            # Append to master list
-            all_topks_mel.append(mel_arr)
-            all_topks_har.append(har_arr)
-        # Convert to arrays of shape [n_performers, top_k]
-        return np.array(all_topks_mel), np.array(all_topks_har)
+    def get_weights(self, all_dataset_idxs, desired_dataset_idx, feature_idxs):
+        # Get indexes for rows (tracks) for this dataset
+        row_idxs = np.argwhere(all_dataset_idxs == desired_dataset_idx).flatten()
+        # Subset feature and target variables
+        current_xs, current_ys = self.full_x[np.ix_(row_idxs, feature_idxs)], self.full_y[row_idxs]
+        # Create the LR model and fit
+        full_model = self.classifier(**self.classifier_params)
+        full_model.fit(current_xs, current_ys)
+        # Return the coefficients and stderrs
+        return full_model.coef_
 
-    def fit_database_models(self) -> tuple[np.array, np.array]:
-        """Fits models only to the data from each source database"""
-        # Get values for JTD
-        jtd_x = np.array([i for num, i in enumerate(self.full_x) if self.dataset_idxs[num] == 1])
-        jtd_y = np.array([i for num, i in enumerate(self.full_y) if self.dataset_idxs[num] == 1])
-        # Get values for pijama
-        pijama_x = np.array([i for num, i in enumerate(self.full_x) if self.dataset_idxs[num] != 1])
-        pijama_y = np.array([i for num, i in enumerate(self.full_y) if self.dataset_idxs[num] != 1])
-        # Check that the total number of rows adds up to the initial number
-        assert jtd_x.shape[0] + pijama_x.shape[0] == self.full_x.shape[0]
-        # Fit the models
-        self.jtd_md.fit(jtd_x, jtd_y)
-        self.pijama_md.fit(pijama_x, pijama_y)
-        # Return the coefficients
-        return self.jtd_md.coef_, self.pijama_md.coef_
+    def get_permutation_pval(self, test_statistic: float, null_distribution: np.array):
+        as_extreme = len(null_distribution[null_distribution >= test_statistic])
+        return as_extreme / self.n_iter
 
-    def get_database_coef_corrs(
-            self,
-            topk_idxs: np.array,
-            n_boot: int = N_BOOT
-    ) -> pd.DataFrame:
-        """Gets performer-wise correlation between databases using top-k coefficients from full model"""
+    def get_null_distributions(self, col_idxs):
+        # Iterate through all desired permutations
+        null_dists = []
+        for boot_idx in tqdm(range(self.n_iter)):
+            rng = np.random.default_rng(seed=boot_idx)
+            # Shuffle the idx of dataset values
+            permuted_dataset_idxs = rng.permutation(self.dataset_idxs)
+            # Get weights for the shuffled "pijama" tracks
+            null_pijama = self.get_weights(permuted_dataset_idxs, 0, col_idxs)
+            # Get weights for the shuffled "jtd" tracks
+            null_jtd = self.get_weights(permuted_dataset_idxs, 1, col_idxs)
+            # Compute the correlation coefficient for each performer and append to the list
+            try:
+                boot_corrcoefs = np.array([np.corrcoef(null_pijama[i, :], null_jtd[i, :])[0, 1] for i in range(20)])
+            except IndexError:
+                continue
+            else:
+                yield boot_corrcoefs
+            null_dists.append(boot_corrcoefs)
 
-        def _booter(j, p):
-            # Get the indexes for this iteration
-            bi = np.random.choice(np.arange(len(j)), len(j), replace=True)
-            # Get the correlation with these bootstrap indexes
-            return np.corrcoef(j[bi], p[bi])[0, 1]
-
-        # Get the coefficients from each database model
-        jtd_coefs, pijama_coefs = self.jtd_md.coef_, self.pijama_md.coef_
-        # List to store correlation coefficients
-        coef_res = []
-        # Iterate through each performer
-        for i in tqdm(range(jtd_coefs.shape[0]), desc='Getting correlations...'):
-            # Get the index of the top-k coefficients for this performer
-            topk_perf_idxs = topk_idxs[i, :]
-            # Get the top-k coefficients for this performer for both datasets
-            jtd_perf_coefs = jtd_coefs[i, topk_perf_idxs]
-            pijama_perf_coefs = pijama_coefs[i, topk_perf_idxs]
-            # Get the actual correlation
-            act_pcorr = np.corrcoef(jtd_perf_coefs, pijama_perf_coefs)[0, 1]
-            # Get the bootstrapped correlations with multiprocessing
-            with Parallel(n_jobs=-1, verbose=0) as par:
-                boot_corrs = par(delayed(_booter)(jtd_perf_coefs, pijama_perf_coefs) for _ in range(n_boot))
-            # Get the upper and lower bounds from the bootstrapped array
-            boot_arr = np.array(boot_corrs)
-            high, low = np.percentile(boot_arr, 97.5), np.percentile(boot_arr, 2.5)
-            # Create a dictionary with everything in and append
-            perf_res = dict(
-                perf_name=self.class_mapping[i],
-                corr=act_pcorr,
-                high=high - act_pcorr,
-                low=act_pcorr - low
-            )
-            coef_res.append(perf_res)
-        # Return a dataframe sorted by correlation
-        return (
-            pd.DataFrame(coef_res)
-            .sort_values(by='corr', ascending=False)
-            .reset_index(drop=True)
+    def get_coefficients_and_pvals(self, col_idxs: np.array):
+        # Get model weights for both pijama and jtd
+        pijama_coef = self.get_weights(self.dataset_idxs, 0, col_idxs)
+        jtd_coef = self.get_weights(self.dataset_idxs, 1, col_idxs)
+        # Shape (N_performers, N_features)
+        assert pijama_coef.shape == jtd_coef.shape
+        # Compute the correlation coefficients: shape (N_performers)
+        corrcoefs = np.array(
+            [np.corrcoef(pijama_coef[i, :], jtd_coef[i, :])[0, 1] for i in range(pijama_coef.shape[0])])
+        # Get null distributions: shape (n_iter, n_performers)
+        null_dists = np.stack(list(self.get_null_distributions(col_idxs)))
+        # Get p-values as proportion of values that are as extreme as observed value
+        p_vals = np.array(
+            [self.get_permutation_pval(corrcoefs[pidx], null_dists[:, pidx]) for pidx in range(corrcoefs.shape[0])]
         )
+        return corrcoefs, p_vals
 
-    def explain(self) -> pd.DataFrame:
-        """Creates the explanation as a dataframe of correlation coefficients"""
-        # Fit the full model to all the data
-        self.full_md.fit(self.full_x, self.full_y)
-        # Get idxs of the top-k melody and harmony features for each performer
-        full_mel_topks, full_har_topks = self.get_topk_coefs_per_concept(self.full_md.coef_)
-        # Fit the individual models to both JTD and PiJAMA data
-        self.fit_database_models()
-        # Get correlation coefficients for both melody and harmony as individual dataframes
-        mel_df = self.get_database_coef_corrs(full_mel_topks)
-        har_df = self.get_database_coef_corrs(full_har_topks)
-        # Set an indexing value
-        mel_df['feature'] = 'Melody'
-        har_df['feature'] = 'Harmony'
-        # Concatenate row-wise and return
-        self.df = pd.concat([mel_df, har_df], axis=0).reset_index(drop=True)
-        return self.df
+    def pval_to_asterisk(self, pval):
+        critical_values = [0.05, 0.01, 0.001]
+        asterisks = ['*', '**', '***']
+        if self.bonferroni:
+            n_performers = len(np.unique(self.full_y))
+            critical_values = [i / n_performers for i in critical_values]
+        # Iterate over all critical values and update value in array
+        set_asterisk = ''
+        for thresh, asterisk in zip(critical_values, asterisks):
+            if pval <= thresh:
+                set_asterisk = asterisk
+        return set_asterisk
+
+    def format_df(self, mel_coefs, mel_ps, har_coefs, har_ps):
+        zipper = zip(self.class_mapping.values(), mel_coefs, mel_ps, har_coefs, har_ps)
+        tmp_res = []
+        for pianist, m_coef, m_p, h_coef, h_p in zipper:
+            mel_ast = self.pval_to_asterisk(m_p)
+            har_ast = self.pval_to_asterisk(h_p)
+            tmp_res.append(dict(pianist=pianist, corr=m_coef, p=m_p, sig=mel_ast, feature="melody"))
+            tmp_res.append(dict(pianist=pianist, corr=h_coef, p=h_p, sig=har_ast, feature="harmony"))
+        return pd.DataFrame(tmp_res)
+
+    def explain(self):
+        mel_coefs, mel_ps = self.get_coefficients_and_pvals(self.mel_idxs)
+        har_coefs, har_ps = self.get_coefficients_and_pvals(self.har_idxs)
+        self.df = self.format_df(mel_coefs, mel_ps, har_coefs, har_ps)
 
     def create_outputs(self):
-        super().create_outputs()
         # Create the barplot
-        bp = plotting.BarPlotWhiteboxDatabaseCoeficients(self.df)
+        bp = plotting.BarPlotWhiteboxDatabaseCoefficients(self.df)
         bp.create_plot()
         bp.save_fig(os.path.join(self.output_dir, 'barplot_database_correlations.png'))
         # Save the dataframe

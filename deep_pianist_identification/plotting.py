@@ -417,7 +417,7 @@ class HeatmapWhiteboxFeaturePianoRoll(BasePlot):
         plt.close('all')
 
 
-class BarPlotWhiteboxDatabaseCoeficients(BasePlot):
+class BarPlotWhiteboxDatabaseCoefficients(BasePlot):
     """Bar plot showing the performer correlations obtained from both source databases for a whitebox model"""
     BAR_KWS = dict(palette="tab10", edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, legend=False, zorder=10)
     ERROR_KWS = dict(lw=LINEWIDTH, color=BLACK, capsize=8, zorder=100, elinewidth=LINEWIDTH, ls='none')
@@ -428,16 +428,17 @@ class BarPlotWhiteboxDatabaseCoeficients(BasePlot):
         self.fig, self.ax = plt.subplots(1, 2, figsize=(WIDTH, WIDTH // 2), sharex=True, sharey=True)
 
     def _format_df(self, df):
+        df['feature'] = df['feature'].str.title()
         mel_df = (
             df[df['feature'] == 'Melody']
             .reset_index(drop=True)
             .sort_values(by='corr', ascending=False)
         )
-        sorters = {k: num for num, k in enumerate(mel_df['perf_name'].tolist())}
+        sorters = {k: num for num, k in enumerate(mel_df['pianist'].tolist())}
         har_df = (
             df[df['feature'] == 'Harmony']
             .reset_index(drop=True)
-            .sort_values(by='perf_name', key=lambda x: x.map(sorters))
+            .sort_values(by='pianist', key=lambda x: x.map(sorters))
             .reset_index(drop=True)
         )
         return pd.concat([mel_df, har_df], axis=0).reset_index(drop=True)
@@ -445,8 +446,8 @@ class BarPlotWhiteboxDatabaseCoeficients(BasePlot):
     def _create_plot(self):
         for concept, ax in zip(['Melody', 'Harmony'], self.ax.flatten()):
             sub = self.df[self.df['feature'] == concept].reset_index(drop=True)
-            sns.barplot(data=sub, x='corr', y='perf_name', hue='perf_name', ax=ax, **self.BAR_KWS)
-            ax.errorbar(sub['corr'], sub['perf_name'], xerr=[sub['low'], sub['high']], **self.ERROR_KWS)
+            sns.barplot(data=sub, x='corr', y='pianist', hue='pianist', ax=ax, **self.BAR_KWS)
+            # ax.errorbar(sub['corr'], sub['pianist'], xerr=[sub['low'], sub['high']], **self.ERROR_KWS)
 
     def _format_ax(self):
         for concept, ax in zip(['Melody', 'Harmony'], self.ax.flatten()):

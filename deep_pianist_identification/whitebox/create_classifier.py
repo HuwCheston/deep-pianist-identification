@@ -12,7 +12,7 @@ from deep_pianist_identification import utils
 from deep_pianist_identification.whitebox import wb_utils
 from deep_pianist_identification.whitebox.classifiers import fit_classifier
 from deep_pianist_identification.whitebox.explainers import (
-    LRWeightExplainer, DatabaseExplainer, PermutationExplainer
+    LRWeightExplainer, DatabasePermutationExplainer, PermutationExplainer
 )
 from deep_pianist_identification.whitebox.features import get_harmony_features, get_melody_features
 
@@ -89,6 +89,31 @@ def create_classifier(
         n_iter,
         classifier_type
     )
+    # Don't create the other outputs if the classifier isn't a logistic regression
+    if classifier_type != "lr":
+        return
+    # Concatenate all features and feature names
+    all_xs = np.vstack([train_x_arr, test_x_arr, valid_x_arr])
+    all_ys = np.hstack([train_y_mel, test_y_mel, valid_y_mel])
+    feature_names = np.array(['M_' + f for f in mel_features] + ['H_' + f for f in har_features])
+    dataset_idxs: np.array = wb_utils.get_database_mapping(train_clips, test_clips, validation_clips)
+    # Correlation between top-k coefficients from the full model for individual database models
+    logger.info('---EXPLAINING: DATASET FEATURE CORRELATIONS---')
+    logger.info(f'... shapes: x {all_xs.shape}, y {all_ys.shape}, ')
+    logger.info(f'... topk coefs: {database_k_coefs}')
+    database_explainer = DatabasePermutationExplainer(
+        x=all_xs,
+        y=all_ys,
+        dataset_idxs=dataset_idxs,
+        feature_names=feature_names,
+        class_mapping=class_mapping,
+        classifier_params=best_params,
+        classifier_type=classifier_type,
+        n_iter=n_iter // 10,
+        bonferroni=True
+    )
+    database_explainer.explain()
+    database_explainer.create_outputs()
     # Permutation feature importance: this class will do all analysis and create plots/outputs
     logger.info('---EXPLAINING: PERMUTATION FEATURE IMPORTANCE (GLOBAL)---')
     # logger.info(f'... shapes: harmony {valid_x_arr_har.shape}, melody {valid_x_arr_mel.shape}, y {valid_y_mel.shape}')
@@ -105,14 +130,6 @@ def create_classifier(
     )
     permute_explainer.explain()
     permute_explainer.create_outputs()
-    # Don't create the other outputs if the classifier isn't a logistic regression
-    if classifier_type != "lr":
-        return
-    # Concatenate all features and feature names
-    all_xs = np.vstack([train_x_arr, test_x_arr, valid_x_arr])
-    all_ys = np.hstack([train_y_mel, test_y_mel, valid_y_mel])
-    feature_names = np.array(['M_' + f for f in mel_features] + ['H_' + f for f in har_features])
-    dataset_idxs: np.array = wb_utils.get_database_mapping(train_clips, test_clips, validation_clips),
     # Weights for top k features for each performer across melody/harmony features
     logger.info('---EXPLAINING: MODEL WEIGHTS (LOCAL)---')
     logger.info(f'... shapes: x {all_xs.shape}, y {all_ys.shape}, feature names {feature_names.shape}')
@@ -129,23 +146,6 @@ def create_classifier(
     )
     lr_exp.explain()
     lr_exp.create_outputs()
-    # Correlation between top-k coefficients from the full model for individual database models
-    logger.info('---EXPLAINING: DATASET FEATURE CORRELATIONS---')
-    logger.info(f'... shapes: x {all_xs.shape}, y {all_ys.shape}, '
-                f'feature names {feature_names.shape}, dataset_idxs {dataset_idxs.shape}')
-    logger.info(f'... topk coefs: {database_k_coefs}')
-    database_explainer = DatabaseExplainer(
-        x=all_xs,
-        y=all_ys,
-        dataset_idxs=dataset_idxs,
-        feature_names=feature_names,
-        class_mapping=class_mapping,
-        classifier_params=best_params,
-        classifier_type=classifier_type,
-        topk=database_k_coefs
-    )
-    database_explainer.explain()
-    database_explainer.create_outputs()
 
 
 if __name__ == "__main__":
