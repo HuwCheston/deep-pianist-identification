@@ -394,10 +394,8 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
         return as_extreme / self.n_iter
 
     def get_null_distributions(self, col_idxs):
-        # Iterate through all desired permutations
-        null_dists = []
-        for boot_idx in tqdm(range(self.n_iter)):
-            rng = np.random.default_rng(seed=boot_idx)
+        def booter(bidx):
+            rng = np.random.default_rng(seed=bidx)
             # Shuffle the idx of dataset values
             permuted_dataset_idxs = rng.permutation(self.dataset_idxs)
             # Get weights for the shuffled "pijama" tracks
@@ -405,13 +403,10 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
             # Get weights for the shuffled "jtd" tracks
             null_jtd = self.get_weights(permuted_dataset_idxs, 1, col_idxs)
             # Compute the correlation coefficient for each performer and append to the list
-            try:
-                boot_corrcoefs = np.array([np.corrcoef(null_pijama[i, :], null_jtd[i, :])[0, 1] for i in range(20)])
-            except IndexError:
-                continue
-            else:
-                yield boot_corrcoefs
-            null_dists.append(boot_corrcoefs)
+            return np.array([np.corrcoef(null_pijama[i, :], null_jtd[i, :])[0, 1] for i in range(20)])
+
+        with Parallel(n_jobs=-1, verbose=0) as parallel:
+            return parallel(delayed(booter)(boot_idx) for boot_idx in tqdm(range(self.n_iter)))
 
     def get_coefficients_and_pvals(self, col_idxs: np.array):
         # Get model weights for both pijama and jtd
