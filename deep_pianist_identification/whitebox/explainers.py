@@ -475,7 +475,7 @@ class DatabaseTopKExplainer(WhiteBoxExplainer):
             class_mapping: dict,
             classifier_params: dict,
             classifier_type: str,
-            top_k: int,
+            top_k: float,
             n_features: int = None
     ):
         super().__init__(output_dir='database_topk')
@@ -485,6 +485,7 @@ class DatabaseTopKExplainer(WhiteBoxExplainer):
         self.classifier_params = classifier_params
         self.class_mapping = class_mapping
         self.top_k = top_k
+        assert top_k <= 1.
         # Get indices of tracks for each dataset
         self.dataset_idxs = dataset_idxs
         self.jtd_idxs = np.argwhere(dataset_idxs == 1).flatten()
@@ -509,16 +510,22 @@ class DatabaseTopKExplainer(WhiteBoxExplainer):
         md.fit(x, y)
         return md.coef_
 
-    def get_topk_weights(self, coef: np.array) -> np.array:
-        # Shape (n_performers, top_k)
-        topk_arr = np.zeros((coef.shape[0], self.top_k), int)
+    def get_topk_weights(self, feature_idxs: np.array) -> np.array:
+        n_performers = len(np.unique(self.full_y))
+        # Shape (n_performers, n_features * top_k)
+        k_frac = int(len(feature_idxs) * self.top_k)
+        topk_arr = np.zeros((n_performers, k_frac), int)
         # Iterate through each performer
-        for perf_idx in range(coef.shape[0]):
-            # Get weights for this performer
-            perf_coefs = coef[perf_idx, :]
-            # Sort in descending order and get indices
-            perf_topk = np.argsort(perf_coefs)[::-1][:self.top_k]
-            # Broadcast to array
+        for perf_idx in range(n_performers):
+            # Subset y to binary (1 == desired performer, 0 == any other)
+            tmp_y = np.where(self.full_y == perf_idx, 1, 0)
+            # Subset x to only include features for this concept (melody/harmony)
+            tmp_x = self.full_x[:, feature_idxs]
+            # Fit classification model to all tracks and get weights, shape (n_features)
+            perf_coefs = self._get_weights(tmp_x, tmp_y).flatten()
+            # Sort in descending order and get indices of top-k weights
+            perf_topk = np.argsort(perf_coefs)[::-1][:k_frac]
+            # Broadcast indices to array
             topk_arr[perf_idx, :] = perf_topk
         return topk_arr
 
@@ -548,12 +555,9 @@ class DatabaseTopKExplainer(WhiteBoxExplainer):
         return pd.DataFrame(tmp_res)
 
     def explain(self):
-        # Get weights for harmony and melody features for all tracks: shape (n_performers, n_features)
-        mel_weights = self._get_weights(self.full_x[:, self.mel_idxs], self.full_y)
-        har_weights = self._get_weights(self.full_x[:, self.har_idxs], self.full_y)
         # Subset to get indices of top-k weights for each performer: shape (n_performers, top_k)
-        mel_topk_weights = self.get_topk_weights(mel_weights)
-        har_topk_weights = self.get_topk_weights(har_weights)
+        mel_topk_weights = self.get_topk_weights(self.mel_idxs)
+        har_topk_weights = self.get_topk_weights(self.har_idxs)
         # Get correlations between weights
         mel_db_corrs = self.get_performer_correlations(mel_topk_weights)
         har_db_corrs = self.get_performer_correlations(har_topk_weights)
@@ -564,6 +568,7 @@ class DatabaseTopKExplainer(WhiteBoxExplainer):
         # Create the barplot
         bp = plotting.BarPlotWhiteboxDatabaseCoefficients(self.df)
         bp.create_plot()
+        bp.fig.suptitle(f'$k$ = {self.top_k}')
         bp.save_fig(os.path.join(self.output_dir, f'barplot_database_correlations_topk_{self.top_k}.png'))
         # Save the dataframe
         self.df.to_csv(os.path.join(self.output_dir, 'out.csv'))
