@@ -526,7 +526,7 @@ class DatabaseTopKExplainer(WhiteBoxExplainer):
             # Sort in descending order and get indices of top-k weights
             perf_topk = np.argsort(perf_coefs)[::-1][:k_frac]
             # Broadcast indices to array
-            topk_arr[perf_idx, :] = perf_topk
+            topk_arr[perf_idx, :] = np.sort(feature_idxs[perf_topk])
         return topk_arr
 
     def get_performer_correlations(self, topk_weights: np.array) -> np.array:
