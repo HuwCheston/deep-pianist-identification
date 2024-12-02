@@ -100,7 +100,7 @@ def create_classifier(
     # Correlation between top-k coefficients from the full model for individual database models
     logger.info('---EXPLAINING: DATASET FEATURE CORRELATIONS---')
     logger.info(f'... shapes: x {all_xs.shape}, y {all_ys.shape}, ')
-    for k in [50, 250, 500, 1000]:
+    for k in [50, 250, 500, 1000, 2000, 5000, 10000]:
         logger.info(f'... k {k}')
         database_explainer = DatabaseTopKExplainer(
             x=all_xs,
