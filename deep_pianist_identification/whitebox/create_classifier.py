@@ -12,7 +12,7 @@ from deep_pianist_identification import utils
 from deep_pianist_identification.whitebox import wb_utils
 from deep_pianist_identification.whitebox.classifiers import fit_classifier
 from deep_pianist_identification.whitebox.explainers import (
-    LRWeightExplainer, DatabasePermutationExplainer, PermutationExplainer
+    LRWeightExplainer, PermutationExplainer, DatabaseTopKExplainer
 )
 from deep_pianist_identification.whitebox.features import get_harmony_features, get_melody_features
 
@@ -100,20 +100,20 @@ def create_classifier(
     # Correlation between top-k coefficients from the full model for individual database models
     logger.info('---EXPLAINING: DATASET FEATURE CORRELATIONS---')
     logger.info(f'... shapes: x {all_xs.shape}, y {all_ys.shape}, ')
-    logger.info(f'... topk coefs: {database_k_coefs}')
-    database_explainer = DatabasePermutationExplainer(
-        x=all_xs,
-        y=all_ys,
-        dataset_idxs=dataset_idxs,
-        feature_names=feature_names,
-        class_mapping=class_mapping,
-        classifier_params=best_params,
-        classifier_type=classifier_type,
-        n_iter=n_iter // 10,
-        bonferroni=True
-    )
-    database_explainer.explain()
-    database_explainer.create_outputs()
+    for k in [50, 250, 500, 1000]:
+        logger.info(f'... k {k}')
+        database_explainer = DatabaseTopKExplainer(
+            x=all_xs,
+            y=all_ys,
+            dataset_idxs=dataset_idxs,
+            feature_names=feature_names,
+            class_mapping=class_mapping,
+            classifier_params=best_params,
+            classifier_type=classifier_type,
+            top_k=k
+        )
+        database_explainer.explain()
+        database_explainer.create_outputs()
     # Permutation feature importance: this class will do all analysis and create plots/outputs
     logger.info('---EXPLAINING: PERMUTATION FEATURE IMPORTANCE (GLOBAL)---')
     # logger.info(f'... shapes: harmony {valid_x_arr_har.shape}, melody {valid_x_arr_mel.shape}, y {valid_y_mel.shape}')
