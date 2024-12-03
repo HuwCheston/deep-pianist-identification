@@ -452,7 +452,7 @@ class BarPlotWhiteboxDatabaseCoefficients(BasePlot):
             #     txt = f'$p$ = {round(row["p"], 3)}'
             #     x = row["corr"] - 0.01 if row["corr"] < 0 else row["corr"] + 0.01
             #     ax.text(x, idx, txt, ha=ha, va='center', zorder=100000)
-            # ax.errorbar(sub['corr'], sub['pianist'], xerr=[sub['low'], sub['high']], **self.ERROR_KWS)
+            ax.errorbar(sub['corr'], sub['pianist'], xerr=[sub['low'], sub['high']], **self.ERROR_KWS)
 
     def _format_ax(self):
         xmin = min([ax.get_xlim()[0] for ax in self.ax.flatten()])

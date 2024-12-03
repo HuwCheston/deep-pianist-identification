@@ -14,7 +14,7 @@ from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 
 from deep_pianist_identification import utils, plotting
-from deep_pianist_identification.whitebox.wb_utils import get_classifier_and_params, N_ITER
+from deep_pianist_identification.whitebox.wb_utils import get_classifier_and_params, N_ITER, N_JOBS
 
 N_BOOT = 10000
 K_COEFS = 2000
@@ -109,7 +109,7 @@ class LRWeightExplainer(WhiteBoxExplainer):
         # Get actual coefficients: (n_classes, n_features)
         ratios = self.fitter(full_x_df, full_y_df)
         # Bootstrap the coefficients: (n_boots, n_classes, n_features)
-        with Parallel(n_jobs=-1, verbose=0) as par:
+        with Parallel(n_jobs=N_JOBS, verbose=0) as par:
             boot_ratios = par(delayed(self.booter)(
                 full_x_df, full_y_df, i) for i in tqdm(range(self.n_iter), desc='Bootstrapping weights...')
                               )
@@ -334,7 +334,7 @@ class PermutationExplainer(WhiteBoxExplainer):
 
 
 class DatabasePermutationExplainer(WhiteBoxExplainer):
-    """Creates explanations for correlation between all melody/harmony features from both source datasets"""
+    """Creates explanations for correlation between top-k melody/harmony features from both source datasets"""
 
     def __init__(
             self,
@@ -406,7 +406,7 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
             # Compute the correlation coefficient for each performer and append to the list
             return np.array([np.corrcoef(null_pijama[i, :], null_jtd[i, :])[0, 1] for i in range(20)])
 
-        with Parallel(n_jobs=-1, verbose=0) as parallel:
+        with Parallel(n_jobs=N_JOBS, verbose=0) as parallel:
             return parallel(delayed(booter)(boot_idx) for boot_idx in tqdm(range(self.n_iter)))
 
     def get_coefficients_and_pvals(self, col_idxs: np.array):
@@ -439,20 +439,78 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
                 set_asterisk = asterisk
         return set_asterisk
 
-    def format_df(self, mel_coefs, mel_ps, har_coefs, har_ps):
-        zipper = zip(self.class_mapping.values(), mel_coefs, mel_ps, har_coefs, har_ps)
+    def format_df(self, mel_coefs, mel_ps, mel_low, mel_hi, har_coefs, har_ps, har_low, har_hi):
+        zipper = zip(self.class_mapping.values(), mel_coefs, mel_ps, mel_low, mel_hi, har_coefs, har_ps, har_low,
+                     har_hi)
         tmp_res = []
-        for pianist, m_coef, m_p, h_coef, h_p in zipper:
+        for pianist, m_coef, m_p, m_low, m_hi, h_coef, h_p, h_low, h_hi in zipper:
             mel_ast = self.pval_to_asterisk(m_p)
             har_ast = self.pval_to_asterisk(h_p)
-            tmp_res.append(dict(pianist=pianist, corr=m_coef, p=m_p, sig=mel_ast, feature="melody"))
-            tmp_res.append(dict(pianist=pianist, corr=h_coef, p=h_p, sig=har_ast, feature="harmony"))
+            # Express CIs with relation to observed coef
+            m_low = abs(m_coef - m_low)
+            m_hi = abs(m_hi - m_coef)
+            h_low = abs(h_coef - h_low)
+            h_hi = abs(h_hi - h_coef)
+            # Append multiple dictionaries
+            tmp_res.append(
+                dict(pianist=pianist, corr=m_coef, p=m_p, low=m_low, high=m_hi, sig=mel_ast, feature="melody"))
+            tmp_res.append(
+                dict(pianist=pianist, corr=h_coef, p=h_p, low=h_low, high=h_hi, sig=har_ast, feature="harmony"))
         return pd.DataFrame(tmp_res)
+
+    def bootstrap_weights(self, col_idxs: np.array) -> tuple[np.array, np.array]:
+        # Compute bootstrapped weights: shape (n_iter, n_performers, n_features)
+        jtd_stack = self._bootstrap_models(col_idxs, 1)
+        pij_stack = self._bootstrap_models(col_idxs, 0)
+        # Compute correlations
+        all_lows, all_highs = [], []
+        for perf_idx in range(jtd_stack.shape[1]):
+            all_perf_corrs = []
+            for boot_idx in range(jtd_stack.shape[0]):
+                perf_boot_jtd = jtd_stack[boot_idx, perf_idx, :]
+                perf_boot_pij = pij_stack[boot_idx, perf_idx, :]
+                all_perf_corrs.append(np.corrcoef(perf_boot_pij, perf_boot_jtd)[0, 1])
+            # Append upper and lower boundaries
+            all_lows.append(np.quantile(all_perf_corrs, 0.025))
+            all_highs.append(np.quantile(all_perf_corrs, 0.975))
+        # Shape (n_performers)
+        return np.array(all_lows), np.array(all_highs)
+
+    def _bootstrap_models(self, col_idxs: np.array, desired_dataset_idx: int):
+        def booter(x: np.array, y: np.array):
+            # Create array of indices, sampled with replacement
+            boot_idxs = np.random.choice(np.arange(len(y)), len(y), replace=True)
+            # Subset input data
+            boot_x, boot_y = x[boot_idxs, :], y[boot_idxs]
+            # We need to have all one recording from all performers in `y`
+            if len(np.unique(boot_y)) != len(np.unique(y)):
+                return booter(x, y)
+            # Create the LR model and fit
+            boot_model = self.classifier(**self.classifier_params)
+            boot_model.fit(boot_x, boot_y)
+            # Return the coefficients
+            return boot_model.coef_
+
+        # Get indexes for rows (tracks) for desired dataset
+        row_idxs = np.argwhere(self.dataset_idxs == desired_dataset_idx).flatten()
+        # Subset data row- and column-wise
+        current_x, current_y = self.full_x[np.ix_(row_idxs, col_idxs)], self.full_y[row_idxs]
+        # Create bootstrapped coefficients with multiprocessing
+        with Parallel(n_jobs=N_JOBS, verbose=0) as par:
+            boots = par(delayed(booter)(current_x, current_y) for _ in range(self.n_iter))
+        # Stack into shape (n_iter, n_performers, n_features)
+        return np.stack(boots)
 
     def explain(self):
         mel_coefs, mel_ps = self.get_coefficients_and_pvals(self.mel_idxs)
         har_coefs, har_ps = self.get_coefficients_and_pvals(self.har_idxs)
-        self.df = self.format_df(mel_coefs, mel_ps, har_coefs, har_ps)
+        # Bootstrapping
+        mel_boot_low, mel_boot_high = self.bootstrap_weights(self.mel_idxs)
+        har_boot_low, har_boot_high = self.bootstrap_weights(self.har_idxs)
+        self.df = self.format_df(
+            mel_coefs, mel_ps, mel_boot_low, mel_boot_high,
+            har_coefs, har_ps, har_boot_low, har_boot_high
+        )
 
     def create_outputs(self):
         # Create the barplot
