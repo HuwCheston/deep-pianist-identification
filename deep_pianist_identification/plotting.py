@@ -425,7 +425,7 @@ class BarPlotWhiteboxDatabaseCoefficients(BasePlot):
     def __init__(self, coef_df):
         super().__init__()
         self.df = self._format_df(coef_df)
-        self.fig, self.ax = plt.subplots(1, 2, figsize=(WIDTH, WIDTH // 2), sharex=True, sharey=True)
+        self.fig, self.ax = plt.subplots(1, 2, figsize=(WIDTH, WIDTH // 2), sharex=True, sharey=False)
 
     def _format_df(self, df):
         df['feature'] = df['feature'].str.title()
@@ -447,25 +447,29 @@ class BarPlotWhiteboxDatabaseCoefficients(BasePlot):
         for concept, ax in zip(['Melody', 'Harmony'], self.ax.flatten()):
             sub = self.df[self.df['feature'] == concept].reset_index(drop=True)
             sns.barplot(data=sub, x='corr', y='pianist', hue='pianist', ax=ax, **self.BAR_KWS)
-            for idx, row in sub.iterrows():
-                ha = 'right' if row['corr'] < 0 else 'left'
-                txt = f'$p$ = {round(row["p"], 3)}'
-                x = row["corr"] - 0.01 if row["corr"] < 0 else row["corr"] + 0.01
-                ax.text(x, idx, txt, ha=ha, va='center', zorder=100000)
+            # for idx, row in sub.iterrows():
+            #     ha = 'right' if row['corr'] < 0 else 'left'
+            #     txt = f'$p$ = {round(row["p"], 3)}'
+            #     x = row["corr"] - 0.01 if row["corr"] < 0 else row["corr"] + 0.01
+            #     ax.text(x, idx, txt, ha=ha, va='center', zorder=100000)
             # ax.errorbar(sub['corr'], sub['pianist'], xerr=[sub['low'], sub['high']], **self.ERROR_KWS)
 
     def _format_ax(self):
+        xmin = min([ax.get_xlim()[0] for ax in self.ax.flatten()])
+        xmax = max([ax.get_xlim()[1] for ax in self.ax.flatten()])
         for concept, ax in zip(['Melody', 'Harmony'], self.ax.flatten()):
             ax.axvline(0, 0, 1, linewidth=LINEWIDTH, color=BLACK)
-            xmin, xmax = ax.get_xlim()
-            ax.set(xlabel='', ylabel='', title=concept, xlim=(xmin - 0.05, xmax + 0.05))
+            ax.set(
+                ylabel='Pianist', xlabel='Coefficient ($r$)', yticks=self.ax[0].get_yticks(),
+                yticklabels=self.ax[0].get_yticklabels(), title=concept, xlim=(xmin, xmax)
+            )
             ax.grid(axis='x', zorder=-1, **GRID_KWS)
             plt.setp(ax.spines.values(), linewidth=LINEWIDTH)
             ax.tick_params(axis='both', width=TICKWIDTH)
 
     def _format_fig(self):
-        self.fig.supxlabel('Coefficient $r$')
-        self.fig.supylabel('Pianist')
+        # self.fig.supxlabel('Coefficient $r$')
+        # self.fig.supylabel('Pianist')
         self.fig.tight_layout()
 
     def save_fig(self, outpath: str):
