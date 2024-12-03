@@ -12,7 +12,7 @@ from deep_pianist_identification import utils
 from deep_pianist_identification.whitebox import wb_utils
 from deep_pianist_identification.whitebox.classifiers import fit_classifier
 from deep_pianist_identification.whitebox.explainers import (
-    LRWeightExplainer, PermutationExplainer, DatabaseTopKExplainer
+    LRWeightExplainer, PermutationExplainer, DatabasePermutationExplainer, DatabaseTopKExplainer
 )
 from deep_pianist_identification.whitebox.features import get_harmony_features, get_melody_features
 
@@ -100,6 +100,19 @@ def create_classifier(
     # Correlation between top-k coefficients from the full model for individual database models
     logger.info('---EXPLAINING: DATASET FEATURE CORRELATIONS---')
     logger.info(f'... shapes: x {all_xs.shape}, y {all_ys.shape}, ')
+    database_explainer = DatabasePermutationExplainer(
+        x=all_xs,
+        y=all_ys,
+        dataset_idxs=dataset_idxs,
+        feature_names=feature_names,
+        class_mapping=class_mapping,
+        classifier_params=best_params,
+        classifier_type=classifier_type,
+        n_iter=n_iter
+    )
+    database_explainer.explain()
+    database_explainer.create_outputs()
+    logger.info('---EXPLAINING: DATASET TOP-K FEATURE CORRELATIONS ---')
     for k in [0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 1.0]:
         logger.info(f'... k {k}')
         database_explainer = DatabaseTopKExplainer(
