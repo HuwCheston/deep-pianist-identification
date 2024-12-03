@@ -108,7 +108,7 @@ def create_classifier(
         class_mapping=class_mapping,
         classifier_params=best_params,
         classifier_type=classifier_type,
-        n_iter=n_iter
+        n_iter=n_iter // 10
     )
     database_explainer.explain()
     database_explainer.create_outputs()
