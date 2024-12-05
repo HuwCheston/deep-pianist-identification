@@ -447,10 +447,10 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
             mel_ast = self.pval_to_asterisk(m_p)
             har_ast = self.pval_to_asterisk(h_p)
             # Express CIs with relation to observed coef
-            m_low = abs(m_coef - m_low)
-            m_hi = abs(m_hi - m_coef)
-            h_low = abs(h_coef - h_low)
-            h_hi = abs(h_hi - h_coef)
+            m_low = m_coef - m_low
+            m_hi = m_hi - m_coef
+            h_low = h_coef - h_low
+            h_hi = h_hi - h_coef
             # Append multiple dictionaries
             tmp_res.append(
                 dict(pianist=pianist, corr=m_coef, p=m_p, low=m_low, high=m_hi, sig=mel_ast, feature="melody"))
@@ -568,59 +568,51 @@ class DatabaseTopKExplainer(WhiteBoxExplainer):
         md.fit(x, y)
         return md.coef_
 
-    def get_topk_weights(self, feature_idxs: np.array) -> np.array:
-        n_performers = len(np.unique(self.full_y))
-        # Shape (n_performers, n_features * top_k)
-        k_frac = int(len(feature_idxs) * self.top_k)
-        topk_arr = np.zeros((n_performers, k_frac), int)
-        # Iterate through each performer
-        for perf_idx in range(n_performers):
-            # Subset y to binary (1 == desired performer, 0 == any other)
-            tmp_y = np.where(self.full_y == perf_idx, 1, 0)
-            # Subset x to only include features for this concept (melody/harmony)
-            tmp_x = self.full_x[:, feature_idxs]
-            # Fit classification model to all tracks and get weights, shape (n_features)
-            perf_coefs = self._get_weights(tmp_x, tmp_y).flatten()
-            # Sort in descending order and get indices of top-k weights
-            perf_topk = np.argsort(perf_coefs)[::-1][:k_frac]
-            # Broadcast indices to array
-            topk_arr[perf_idx, :] = np.sort(feature_idxs[perf_topk])
-        return topk_arr
+    def get_topk_weight_idxs(self, feature_idxs: np.array) -> np.array:
+        # Fit the full model to all data using all the features
+        full_weights = self._get_weights(self.full_x[:, feature_idxs], self.full_y)
+        # Get the maximum weight for each feature: shape (n_features)
+        max_weights = full_weights.max(axis=0)
+        assert len(max_weights) == len(feature_idxs)
+        # Get the total number of features to use
+        k_int = int(len(feature_idxs) * self.top_k)
+        # Get the indices for these top-k features
+        topk_idxs = np.argsort(max_weights)[::-1][:k_int]
+        return feature_idxs[topk_idxs]
 
-    def get_performer_correlations(self, topk_weights: np.array) -> np.array:
-        corr_arr = np.zeros((topk_weights.shape[0]), float)
-        for perf_idx in range(topk_weights.shape[0]):
-            # Where target is performer, yield 1, else yield 0, shape (n_tracks)
-            binary_y = np.where(self.full_y == perf_idx, 1, 0)
-            # Get weights for top-k performer features, shape (n_tracks, top_k)
-            perf_x = self.full_x[:, topk_weights[perf_idx, :]]
-            # Get weights for pijama tracks
-            pijama_coef = self._get_weights(perf_x[self.pijama_idxs, :], binary_y[self.pijama_idxs])
-            # Get weights for jtd tracks
-            jtd_coef = self._get_weights(perf_x[self.jtd_idxs, :], binary_y[self.jtd_idxs])
-            # Get correlation between weights
-            perf_corr = np.corrcoef(pijama_coef.flatten(), jtd_coef.flatten())[0, 1]
-            # Broadcast to array
-            corr_arr[perf_idx] = perf_corr
-        return corr_arr
+    def get_performer_correlations(self, topk_idxs: np.array) -> np.array:
+        # Get weights for pijama tracks: (n_performers, top_k_features)
+        pijama_coef = self._get_weights(
+            self.full_x[np.ix_(self.pijama_idxs, topk_idxs)],  # subset feature set to just use top-k features
+            self.full_y[self.pijama_idxs]
+        )
+        # Get weights for JTD tracks: (n_performers, top_k_features)
+        jtd_coef = self._get_weights(
+            self.full_x[np.ix_(self.jtd_idxs, topk_idxs)],  # subset feature set to just use top-k features
+            self.full_y[self.jtd_idxs]
+        )
+        # Correlate both: (n_performers)
+        return np.array([
+            np.corrcoef(pijama_coef[i, :], jtd_coef[i, :])[0, 1] for i in range(pijama_coef.shape[0])
+        ])
 
-    def format_df(self, mel_corrs: np.array, har_corrs: np.array) -> pd.DataFrame:
-        zipper = zip(self.class_mapping.values(), mel_corrs, har_corrs)
+    def format_df(self, corrs: np.array, feature_name: str) -> pd.DataFrame:
         tmp_res = []
-        for pianist, m_corr, h_corr in zipper:
-            tmp_res.append(dict(pianist=pianist, corr=m_corr, p=np.nan, feature="Melody"))
-            tmp_res.append(dict(pianist=pianist, corr=h_corr, p=np.nan, feature="Harmony"))
+        for pianist, corr in zip(self.class_mapping.values(), corrs):
+            tmp_res.append(dict(pianist=pianist, corr=corr, p=np.nan, feature=feature_name.title(), low=0., high=0.))
         return pd.DataFrame(tmp_res)
 
     def explain(self):
-        # Subset to get indices of top-k weights for each performer: shape (n_performers, top_k)
-        mel_topk_weights = self.get_topk_weights(self.mel_idxs)
-        har_topk_weights = self.get_topk_weights(self.har_idxs)
-        # Get correlations between weights
-        mel_db_corrs = self.get_performer_correlations(mel_topk_weights)
-        har_db_corrs = self.get_performer_correlations(har_topk_weights)
-        # Format into a dataframe
-        self.df = self.format_df(mel_db_corrs, har_db_corrs)
+        # Melody
+        mel_topk_idxs = self.get_topk_weight_idxs(self.mel_idxs)
+        mel_corrs = self.get_performer_correlations(mel_topk_idxs)
+        mel_df = self.format_df(mel_corrs, "melody")
+        # Harmony
+        har_topk_idxs = self.get_topk_weight_idxs(self.har_idxs)
+        har_corrs = self.get_performer_correlations(har_topk_idxs)
+        har_df = self.format_df(har_corrs, "harmony")
+        # Stack dataframes
+        self.df = pd.concat([mel_df, har_df], axis=0)
 
     def create_outputs(self):
         # Create the barplot
@@ -629,4 +621,4 @@ class DatabaseTopKExplainer(WhiteBoxExplainer):
         bp.fig.suptitle(f'$k$ = {self.top_k}')
         bp.save_fig(os.path.join(self.output_dir, f'barplot_database_correlations_topk_{self.top_k}.png'))
         # Save the dataframe
-        self.df.to_csv(os.path.join(self.output_dir, 'out.csv'))
+        self.df.to_csv(os.path.join(self.output_dir, f'out_{self.top_k}.csv'))
