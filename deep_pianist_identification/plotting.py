@@ -293,7 +293,7 @@ class StripplotTopKFeatures(BasePlot):
 
         # Read the image in to matplotlib and add to the axes
         image = plt.imread("tmp-1.png")
-        imagebox = OffsetImage(image, zoom=0.35)
+        imagebox = OffsetImage(image, zoom=0.3)
         ab = AnnotationBbox(imagebox, (1.025, y), xycoords='axes fraction', frameon=False, box_alignment=(0, 0.5))
         self.ax.add_artist(ab)
         # Remove the temporary files we've created
