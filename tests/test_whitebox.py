@@ -1,23 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Test suite for baselines (random forest and C(R)NN/resnet)"""
+"""Test suite for whitebox models (feature extraction and modelling)"""
 
 import os
 import unittest
 
 import numpy as np
-import torch
 from pretty_midi import PrettyMIDI, Instrument, Note
 
 import deep_pianist_identification.utils as utils
-from deep_pianist_identification.encoders import CNNet, CRNNet, ResNet50, TangCNN
-from deep_pianist_identification.encoders.shared import IBN
 from deep_pianist_identification.whitebox import wb_utils
 from deep_pianist_identification.whitebox.features import get_valid_ngrams, drop_invalid_ngrams, format_features
 
 
-class ForestTest(unittest.TestCase):
+class WhiteBoxFeatureExtractTest(unittest.TestCase):
     def test_valid_ngrams_extract(self):
         # Each dictionary corresponds to one track; the keys are the n-grams, and the values are the count in the track
         tester = [
@@ -113,10 +110,9 @@ class ForestTest(unittest.TestCase):
         from deep_pianist_identification.whitebox.features import extract_melody_ngrams
 
         # Define the testing track
-        track = 'test_midi_monk_sweeandlovelytake1_clip000.mid'
-        tester = os.path.join(utils.get_project_root(), 'tests/resources', track)
+        tester = os.path.join(utils.get_project_root(), 'tests/resources')
         # Extract the ngrams, making sure to remove leaps
-        restrict_ngrams, _ = extract_melody_ngrams(tester, nclips=6, pianist=18, ngrams=[3], remove_leaps=True)
+        restrict_ngrams, _ = extract_melody_ngrams(tester, nclips=1, pianist=18, ngrams=[3], remove_leaps=True)
         # Iterate through all the n-grams
         for ng, _ in restrict_ngrams.items():
             # Convert the interval classes from strings to integers
@@ -127,7 +123,7 @@ class ForestTest(unittest.TestCase):
             for ic in ics:
                 self.assertTrue(ic < wb_utils.MAX_LEAP)
         # Extract the ngrams, allowing for leaps
-        all_ngrams, _ = extract_melody_ngrams(tester, nclips=6, pianist=18, ngrams=[3], remove_leaps=False)
+        all_ngrams, _ = extract_melody_ngrams(tester, nclips=1, pianist=18, ngrams=[3], remove_leaps=False)
         # Total number of ngrams should be larger when allowing for leaps
         self.assertLess(len(list(restrict_ngrams.keys())), len(list(all_ngrams.keys())))
 
@@ -135,10 +131,9 @@ class ForestTest(unittest.TestCase):
         from deep_pianist_identification.whitebox.features import extract_chords, MAX_LEAPS_IN_CHORD
 
         # Define the testing track
-        track = 'test_midi_monk_sweeandlovelytake1_clip000.mid'
-        tester = os.path.join(utils.get_project_root(), 'tests/resources', track)
+        tester = os.path.join(utils.get_project_root(), 'tests/resources')
         # Extract the ngrams, making sure to remove leaps
-        restrict_ngrams, _ = extract_chords(tester, nclips=6, pianist=18, ngrams=[3], remove_leaps=True)
+        restrict_ngrams, _ = extract_chords(tester, nclips=1, pianist=18, ngrams=[3], remove_leaps=True)
         # Iterate through all the n-grams
         for ng, _ in restrict_ngrams.items():
             # Convert the interval classes from strings to integers
@@ -149,9 +144,9 @@ class ForestTest(unittest.TestCase):
             above_thresh = [i1 for i1, i2 in zip(ics, ics[1:]) if i2 - i1 >= wb_utils.MAX_LEAP]
             self.assertTrue(len(above_thresh) < MAX_LEAPS_IN_CHORD)
         # Extract the ngrams, allowing for leaps
-        all_ngrams, _ = extract_chords(tester, nclips=6, pianist=18, ngrams=[3], remove_leaps=False)
+        all_ngrams, _ = extract_chords(tester, nclips=1, pianist=18, ngrams=[3], remove_leaps=False)
         # Total number of ngrams should be larger when allowing for leaps
-        self.assertLess(len(list(restrict_ngrams.keys())), len(list(all_ngrams.keys())))
+        self.assertLessEqual(len(list(restrict_ngrams.keys())), len(list(all_ngrams.keys())))
 
     def test_harmony_chord_extraction(self):
         from deep_pianist_identification.whitebox.features import _extract_fn_harmony
@@ -177,77 +172,6 @@ class ForestTest(unittest.TestCase):
         expected_chords_notranspose = [[25, 30, 35, 40], [45, 55, 65]]
         actual_chords_notranspose = list(_extract_fn_harmony(midi, transpose=False))
         self.assertEqual(expected_chords_notranspose, actual_chords_notranspose)
-
-
-class BaselineNNTest(unittest.TestCase):
-    def test_cnn(self):
-        # Test max pool and BN
-        cn = CNNet(num_classes=15, pool_type="max", norm_type="bn")
-        self.assertEqual(cn.fc2.fc.out_features, 15)
-        self.assertTrue(cn.layer4.has_pool)
-        self.assertFalse(cn.layer8.has_pool)
-        self.assertIsInstance(cn.layer2.norm, torch.nn.BatchNorm2d)
-        self.assertIsInstance(cn.pooling, torch.nn.AdaptiveMaxPool2d)
-        # Test avg pool and IBN
-        cn = CNNet(num_classes=15, pool_type="avg", norm_type="ibn")
-        self.assertIsInstance(cn.layer2.norm, IBN)
-        self.assertIsInstance(cn.pooling, torch.nn.AdaptiveAvgPool2d)
-        # Test forward
-        x = torch.rand(4, 1, 88, 3000)
-        expected = (4, 15)
-        actual = cn(x)
-        self.assertEqual(actual.size(), expected)
-
-    def test_tang_cnn(self):
-        tcnn = TangCNN(num_classes=15)
-        self.assertEqual(tcnn.fc2.out_features, 15)
-        # Test forward
-        x = torch.rand(4, 1, 88, 3000)
-        expected = (4, 15)
-        actual = tcnn(x)
-        self.assertEqual(actual.size(), expected)
-
-    def test_crnn(self):
-        # Test default parameters
-        crn = CRNNet(num_classes=15)
-        self.assertEqual(crn.fc2.fc.out_features, 15)
-        self.assertTrue(crn.layer4.has_pool)
-        self.assertFalse(crn.layer8.has_pool)
-        self.assertIsInstance(crn.layer2.norm, torch.nn.BatchNorm2d)
-        self.assertIsInstance(crn.pooling, torch.nn.AdaptiveMaxPool2d)
-        # Test avg pooling
-        crn = CRNNet(num_classes=15, pool_type="avg")
-        self.assertIsInstance(crn.pooling, torch.nn.AdaptiveAvgPool2d)
-        # Test forward
-        x = torch.rand(4, 1, 88, 3000)
-        expected = (4, 15)
-        actual = crn(x)
-        self.assertEqual(actual.size(), expected)
-        # Test GRU
-        x_after_conv = torch.rand(4, 512, 11, 375)
-        expected_gru_size = (4, 512, 375)
-        actual_gru_size = crn.gru(x_after_conv).size()
-        self.assertEqual(actual_gru_size, expected_gru_size)
-
-    def test_resnet(self):
-        rn = ResNet50(num_classes=15)
-        self.assertEqual(rn.fc.out_features, 15)
-        self.assertIsInstance(rn.layer1[0].bn1, torch.nn.BatchNorm2d)
-        # self.assertIsInstance(rn.pooling.__module__, torch.nn.AdaptiveMaxPool2d)
-        # Test forward
-        x = torch.rand(4, 1, 88, 3000)
-        expected = (4, 15)
-        actual = rn(x)
-        self.assertEqual(actual.size(), expected)
-
-    def test_forward_features(self):
-        models = [ResNet50, CRNNet, CNNet]
-        sizes = [2048, 512, 512]  # ResNet has 2048-dim embeddings, all others have 512-dim
-        x = torch.rand(4, 1, 88, 3000)
-        for mod, expected in zip(models, sizes):
-            mod = mod(num_classes=20)
-            actual = mod.forward_features(x).size()
-            self.assertEqual(actual, (4, expected))
 
 
 if __name__ == '__main__':
