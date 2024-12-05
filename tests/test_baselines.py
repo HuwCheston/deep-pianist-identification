@@ -113,8 +113,8 @@ class ForestTest(unittest.TestCase):
         from deep_pianist_identification.whitebox.features import extract_melody_ngrams
 
         # Define the testing track
-        track = 'monkt-sweetandlovelytake1-unaccompanied-xxxx-gsz3i0ac'
-        tester = os.path.join(utils.get_project_root(), 'data/clips/pijama', track)
+        track = 'test_midi_monk_sweeandlovelytake1_clip000.mid'
+        tester = os.path.join(utils.get_project_root(), 'tests/resources', track)
         # Extract the ngrams, making sure to remove leaps
         restrict_ngrams, _ = extract_melody_ngrams(tester, nclips=6, pianist=18, ngrams=[3], remove_leaps=True)
         # Iterate through all the n-grams
@@ -135,8 +135,8 @@ class ForestTest(unittest.TestCase):
         from deep_pianist_identification.whitebox.features import extract_chords, MAX_LEAPS_IN_CHORD
 
         # Define the testing track
-        track = 'monkt-sweetandlovelytake1-unaccompanied-xxxx-gsz3i0ac'
-        tester = os.path.join(utils.get_project_root(), 'data/clips/pijama', track)
+        track = 'test_midi_monk_sweeandlovelytake1_clip000.mid'
+        tester = os.path.join(utils.get_project_root(), 'tests/resources', track)
         # Extract the ngrams, making sure to remove leaps
         restrict_ngrams, _ = extract_chords(tester, nclips=6, pianist=18, ngrams=[3], remove_leaps=True)
         # Iterate through all the n-grams
