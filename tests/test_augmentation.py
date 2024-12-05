@@ -14,7 +14,7 @@ from deep_pianist_identification.utils import get_project_root, seed_everything,
 
 class AugmentationTest(unittest.TestCase):
     # Load a test MIDI file: 45 seconds long, containing some scales with a variety of velocities
-    fname = os.path.join(get_project_root(), 'references/test_midi_long.MID')
+    fname = os.path.join(get_project_root(), 'tests/resources/test_midi_long.MID')
     long_midi = PrettyMIDI(fname)
     # Get metadata from notes in original midi file
     input_notes = long_midi.instruments[0].notes
