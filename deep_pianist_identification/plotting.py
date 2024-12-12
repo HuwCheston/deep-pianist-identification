@@ -930,12 +930,12 @@ class LollipopPlotMaskedConceptsAccuracy(BarPlotMaskedConceptsAccuracy):
             linewidth=LINEWIDTH ** 2, linestyle=LINESTYLE, ax=self.ax, zorder=10
         )
 
-    def _add_lollipop(self):
+    def _add_lollipop(self, x: float = 0.015, lpop_space: float = 30):
         for idx, row in self.df.iterrows():
-            val = row[self.xvar]
-            for n_concept, concept in enumerate(reversed(row['concepts'].split(', '))):
+            concepts = sorted(row['concepts'].split(', '))
+            for n_concept, concept in enumerate(concepts):
                 color = self.COLOR_MAPPING[concept]
-                circ = mpatches.Ellipse(xy=(val - (n_concept / 30), idx), facecolor=color, **self.LPOP_KWS)
+                circ = mpatches.Ellipse(xy=(x + (n_concept / lpop_space), idx), facecolor=color, **self.LPOP_KWS)
                 self.ax.add_patch(circ)
 
     def _add_legend(self):
@@ -949,7 +949,7 @@ class LollipopPlotMaskedConceptsAccuracy(BarPlotMaskedConceptsAccuracy):
     def _format_ax(self):
         self._add_lollipop()
         self._add_legend()
-        self._add_bar_labels(x_mult=0.02)
+        # self._add_bar_labels(x_mult=0.02)
         ymin, ymax = self.ax.get_ylim()
         self.ax.set(
             ylabel="Musical dimension", xlabel=self.xlabel, xlim=(0., 1.), ylim=(ymin + 0.1, ymax - 0.1)
