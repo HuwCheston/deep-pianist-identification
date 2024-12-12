@@ -446,16 +446,13 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
         for pianist, m_coef, m_p, m_low, m_hi, h_coef, h_p, h_low, h_hi in zipper:
             mel_ast = self.pval_to_asterisk(m_p)
             har_ast = self.pval_to_asterisk(h_p)
-            # Express CIs with relation to observed coef
-            m_low = m_coef - m_low
-            m_hi = m_hi - m_coef
-            h_low = h_coef - h_low
-            h_hi = h_hi - h_coef
             # Append multiple dictionaries
             tmp_res.append(
-                dict(pianist=pianist, corr=m_coef, p=m_p, low=m_low, high=m_hi, sig=mel_ast, feature="melody"))
+                dict(pianist=pianist, corr=m_coef, p=m_p, low=m_low, high=m_hi, sig=mel_ast, feature="melody")
+            )
             tmp_res.append(
-                dict(pianist=pianist, corr=h_coef, p=h_p, low=h_low, high=h_hi, sig=har_ast, feature="harmony"))
+                dict(pianist=pianist, corr=h_coef, p=h_p, low=h_low, high=h_hi, sig=har_ast, feature="harmony")
+            )
         return pd.DataFrame(tmp_res)
 
     def bootstrap_weights(self, col_idxs: np.array) -> tuple[np.array, np.array]:
@@ -513,12 +510,12 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
         )
 
     def create_outputs(self):
+        # Save the dataframe
+        self.df.to_csv(os.path.join(self.output_dir, 'database_correlations.csv'))
         # Create the barplot
         bp = plotting.BarPlotWhiteboxDatabaseCoefficients(self.df)
         bp.create_plot()
         bp.save_fig(os.path.join(self.output_dir, 'barplot_database_correlations.png'))
-        # Save the dataframe
-        self.df.to_csv(os.path.join(self.output_dir, 'out.csv'))
 
 
 class DatabaseTopKExplainer(WhiteBoxExplainer):

@@ -12,7 +12,7 @@ from deep_pianist_identification import utils
 from deep_pianist_identification.whitebox import wb_utils
 from deep_pianist_identification.whitebox.classifiers import fit_classifier
 from deep_pianist_identification.whitebox.explainers import (
-    LRWeightExplainer, PermutationExplainer, DatabasePermutationExplainer, DatabaseTopKExplainer
+    LRWeightExplainer, PermutationExplainer, DatabasePermutationExplainer
 )
 from deep_pianist_identification.whitebox.features import get_harmony_features, get_melody_features
 
@@ -112,21 +112,6 @@ def create_classifier(
     )
     database_explainer.explain()
     database_explainer.create_outputs()
-    logger.info('---EXPLAINING: DATASET TOP-K FEATURE CORRELATIONS ---')
-    for k in [0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 1.0]:
-        logger.info(f'... k {k}')
-        database_explainer = DatabaseTopKExplainer(
-            x=all_xs,
-            y=all_ys,
-            dataset_idxs=dataset_idxs,
-            feature_names=feature_names,
-            class_mapping=class_mapping,
-            classifier_params=best_params,
-            classifier_type=classifier_type,
-            top_k=k
-        )
-        database_explainer.explain()
-        database_explainer.create_outputs()
     # Permutation feature importance: this class will do all analysis and create plots/outputs
     logger.info('---EXPLAINING: PERMUTATION FEATURE IMPORTANCE (GLOBAL)---')
     # logger.info(f'... shapes: harmony {valid_x_arr_har.shape}, melody {valid_x_arr_mel.shape}, y {valid_y_mel.shape}')
