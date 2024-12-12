@@ -4,6 +4,7 @@
 """Explainer classes for whitebox classification models."""
 
 import os
+import pickle
 from copy import deepcopy
 
 import numpy as np
@@ -364,8 +365,8 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
         self.mel_idxs = np.array([i for i, f in enumerate(feature_names) if f.startswith('M_')])
         self.har_idxs = np.array([i for i, f in enumerate(feature_names) if f.startswith('H_')])
         # We'll fill these variables later
-        self.mel_coefs, self.mel_ps, self.mel_asts = None, None, None
-        self.har_coefs, self.har_ps, self.har_asts = None, None, None
+        self.mel_coefs, self.mel_ps, self.mel_null_dists = None, None, None
+        self.har_coefs, self.har_ps, self.har_null_dists = None, None, None
         # If we want to truncate the number of features (for low-memory systems)
         if n_features is not None:
             # Take only the first N melody and harmony indexes and reduce the feature space
@@ -424,7 +425,7 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
         p_vals = np.array(
             [self.get_permutation_pval(corrcoefs[pidx], null_dists[:, pidx]) for pidx in range(corrcoefs.shape[0])]
         )
-        return corrcoefs, p_vals
+        return corrcoefs, p_vals, null_dists
 
     def pval_to_asterisk(self, pval):
         critical_values = [0.05, 0.01, 0.001]
@@ -439,20 +440,14 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
                 set_asterisk = asterisk
         return set_asterisk
 
-    def format_df(self, mel_coefs, mel_ps, mel_low, mel_hi, har_coefs, har_ps, har_low, har_hi):
-        zipper = zip(self.class_mapping.values(), mel_coefs, mel_ps, mel_low, mel_hi, har_coefs, har_ps, har_low,
-                     har_hi)
+    def format_df(self, mel_coefs, mel_ps, har_coefs, har_ps, ):
         tmp_res = []
-        for pianist, m_coef, m_p, m_low, m_hi, h_coef, h_p, h_low, h_hi in zipper:
+        for pianist, m_coef, m_p, h_coef, h_p in zip(self.class_mapping.values(), mel_coefs, mel_ps, har_coefs, har_ps):
             mel_ast = self.pval_to_asterisk(m_p)
             har_ast = self.pval_to_asterisk(h_p)
             # Append multiple dictionaries
-            tmp_res.append(
-                dict(pianist=pianist, corr=m_coef, p=m_p, low=m_low, high=m_hi, sig=mel_ast, feature="melody")
-            )
-            tmp_res.append(
-                dict(pianist=pianist, corr=h_coef, p=h_p, low=h_low, high=h_hi, sig=har_ast, feature="harmony")
-            )
+            tmp_res.append(dict(pianist=pianist, corr=m_coef, p=m_p, sig=mel_ast, feature="melody"))
+            tmp_res.append(dict(pianist=pianist, corr=h_coef, p=h_p, sig=har_ast, feature="harmony"))
         return pd.DataFrame(tmp_res)
 
     def bootstrap_weights(self, col_idxs: np.array) -> tuple[np.array, np.array]:
@@ -499,15 +494,9 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
         return np.stack(boots)
 
     def explain(self):
-        mel_coefs, mel_ps = self.get_coefficients_and_pvals(self.mel_idxs)
-        har_coefs, har_ps = self.get_coefficients_and_pvals(self.har_idxs)
-        # Bootstrapping
-        mel_boot_low, mel_boot_high = self.bootstrap_weights(self.mel_idxs)
-        har_boot_low, har_boot_high = self.bootstrap_weights(self.har_idxs)
-        self.df = self.format_df(
-            mel_coefs, mel_ps, mel_boot_low, mel_boot_high,
-            har_coefs, har_ps, har_boot_low, har_boot_high
-        )
+        self.mel_coefs, self.mel_ps, self.mel_null_dists = self.get_coefficients_and_pvals(self.mel_idxs)
+        self.har_coefs, self.har_ps, self.har_null_dists = self.get_coefficients_and_pvals(self.har_idxs)
+        self.df = self.format_df(self.mel_coefs, self.mel_ps, self.har_coefs, self.har_ps)
 
     def create_outputs(self):
         # Save the dataframe
@@ -516,6 +505,9 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
         bp = plotting.BarPlotWhiteboxDatabaseCoefficients(self.df)
         bp.create_plot()
         bp.save_fig(os.path.join(self.output_dir, 'barplot_database_correlations.png'))
+        # Dump self to a pickle file
+        with open(os.path.join(self.output_dir, 'database_correlations.p'), 'wb') as out:
+            pickle.dump(self, out)
 
 
 class DatabaseTopKExplainer(WhiteBoxExplainer):
