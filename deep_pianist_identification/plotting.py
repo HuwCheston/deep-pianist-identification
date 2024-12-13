@@ -1041,6 +1041,87 @@ class HistPlotDatabaseNullDistributionCoefficients(BasePlot):
         self.fig.savefig(outpath, **SAVE_KWS)
 
 
+class BarPlotWhiteboxFeatureCounts(BasePlot):
+    BAR_KWS = dict(edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, zorder=10)
+
+    def __init__(
+            self,
+            feature_counts: np.array,
+            mel_features_names: np.array,
+            har_features_names: np.array,
+            k: int = 20
+    ):
+        super().__init__()
+        # Number of features to get for each set
+        self.k = k
+        # Total appearances of each feature across all recordings
+        self.feature_counts_summed = feature_counts.sum(axis=0)
+        # Arrays of names for all features
+        self.mel_names = mel_features_names
+        self.har_names = har_features_names
+        assert len(self.mel_names) + len(self.har_names) == len(self.feature_counts_summed)
+        # Dataframe for plotting
+        self.df = self._format_df(None)
+        self.fig, self.ax = plt.subplots(1, 2, figsize=(WIDTH, WIDTH // 2), sharex=False, sharey=False)
+
+    def _format_df(self, _):
+        def format_feature(idxs, names) -> tuple[np.ndarray, np.ndarray]:
+            features_counts = self.feature_counts_summed[idxs]
+            topk_idxs = np.argsort(features_counts)[::-1][:self.k]
+            topk_counts = features_counts[topk_idxs]
+            topk_names = np.array(names)[topk_idxs]
+            return topk_counts, topk_names
+
+        # Arrays of idxs for each feature set
+        mel_idxs = np.arange(0, len(self.mel_names))
+        har_idxs = np.arange(len(mel_idxs), len(mel_idxs) + len(self.har_names))
+        # Should be the same as the number of features we have counts for
+        assert len(mel_idxs) + len(har_idxs) == len(self.feature_counts_summed)
+        # Formatting for each feature set
+        mel_topk_counts, mel_topk_names = format_feature(mel_idxs, self.mel_names)
+        har_topk_counts, har_topk_names = format_feature(har_idxs, self.har_names)
+        # Creating the dataframe with given column names
+        return pd.DataFrame({
+            'Melody_name': mel_topk_names,
+            'Melody_count': mel_topk_counts,
+            'Harmony_name': har_topk_names,
+            'Harmony_count': har_topk_counts
+        })
+
+    def _create_plot(self):
+        for ax, feature, color in zip(self.ax.flatten(), ["Melody", "Harmony"], RGB):
+            sns.barplot(data=self.df, x=f"{feature}_name", y=f"{feature}_count", ax=ax, color=color, **self.BAR_KWS)
+            ax.set(
+                title=feature, xlabel="Feature", ylabel="Count",
+                ylim=self.ax[0].get_ylim(), yticks=self.ax[0].get_yticks()
+            )
+
+    def _format_ax(self):
+        for ax in self.ax.flatten():
+            # Set axis and tick thickness
+            plt.setp(ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
+            ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
+            ax.set_xticks(ax.get_xticks(), ax.get_xticklabels(), rotation=90)
+            ax.grid(axis='y', zorder=0, **GRID_KWS)
+
+    def _format_fig(self):
+        self.fig.tight_layout()
+
+    def save_fig(self):
+        # Get the directory to save the heatmap in
+        di = os.path.join(
+            utils.get_project_root(),
+            "reports/figures/whitebox",
+        )
+        if not os.path.isdir(di):
+            os.makedirs(di)
+        fp = os.path.join(di, f'barplot_feature_counts.png')
+        # Save the figure
+        self.fig.savefig(fp, **SAVE_KWS)
+        # Close the figure
+        plt.close(self.fig)
+
+
 if __name__ == "__main__":
     met = utils.get_track_metadata(utils.get_pianist_names())
     bp = BarPlotDatasetDurationCount(met)

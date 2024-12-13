@@ -8,7 +8,7 @@ import os
 import numpy as np
 from loguru import logger
 
-from deep_pianist_identification import utils
+from deep_pianist_identification import utils, plotting
 from deep_pianist_identification.whitebox import wb_utils
 from deep_pianist_identification.whitebox.classifiers import fit_classifier
 from deep_pianist_identification.whitebox.explainers import (
@@ -67,6 +67,12 @@ def create_classifier(
     train_x_arr = np.concatenate((train_x_arr_mel, train_x_arr_har), axis=1)
     test_x_arr = np.concatenate((test_x_arr_mel, test_x_arr_har), axis=1)
     valid_x_arr = np.concatenate((valid_x_arr_mel, valid_x_arr_har), axis=1)
+    # Create a plot of the feature counts
+    bp = plotting.BarPlotWhiteboxFeatureCounts(
+        np.vstack([train_x_arr, test_x_arr, valid_x_arr]), mel_features, har_features
+    )
+    bp.create_plot()
+    bp.save_fig()
     # Load the optimized parameter settings (or recreate them, if they don't exist)
     logger.info('---FITTING---')
     csvpath = os.path.join(
