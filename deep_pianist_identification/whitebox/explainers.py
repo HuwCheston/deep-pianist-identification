@@ -347,7 +347,7 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
             classifier_params: dict,
             classifier_type: str,
             bonferroni: bool = True,
-            n_iter=N_ITER // 10,
+            n_iter: int = N_ITER,
             n_features: int = None
     ):
         super().__init__(output_dir='database')
@@ -375,6 +375,11 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
             # Set the idxs properly so we can still subset the reduced feature sapce
             self.mel_idxs = np.arange(0, n_features // 2)
             self.har_idxs = np.arange(n_features // 2, n_features)
+        # Sort everything so we have y-values in ascending order (all class 0 tracks, all class 1 tracks, ...)
+        sorters = np.argsort(self.full_y)
+        self.full_x = self.full_x[sorters, :]
+        self.full_y = self.full_y[sorters]
+        self.dataset_idxs = self.dataset_idxs[sorters]
 
     def get_weights(self, all_dataset_idxs, desired_dataset_idx, feature_idxs):
         # Get indexes for rows (tracks) for this dataset
@@ -387,52 +392,53 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
         # Return the coefficients and stderrs
         return full_model.coef_
 
-    def get_permutation_pval(self, test_statistic: float, null_distribution: np.array, two_sided: bool = True):
-        # If two-sided, express in absolute terms
-        if two_sided:
-            null_distribution = abs(null_distribution)
-            test_statistic = abs(test_statistic)
-        as_extreme = len(null_distribution[null_distribution >= test_statistic])
-        return as_extreme / self.n_iter
+    def get_permutation_pval(self, test_statistic: float, null_distribution: np.array) -> float:
+        # Center both distributions on 0 by subtracting the mean of the null distribution
+        shifted_null_distribution = null_distribution - np.mean(null_distribution)
+        shifted_obs_stat = test_statistic - np.mean(null_distribution)
+        # Count how many values in null distribution are as extreme or more extreme as observed
+        # We use both directions here for a two-sided test
+        extreme_count = np.sum(
+            (shifted_null_distribution <= -abs(shifted_obs_stat)) |
+            (shifted_null_distribution >= abs(shifted_obs_stat))
+        )
+        # Compute the p-value: adding 1 to the denominator ensures we never have p == 0
+        pval = extreme_count / (len(null_distribution) + 1)
+        # Apply multiple correction testing if required
+        if self.bonferroni:
+            # number of tests = [harmony, melody] = 2
+            n_tests = 2
+            # Clamping to 1 in case we increase beyond this
+            pval = min(pval * n_tests, 1.)
+        return pval
 
     def get_null_distributions(self, col_idxs):
+        n_performers = len(np.unique(self.full_y))
+
         def booter(bidx):
             rng = np.random.default_rng(seed=bidx)
-            # Shuffle the idx of dataset values
-            permuted_dataset_idxs = rng.permutation(self.dataset_idxs)
+            # Shuffle the idx of dataset values for each performer's recordings and then stack together
+            # I.e., for Keith Jarrett, we don't want to end up with more unaccompanied recordings than we originally had
+            # So we're shuffling the indices for each performer separately and then stacking them together at the end
+            permuted_dataset_idxs = np.concatenate(
+                [rng.permutation(self.dataset_idxs[self.full_y == i]) for i in range(n_performers)]
+            )
             # Get weights for the shuffled "pijama" tracks
             null_pijama = self.get_weights(permuted_dataset_idxs, 0, col_idxs)
             # Get weights for the shuffled "jtd" tracks
             null_jtd = self.get_weights(permuted_dataset_idxs, 1, col_idxs)
-            # Compute the correlation coefficient for each performer and append to the list
-            return np.array([np.corrcoef(null_pijama[i, :], null_jtd[i, :])[0, 1] for i in range(20)])
+            # Correlate across both datasets for each performer
+            null_coefs = np.array([np.corrcoef(null_pijama[i, :], null_jtd[i, :])[0, 1] for i in range(n_performers)])
+            return null_coefs
 
-        with Parallel(n_jobs=N_JOBS, verbose=0) as parallel:
-            return parallel(delayed(booter)(boot_idx) for boot_idx in tqdm(range(self.n_iter)))
+        with Parallel(n_jobs=-1, verbose=0) as parallel:
+            boots = parallel(delayed(booter)(boot_idx) for boot_idx in tqdm(range(self.n_iter)))
+        return np.stack(list(boots))
 
-    def get_coefficients_and_pvals(self, col_idxs: np.array):
-        # Get model weights for both pijama and jtd
-        pijama_coef = self.get_weights(self.dataset_idxs, 0, col_idxs)
-        jtd_coef = self.get_weights(self.dataset_idxs, 1, col_idxs)
-        # Shape (N_performers, N_features)
-        assert pijama_coef.shape == jtd_coef.shape
-        # Compute the correlation coefficients: shape (N_performers)
-        corrcoefs = np.array(
-            [np.corrcoef(pijama_coef[i, :], jtd_coef[i, :])[0, 1] for i in range(pijama_coef.shape[0])])
-        # Get null distributions: shape (n_iter, n_performers)
-        null_dists = np.stack(list(self.get_null_distributions(col_idxs)))
-        # Get p-values as proportion of values that are as extreme as observed value
-        p_vals = np.array(
-            [self.get_permutation_pval(corrcoefs[pidx], null_dists[:, pidx]) for pidx in range(corrcoefs.shape[0])]
-        )
-        return corrcoefs, p_vals, null_dists
-
-    def pval_to_asterisk(self, pval):
+    @staticmethod
+    def pval_to_asterisk(pval):
         critical_values = [0.05, 0.01, 0.001]
         asterisks = ['*', '**', '***']
-        if self.bonferroni:
-            n_performers = len(np.unique(self.full_y))
-            critical_values = [i / n_performers for i in critical_values]
         # Iterate over all critical values and update value in array
         set_asterisk = ''
         for thresh, asterisk in zip(critical_values, asterisks):
@@ -440,62 +446,39 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
                 set_asterisk = asterisk
         return set_asterisk
 
+    def get_correlation_coefficients(self, col_idxs: np.array):
+        # Get model weights for both pijama and jtd
+        pijama_coef = self.get_weights(self.dataset_idxs, 0, col_idxs)
+        jtd_coef = self.get_weights(self.dataset_idxs, 1, col_idxs)
+        # Shape (N_performers, N_features)
+        assert pijama_coef.shape == jtd_coef.shape
+        # Compute the correlation coefficients: shape (N_performers)
+        return np.array(
+            [np.corrcoef(pijama_coef[i, :], jtd_coef[i, :])[0, 1] for i in range(pijama_coef.shape[0])]
+        )
+
+    def get_permutation_test_results(self, col_idxs: np.array, corrcoefs: np.array):
+        # Get null distributions: shape (n_iter, n_performers)
+        null_dists = self.get_null_distributions(col_idxs)
+        # Get p-values as proportion of values that are as extreme as observed value
+        p_vals = np.array(
+            [self.get_permutation_pval(corrcoefs[pidx], null_dists[:, pidx]) for pidx in range(corrcoefs.shape[0])]
+        )
+        return p_vals, null_dists
+
     def format_df(self, mel_coefs, mel_ps, har_coefs, har_ps, ):
         tmp_res = []
         for pianist, m_coef, m_p, h_coef, h_p in zip(self.class_mapping.values(), mel_coefs, mel_ps, har_coefs, har_ps):
-            mel_ast = self.pval_to_asterisk(m_p)
-            har_ast = self.pval_to_asterisk(h_p)
             # Append multiple dictionaries
-            tmp_res.append(dict(pianist=pianist, corr=m_coef, p=m_p, sig=mel_ast, feature="melody"))
-            tmp_res.append(dict(pianist=pianist, corr=h_coef, p=h_p, sig=har_ast, feature="harmony"))
+            tmp_res.append(dict(pianist=pianist, corr=m_coef, p=m_p, sig=self.pval_to_asterisk(m_p), feature="melody"))
+            tmp_res.append(dict(pianist=pianist, corr=h_coef, p=h_p, sig=self.pval_to_asterisk(h_p), feature="harmony"))
         return pd.DataFrame(tmp_res)
 
-    def bootstrap_weights(self, col_idxs: np.array) -> tuple[np.array, np.array]:
-        # Compute bootstrapped weights: shape (n_iter, n_performers, n_features)
-        jtd_stack = self._bootstrap_models(col_idxs, 1)
-        pij_stack = self._bootstrap_models(col_idxs, 0)
-        # Compute correlations
-        all_lows, all_highs = [], []
-        for perf_idx in range(jtd_stack.shape[1]):
-            all_perf_corrs = []
-            for boot_idx in range(jtd_stack.shape[0]):
-                perf_boot_jtd = jtd_stack[boot_idx, perf_idx, :]
-                perf_boot_pij = pij_stack[boot_idx, perf_idx, :]
-                all_perf_corrs.append(np.corrcoef(perf_boot_pij, perf_boot_jtd)[0, 1])
-            # Append upper and lower boundaries
-            all_lows.append(np.quantile(all_perf_corrs, 0.025))
-            all_highs.append(np.quantile(all_perf_corrs, 0.975))
-        # Shape (n_performers)
-        return np.array(all_lows), np.array(all_highs)
-
-    def _bootstrap_models(self, col_idxs: np.array, desired_dataset_idx: int):
-        def booter(x: np.array, y: np.array):
-            # Create array of indices, sampled with replacement
-            boot_idxs = np.random.choice(np.arange(len(y)), len(y), replace=True)
-            # Subset input data
-            boot_x, boot_y = x[boot_idxs, :], y[boot_idxs]
-            # We need to have all one recording from all performers in `y`
-            if len(np.unique(boot_y)) != len(np.unique(y)):
-                return booter(x, y)
-            # Create the LR model and fit
-            boot_model = self.classifier(**self.classifier_params)
-            boot_model.fit(boot_x, boot_y)
-            # Return the coefficients
-            return boot_model.coef_
-
-        # Get indexes for rows (tracks) for desired dataset
-        row_idxs = np.argwhere(self.dataset_idxs == desired_dataset_idx).flatten()
-        # Subset data row- and column-wise
-        current_x, current_y = self.full_x[np.ix_(row_idxs, col_idxs)], self.full_y[row_idxs]
-        # Create bootstrapped coefficients with multiprocessing
-        with Parallel(n_jobs=N_JOBS, verbose=0) as par:
-            boots = par(delayed(booter)(current_x, current_y) for _ in range(self.n_iter))
-        # Stack into shape (n_iter, n_performers, n_features)
-        return np.stack(boots)
-
     def explain(self):
-        self.mel_coefs, self.mel_ps, self.mel_null_dists = self.get_coefficients_and_pvals(self.mel_idxs)
-        self.har_coefs, self.har_ps, self.har_null_dists = self.get_coefficients_and_pvals(self.har_idxs)
+        self.mel_coefs = self.get_correlation_coefficients(self.mel_idxs)
+        self.har_coefs = self.get_correlation_coefficients(self.har_idxs)
+        self.mel_ps, self.mel_null_dists = self.get_permutation_test_results(self.mel_idxs, self.mel_coefs)
+        self.har_ps, self.har_null_dists = self.get_permutation_test_results(self.har_idxs, self.har_coefs)
         self.df = self.format_df(self.mel_coefs, self.mel_ps, self.har_coefs, self.har_ps)
 
     def create_outputs(self):
@@ -505,6 +488,15 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
         bp = plotting.BarPlotWhiteboxDatabaseCoefficients(self.df)
         bp.create_plot()
         bp.save_fig(os.path.join(self.output_dir, 'barplot_database_correlations.png'))
+        # Create the histplot
+        hp = plotting.HistPlotDatabaseNullDistributionCoefficients(
+            self.mel_null_dists, self.har_null_dists,
+            self.mel_coefs, self.har_coefs,
+            self.mel_ps, self.har_ps,
+            self.class_mapping
+        )
+        hp.create_plot()
+        hp.save_fig(os.path.join(self.output_dir, 'histplot_nulldistribution_coefficients.png'))
         # Dump self to a pickle file
         with open(os.path.join(self.output_dir, 'database_correlations.p'), 'wb') as out:
             pickle.dump(self, out)

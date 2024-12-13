@@ -421,6 +421,7 @@ class BarPlotWhiteboxDatabaseCoefficients(BasePlot):
     """Bar plot showing the performer correlations obtained from both source databases for a whitebox model"""
     BAR_KWS = dict(palette="tab10", edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, legend=False, zorder=10)
     ERROR_KWS = dict(lw=LINEWIDTH, color=BLACK, capsize=8, zorder=100, elinewidth=LINEWIDTH, ls='none')
+    X_PADDING = 0.01
 
     def __init__(self, coef_df):
         super().__init__()
@@ -447,14 +448,13 @@ class BarPlotWhiteboxDatabaseCoefficients(BasePlot):
         for concept, ax in zip(['Melody', 'Harmony'], self.ax.flatten()):
             sub = self.df[self.df['feature'] == concept].reset_index(drop=True)
             sns.barplot(data=sub, x='corr', y='pianist', hue='pianist', ax=ax, **self.BAR_KWS)
-            # try:
-            #     ax.errorbar(sub['corr'], sub['pianist'], xerr=[sub['low'], sub['high']], **self.ERROR_KWS)
-            # except KeyError:
-            #     continue
+            for idx, row in sub.iterrows():
+                x = row['corr'] + self.X_PADDING if row['corr'] > 0 else row['corr'] - self.X_PADDING
+                ax.text(x, idx, row['sig'], ha='center')
 
     def _format_ax(self):
-        xmin = min([ax.get_xlim()[0] for ax in self.ax.flatten()])
-        xmax = max([ax.get_xlim()[1] for ax in self.ax.flatten()])
+        xmin = min([ax.get_xlim()[0] for ax in self.ax.flatten()]) - self.X_PADDING
+        xmax = max([ax.get_xlim()[1] for ax in self.ax.flatten()]) + self.X_PADDING
         for concept, ax in zip(['Melody', 'Harmony'], self.ax.flatten()):
             ax.axvline(0, 0, 1, linewidth=LINEWIDTH, color=BLACK)
             ax.set(
@@ -964,6 +964,81 @@ class LollipopPlotMaskedConceptsAccuracy(BarPlotMaskedConceptsAccuracy):
             os.makedirs(fold)
         fp = os.path.join(fold, f"lollipop_masked_concept_{self.xvar}.png")
         self.fig.savefig(fp, **SAVE_KWS)
+
+
+class HistPlotDatabaseNullDistributionCoefficients(BasePlot):
+    KDE_KWS = dict(bw_adjust=.5, clip_on=False, fill=True, alpha=ALPHA, linewidth=1.5)
+    VLINE_KWS = dict(ymin=0, ymax=1, zorder=100, linewidth=LINEWIDTH, linestyle=DASHED)
+
+    def __init__(
+            self,
+            mel_null_dists: np.array,
+            har_null_dists: np.array,
+            mel_coefs: np.array,
+            har_coefs: np.array,
+            mel_ps: np.array,
+            har_ps: np.array,
+            class_mapping
+    ):
+        super().__init__()
+        self.dists = [mel_null_dists, har_null_dists]
+        self.coefs = [mel_coefs, har_coefs]
+        self.ps = [mel_ps, har_ps]
+        self.class_mapping = np.array(list(class_mapping.values()))
+        self.fig, self.ax = plt.subplots(
+            len(class_mapping.values()), 2,
+            figsize=(WIDTH, WIDTH),
+            sharex=True, sharey=True
+        )
+
+    def _create_plot(self):
+        sorters = np.argsort(self.coefs[0])[::-1]
+        class_mapping = self.class_mapping[sorters]
+        for feature_num, (dists, coefs, ps, color) in enumerate(zip(self.dists, self.coefs, self.ps, RGB)):
+            dists = dists[:, sorters].T
+            coefs = coefs[sorters]
+            ps = ps[sorters]
+            feature_axs = self.ax[:, feature_num]
+            for ax, dist, coef, p, cls in zip(feature_axs.flatten(), dists, coefs, ps, class_mapping):
+                sns.kdeplot(dist, ax=ax, color=color, **self.KDE_KWS)
+                ax.axvline(coef, color=color, **self.VLINE_KWS)
+                if p == 1.:
+                    p_txt = rf'$p$ = 1.'
+                elif p >= 0.001:
+                    p_txt = rf'$p$ = {str(round(p, 3))[1:]}'
+                else:
+                    p_txt = rf'$p$ < .001'
+                p_txt = f'{cls} {p_txt}'
+                ax.text(
+                    1., 0.5, p_txt, transform=ax.transAxes, fontsize=FONTSIZE / 1.5,
+                    ha='right', va='center', bbox=dict(
+                        facecolor='wheat', boxstyle='round', edgecolor=BLACK,
+                        linewidth=LINEWIDTH / 1.5
+                    )
+                )
+
+    def _format_ax(self):
+        for num, title in enumerate(["Melody", "Harmony"]):
+            self.ax[0, num].set_title(title)
+            self.ax[-1, num].set_xlabel('Coefficient ($r$)')
+            self.ax[10, num].text(-0.05, 0.5, "Count", ha='center', va='center', transform=self.ax[10, num].transAxes,
+                                  rotation=90)
+
+        for ax in self.ax.flatten():
+            for spine in ["left", "right", "top"]:
+                ax.spines[spine].set_visible(False)
+            ax.set(yticks=[], ylabel="")
+            ax.axvline(0, 0, 1, color=BLACK, linewidth=LINEWIDTH)
+            # Set axis and tick thickness
+            plt.setp(ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
+            ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
+
+    def _format_fig(self):
+        self.fig.tight_layout()
+        self.fig.subplots_adjust(hspace=0.05)
+
+    def save_fig(self, outpath: str):
+        self.fig.savefig(outpath, **SAVE_KWS)
 
 
 if __name__ == "__main__":
