@@ -108,14 +108,14 @@ def create_classifier(
         class_mapping=class_mapping,
         classifier_params=best_params,
         classifier_type=classifier_type,
-        n_iter=n_iter // 10
+        n_iter=n_iter
     )
     database_explainer.explain()
     database_explainer.create_outputs()
     # Permutation feature importance: this class will do all analysis and create plots/outputs
     logger.info('---EXPLAINING: PERMUTATION FEATURE IMPORTANCE (GLOBAL)---')
     # logger.info(f'... shapes: harmony {valid_x_arr_har.shape}, melody {valid_x_arr_mel.shape}, y {valid_y_mel.shape}')
-    logger.info(f'... scale: {scale}, n_iter {n_iter}, n_boots {n_iter // 10}, initial accuracy {valid_acc}')
+    logger.info(f'... scale: {scale}, n_iter {n_iter}, n_boots {n_iter}, initial accuracy {valid_acc}')
     permute_explainer = PermutationExplainer(
         harmony_features=valid_x_arr_har,
         melody_features=valid_x_arr_mel,
@@ -124,14 +124,14 @@ def create_classifier(
         init_acc=valid_acc,
         scale=scale,
         n_iter=n_iter,
-        n_boot_features=n_iter // 10
+        n_boot_features=n_iter
     )
     permute_explainer.explain()
     permute_explainer.create_outputs()
     # Weights for top k features for each performer across melody/harmony features
     logger.info('---EXPLAINING: MODEL WEIGHTS (LOCAL)---')
     logger.info(f'... shapes: x {all_xs.shape}, y {all_ys.shape}, feature names {feature_names.shape}')
-    logger.info(f'... n_iter {n_iter // 10}')
+    logger.info(f'... n_iter {n_iter}')
     lr_exp = LRWeightExplainer(
         x=all_xs,
         y=np.hstack([train_y_mel, test_y_mel, valid_y_mel]),
@@ -140,7 +140,7 @@ def create_classifier(
         classifier_type=classifier_type,
         classifier_params=best_params,
         use_odds_ratios=True,
-        n_iter=n_iter // 10,
+        n_iter=n_iter,
     )
     lr_exp.explain()
     lr_exp.create_outputs()
