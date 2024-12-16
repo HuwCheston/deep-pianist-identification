@@ -17,8 +17,9 @@ import seaborn as sns
 from loguru import logger
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from music21.chord import Chord
+from music21.meter import TimeSignature
 from music21.note import Note
-from music21.stream import Stream
+from music21.stream import Part, Measure, Score
 from pretty_midi import note_name_to_number, note_number_to_name
 from skimage import io
 from skimage.transform import resize
@@ -256,31 +257,49 @@ class StripplotTopKFeatures(BasePlot):
         self.concept_name = concept_name
         self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH // 2.25))
 
+    def ic_to_music21_note(self, ic: int, prev_note):
+        # Get the previous note as a name ("C5") and convert to a MIDI number
+        prev_number = note_name_to_number(str(prev_note))
+        # Add the current interval class to the previous note number
+        next_number = prev_number + ic
+        # If we're plotting chords, we want to express all chords on the same octave
+        if self.concept_name == "harmony":
+            # So keep subtracting an octave from the note until it's within the same octave as middle C
+            while next_number >= utils.MIDDLE_C + utils.OCTAVE:
+                next_number -= utils.OCTAVE
+        # Music21 expects note names, so convert to a name and append to the list
+        return Note(note_number_to_name(next_number), quarterLength=1)
+
+    def _create_music21(self, ngram: str) -> Score:
+        # These hold all the note instances we'll create
+        score, part, measure = Score(), Part(), Measure()
+        # Evaluate the n-gram as a list of integers
+        ngram_list = eval(ngram)
+        ts_numerator = len(ngram_list) if self.concept_name == "melody" else 1
+        # Time signature with same number of quarter notes as ICs in n-gram
+        ts = TimeSignature(f"{ts_numerator}/4")
+        ts.style.hideObjectOnPrint = True  # hides the time signature
+        # Add the time signature to the measure
+        measure.append(ts)
+        # We'll express all notation with relation to middle C
+        measure.append(Note(note_number_to_name(utils.MIDDLE_C), quarterLength=1))
+        # Iterate over all the ICs in the n-gram
+        for ic in ngram_list:
+            # Add the note to the measure
+            measure.append(self.ic_to_music21_note(ic, measure[-1].pitch))
+        # Converting the measure to a chord and then back will remove all rhythmic information
+        if self.concept_name == "harmony":
+            measure = Measure(Chord([i for i in measure if not isinstance(i, TimeSignature)]))
+        # Add the measure to the part and the part to the score
+        part.append(measure)
+        score.append(part)
+        # Remove the final bar line from the part
+        part[-1].rightBarline = None
+        return score
+
     def _add_notation(self, ngram: str, y: float) -> None:
         """Adds a given feature/ngram as notation onto the axis with a given y coordinate"""
-        # This just holds all the note instances we'll create
-        notes = Stream()
-        # We'll express all notation with relation to middle C
-        notes.append(Note(note_number_to_name(utils.MIDDLE_C)))
-        # Evaluate the ngram as a list of integers then iterate through all notes
-        for n in eval(ngram):
-            # Get the previous note as a name ("C5") and convert to a MIDI number
-            prev_note = str(notes[-1].pitch)
-            prev_number = note_name_to_number(prev_note)
-            # Add the current interval class to the previous note number
-            next_number = prev_number + n
-            # If we're plotting chords, we want to express all chords on the same octave
-            if self.concept_name == "harmony":
-                # So keep subtracting an octave from the note until it's within the same octave as middle C
-                while next_number >= utils.MIDDLE_C + utils.OCTAVE:
-                    next_number -= utils.OCTAVE
-            # Music21 expects note names, so convert to a name and append to the list
-            next_note = Note(note_number_to_name(next_number))
-            notes.append(next_note)
-        # Converting the stream to a chord and then back will remove all rhythmic information
-        if self.concept_name == "harmony":
-            notes = Stream(Chord(notes))
-
+        notes = self._create_music21(ngram)
         # Export the notation as an image
         try:
             notes.write("musicxml.png", "tmp.png")
