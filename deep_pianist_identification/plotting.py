@@ -17,6 +17,7 @@ import seaborn as sns
 from loguru import logger
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from music21.chord import Chord
+from music21.clef import bestClef
 from music21.meter import TimeSignature
 from music21.note import Note
 from music21.stream import Part, Measure, Score
@@ -293,6 +294,9 @@ class StripplotTopKFeatures(BasePlot):
         # Add the measure to the part and the part to the score
         part.append(measure)
         score.append(part)
+        # Get the best clef for the part recursively
+        cl = bestClef(part, recurse=True)
+        part.append(cl)
         # Remove the final bar line from the part
         part[-1].rightBarline = None
         return score
@@ -312,7 +316,7 @@ class StripplotTopKFeatures(BasePlot):
 
         # Read the image in to matplotlib and add to the axes
         image = plt.imread("tmp-1.png")
-        imagebox = OffsetImage(image, zoom=0.3)
+        imagebox = OffsetImage(image, zoom=0.25)
         ab = AnnotationBbox(imagebox, (1.025, y), xycoords='axes fraction', frameon=False, box_alignment=(0, 0.5))
         self.ax.add_artist(ab)
         # Remove the temporary files we've created
