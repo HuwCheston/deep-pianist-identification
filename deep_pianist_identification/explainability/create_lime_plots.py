@@ -26,7 +26,7 @@ from deep_pianist_identification.training import TrainModule, DEFAULT_CONFIG
 
 MODEL_NAME = "baselines/resnet50-jtd+pijama-augment"
 
-N_SAMPLES = 10
+N_SAMPLES = 1000
 N_FEATURES = 5
 
 
