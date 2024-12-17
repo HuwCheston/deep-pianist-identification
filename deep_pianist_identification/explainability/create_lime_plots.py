@@ -26,7 +26,7 @@ from deep_pianist_identification.training import TrainModule, DEFAULT_CONFIG
 
 MODEL_NAME = "baselines/resnet50-jtd+pijama-augment"
 
-N_SAMPLES = 1000
+N_SAMPLES = 10
 N_FEATURES = 5
 
 
@@ -103,10 +103,17 @@ class HeatmapLIMEPianoRoll(plotting.BasePlot):
     def parse_human_readable_trackname(self):
         clip_start_fmt = self.seconds_to_timedelta(self.clip_start)
         clip_end_fmt = self.seconds_to_timedelta(self.clip_end)
-        json_path = os.path.join(utils.get_project_root(), 'data/raw', self.clip_path.split('_')[0], 'metadata.json')
-        loaded = json.load(open(json_path, 'r'))
-        return (f'{loaded["bandleader"]} — "{loaded["track_name"]}" ({clip_start_fmt}—{clip_end_fmt}) '
-                f'\nfrom "{loaded["album_name"]}", {loaded["recording_year"]}')
+        # TODO: make this nicer
+        for dataset in ['jtd', 'pijama']:
+            temp_path = f'{dataset}/{self.clip_path.split("_")[0].split("/")[1]}'
+            json_path = os.path.join(utils.get_project_root(), 'data/raw', temp_path, 'metadata.json')
+            try:
+                loaded = json.load(open(json_path, 'r'))
+            except FileNotFoundError:
+                continue
+            else:
+                return (f'{loaded["bandleader"]} — "{loaded["track_name"]}" ({clip_start_fmt}—{clip_end_fmt}) '
+                        f'\nfrom "{loaded["album_name"]}", {loaded["recording_year"]}')
 
     def get_explanation(self):
         explanation = self.EXPLAINED.explain_instance(
