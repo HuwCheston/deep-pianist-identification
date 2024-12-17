@@ -26,7 +26,7 @@ from deep_pianist_identification.training import TrainModule, DEFAULT_CONFIG
 
 MODEL_NAME = "baselines/resnet50-jtd+pijama-augment"
 
-N_SAMPLES = 100
+N_SAMPLES = 1000
 N_FEATURES = 5
 
 
@@ -211,6 +211,10 @@ def create_plots(dataset, class_mapping, model):
             continue
         roll, _, clip_path = ret
         clip_path = f'{clip_path}_clip_{str(clip_idx).zfill(3)}'
+        # Update clip path with target dataset if we don't have this
+        # TODO: why?
+        if "jtd" not in clip_path.lower() or "pijama" not in clip_path.lower():
+            clip_path = f'{"jtd" if target_dataset == 1 else "pijama"}/{clip_path}'
         logger.info(f'Processing {clip_path}')
         hm = HeatmapLIMEPianoRoll(roll[0], clip_path, model, target_pianist)
         hm.create_plot()
