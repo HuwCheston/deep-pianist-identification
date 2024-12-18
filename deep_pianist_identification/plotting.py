@@ -821,13 +821,18 @@ class HeatmapCAVKernelSensitivity(BasePlot):
         return clip_start, clip_end
 
     def parse_human_readable_trackname(self):
-        tmp = os.path.sep.join(self.clip_path.split(os.path.sep)[-3:-1])
         clip_start_fmt = self.seconds_to_timedelta(self.clip_start)
         clip_end_fmt = self.seconds_to_timedelta(self.clip_end)
-        json_path = os.path.join(utils.get_project_root(), 'data/raw', tmp, 'metadata.json')
-        loaded = json.load(open(json_path, 'r'))
-        return (f'{loaded["bandleader"]} — "{loaded["track_name"]}" ({clip_start_fmt}—{clip_end_fmt}) '
-                f'from ${loaded["album_name"]}$, {loaded["recording_year"]} (CAV: {self.cav_name})')
+        for dataset in ['jtd', 'pijama']:
+            temp_path = f'{dataset}/{self.clip_path.split("_")[0].split("/")[1]}'
+            json_path = os.path.join(utils.get_project_root(), 'data/raw', temp_path, 'metadata.json')
+            try:
+                loaded = json.load(open(json_path, 'r'))
+            except FileNotFoundError:
+                continue
+            else:
+                return (f'{loaded["bandleader"]} — "{loaded["track_name"]}" ({clip_start_fmt}—{clip_end_fmt}) '
+                        f'\nfrom "{loaded["album_name"]}", {loaded["recording_year"]}. CAV: {self.cav_name.title()}')
 
     def _create_plot(self):
         # Create the background for the heatmap by resizing to the same size as the piano roll
@@ -853,19 +858,22 @@ class HeatmapCAVKernelSensitivity(BasePlot):
 
     def _format_fig(self):
         # Figure aesthetics
-        self.fig.subplots_adjust(right=1.07, left=0.05, top=0.93, bottom=0.20)
+        self.fig.subplots_adjust(right=1.075, left=0.05, top=0.875, bottom=0.15)
+
+    # self.fig.subplots_adjust(right=1.07, left=0.05, top=0.93, bottom=0.20)
 
     def _format_ax(self):
         # Axis aesthetics
         self.ax.set(
-            xticks=range(0, utils.CLIP_LENGTH * utils.FPS, utils.FPS),
-            xticklabels=[self.seconds_to_timedelta(i) for i in range(self.clip_start, self.clip_end, 1)],
-            yticks=range(0, utils.PIANO_KEYS, 12),
+            xticks=range(0, (utils.CLIP_LENGTH * utils.FPS + 1), utils.FPS * 5),
+            xticklabels=[self.seconds_to_timedelta(i) for i in range(self.clip_start, self.clip_end + 1, 5)],
+            yticks=range(0, utils.PIANO_KEYS, utils.OCTAVE),
+            yticklabels=[note_number_to_name(i + utils.MIDI_OFFSET) for i in range(0, utils.PIANO_KEYS, 12)],
             title=self.parse_human_readable_trackname(),
             xlabel="Time (seconds)",
             ylabel="Note",
-            yticklabels=[note_number_to_name(i + utils.MIDI_OFFSET) for i in range(0, utils.PIANO_KEYS, 12)],
         )
+        self.ax.set_xticklabels(self.ax.get_xticklabels(), rotation=0)
         fmt_heatmap_axis(self.ax)
 
     def save_fig(self):
