@@ -17,8 +17,6 @@ from tqdm import tqdm
 from deep_pianist_identification import utils, plotting
 from deep_pianist_identification.whitebox.wb_utils import get_classifier_and_params, N_ITER, N_JOBS
 
-N_BOOT = 10000
-K_COEFS = 2000
 N_PERMUTATION_COEFS = 2000
 
 
@@ -57,7 +55,7 @@ class LRWeightExplainer(WhiteBoxExplainer):
             classifier_params: dict,
             use_odds_ratios: bool = True,
             k: int = 5,
-            n_iter: int = N_BOOT,
+            n_iter: int = N_ITER,
             n_features: int = None
     ):
         super().__init__(output_dir='lr_weights')
@@ -201,7 +199,7 @@ class PermutationExplainer(WhiteBoxExplainer):
             classifier,
             init_acc: float,
             scale: bool = True,
-            n_iter: int = N_BOOT,
+            n_iter: int = N_ITER,
             n_boot_features: int = N_PERMUTATION_COEFS,
             n_features: int = None
     ):
@@ -341,6 +339,7 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
             self,
             x: np.array,
             y: np.array,
+            k: int,
             dataset_idxs: np.array,
             feature_names: np.array,
             class_mapping: dict,
@@ -354,6 +353,7 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
         # Set all passed in variables as attributes
         self.full_x = x
         self.full_y = y
+        self.k = self.get_k_as_int(k)
         self.dataset_idxs = dataset_idxs
         self.classifier_params = classifier_params
         self.class_mapping = class_mapping
@@ -372,7 +372,7 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
             # Take only the first N melody and harmony indexes and reduce the feature space
             reduced_x_idxs = [*self.mel_idxs[:n_features // 2], *self.har_idxs[:n_features // 2]]
             self.full_x = self.full_x[:, reduced_x_idxs]
-            # Set the idxs properly so we can still subset the reduced feature sapce
+            # Set the idxs properly so we can still subset the reduced feature space
             self.mel_idxs = np.arange(0, n_features // 2)
             self.har_idxs = np.arange(n_features // 2, n_features)
         # Sort everything so we have y-values in ascending order (all class 0 tracks, all class 1 tracks, ...)
@@ -380,6 +380,16 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
         self.full_x = self.full_x[sorters, :]
         self.full_y = self.full_y[sorters]
         self.dataset_idxs = self.dataset_idxs[sorters]
+
+    def get_k_as_int(self, k: float | int) -> int:
+        """Interprets `k` as either the number of features (int) or the fraction of total features (float)"""
+        if isinstance(k, int) and 0 < k <= self.full_x.shape[1]:
+            return k
+        elif isinstance(k, float) and k <= 1.:
+            return int(self.full_x.shape[1] * k)
+        else:
+            raise ValueError('`k` must either be an integer between 1 < `k` <= `num_features` '
+                             'or a float between 0 < `k` <= 1 ')
 
     def get_weights(self, all_dataset_idxs, desired_dataset_idx, feature_idxs):
         # Get indexes for rows (tracks) for this dataset
@@ -393,16 +403,10 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
         return full_model.coef_
 
     def get_permutation_pval(self, test_statistic: float, null_distribution: np.array) -> float:
-        # Center both distributions on 0 by subtracting the mean of the null distribution
-        shifted_null_distribution = null_distribution - np.mean(null_distribution)
-        shifted_obs_stat = test_statistic - np.mean(null_distribution)
-        # Count how many values in null distribution are as extreme or more extreme as observed
-        # We use both directions here for a two-sided test
-        extreme_count = np.sum(
-            (shifted_null_distribution <= -abs(shifted_obs_stat)) |
-            (shifted_null_distribution >= abs(shifted_obs_stat))
-        )
-        # Compute the p-value: adding 1 to the denominator ensures we never have p == 0
+        # Count how many values in null distribution are smaller than observed
+        # This is a one-sided, left-tailed permutation test
+        extreme_count = np.sum(null_distribution <= test_statistic)
+        # Compute the p-value: adding 1 to both values ensures we never have p == 0
         pval = extreme_count / (len(null_distribution) + 1)
         # Apply multiple correction testing if required
         if self.bonferroni:
@@ -435,13 +439,15 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
             boots = parallel(delayed(booter)(boot_idx) for boot_idx in tqdm(range(self.n_iter)))
         return np.stack(list(boots))
 
-    @staticmethod
-    def pval_to_asterisk(pval):
+    def pval_to_asterisk(self, pval):
         critical_values = [0.05, 0.01, 0.001]
         asterisks = ['*', '**', '***']
         # Iterate over all critical values and update value in array
         set_asterisk = ''
         for thresh, asterisk in zip(critical_values, asterisks):
+            # Adjust the significance threshold if required
+            if self.bonferroni:
+                thresh /= 2  # 2 tests [melody, harmony]
             if pval <= thresh:
                 set_asterisk = asterisk
         return set_asterisk
@@ -474,20 +480,41 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
             tmp_res.append(dict(pianist=pianist, corr=h_coef, p=h_p, sig=self.pval_to_asterisk(h_p), feature="harmony"))
         return pd.DataFrame(tmp_res)
 
+    def get_topk_idxs(self, feature_idxs: np.array) -> np.array:
+        # Fit the model to all the features and all the tracks
+        full_model = self.classifier(**self.classifier_params)
+        full_model.fit(self.full_x[:, feature_idxs], self.full_y)
+        # Get the coefficients
+        full_weights = full_model.coef_
+        # Get the maximum weight for each feature: shape (n_features)
+        max_weights = full_weights.max(axis=0)
+        assert len(max_weights) == len(feature_idxs)
+        # Get the indices for these top-k features
+        topk_idxs = np.argsort(max_weights)[::-1][:self.k]
+        # Subset the initial index array
+        # The returned indices can be used to subset the `x` array
+        return feature_idxs[topk_idxs]
+
     def explain(self):
-        self.mel_coefs = self.get_correlation_coefficients(self.mel_idxs)
-        self.har_coefs = self.get_correlation_coefficients(self.har_idxs)
-        self.mel_ps, self.mel_null_dists = self.get_permutation_test_results(self.mel_idxs, self.mel_coefs)
-        self.har_ps, self.har_null_dists = self.get_permutation_test_results(self.har_idxs, self.har_coefs)
+        # Get the top-k melody and harmony feature indices
+        mel_topk_idxs = self.get_topk_idxs(self.mel_idxs)
+        har_topk_idxs = self.get_topk_idxs(self.har_idxs)
+        # Get the correlation coefficients for the top-k features
+        self.mel_coefs = self.get_correlation_coefficients(mel_topk_idxs)
+        self.har_coefs = self.get_correlation_coefficients(har_topk_idxs)
+        # Compute the permutation test results and store p values and null distributions
+        self.mel_ps, self.mel_null_dists = self.get_permutation_test_results(mel_topk_idxs, self.mel_coefs)
+        self.har_ps, self.har_null_dists = self.get_permutation_test_results(har_topk_idxs, self.har_coefs)
+        # Format everything as a dataframe
         self.df = self.format_df(self.mel_coefs, self.mel_ps, self.har_coefs, self.har_ps)
 
     def create_outputs(self):
         # Save the dataframe
-        self.df.to_csv(os.path.join(self.output_dir, 'database_correlations.csv'))
+        self.df.to_csv(os.path.join(self.output_dir, f'database_correlations_k{self.k}.csv'))
         # Create the barplot
         bp = plotting.BarPlotWhiteboxDatabaseCoefficients(self.df)
         bp.create_plot()
-        bp.save_fig(os.path.join(self.output_dir, 'barplot_database_correlations.png'))
+        bp.save_fig(os.path.join(self.output_dir, f'barplot_database_correlations_k{self.k}.png'))
         # Create the histplot
         hp = plotting.HistPlotDatabaseNullDistributionCoefficients(
             self.mel_null_dists, self.har_null_dists,
@@ -496,110 +523,7 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
             self.class_mapping
         )
         hp.create_plot()
-        hp.save_fig(os.path.join(self.output_dir, 'histplot_nulldistribution_coefficients.png'))
+        hp.save_fig(os.path.join(self.output_dir, f'histplot_nulldistribution_coefficients_k{self.k}.png'))
         # Dump self to a pickle file
-        with open(os.path.join(self.output_dir, 'database_correlations.p'), 'wb') as out:
+        with open(os.path.join(self.output_dir, f'database_correlations_k{self.k}.p'), 'wb') as out:
             pickle.dump(self, out)
-
-
-class DatabaseTopKExplainer(WhiteBoxExplainer):
-    """Creates explanations for correlation between top-k melody/harmony features from both source datasets"""
-
-    def __init__(
-            self,
-            x: np.array,
-            y: np.array,
-            dataset_idxs: np.array,
-            feature_names: np.array,
-            class_mapping: dict,
-            classifier_params: dict,
-            classifier_type: str,
-            top_k: float,
-            n_features: int = None
-    ):
-        super().__init__(output_dir='database_topk')
-        # Set all passed in variables as attributes
-        self.full_x = x
-        self.full_y = y
-        self.classifier_params = classifier_params
-        self.class_mapping = class_mapping
-        self.top_k = top_k
-        assert top_k <= 1.
-        # Get indices of tracks for each dataset
-        self.dataset_idxs = dataset_idxs
-        self.jtd_idxs = np.argwhere(dataset_idxs == 1).flatten()
-        self.pijama_idxs = np.argwhere(dataset_idxs == 0).flatten()
-        # Get the classifier type from the input string
-        self.classifier, _ = get_classifier_and_params(classifier_type)
-        # Create arrays of indexes for each feature category: melody and harmony
-        self.mel_idxs = np.array([i for i, f in enumerate(feature_names) if f.startswith('M_')])
-        self.har_idxs = np.array([i for i, f in enumerate(feature_names) if f.startswith('H_')])
-        # If we want to truncate the number of features (for low-memory systems)
-        if n_features is not None:
-            # Take only the first N melody and harmony indexes and reduce the feature space
-            reduced_x_idxs = [*self.mel_idxs[:n_features // 2], *self.har_idxs[:n_features // 2]]
-            self.full_x = self.full_x[:, reduced_x_idxs]
-            # Set the idxs properly so we can still subset the reduced feature sapce
-            self.mel_idxs = np.arange(0, n_features // 2)
-            self.har_idxs = np.arange(n_features // 2, n_features)
-
-    def _get_weights(self, x: np.array, y: np.array) -> np.array:
-        # Create model and fit to corresponding features
-        md = self.classifier(**self.classifier_params)
-        md.fit(x, y)
-        return md.coef_
-
-    def get_topk_weight_idxs(self, feature_idxs: np.array) -> np.array:
-        # Fit the full model to all data using all the features
-        full_weights = self._get_weights(self.full_x[:, feature_idxs], self.full_y)
-        # Get the maximum weight for each feature: shape (n_features)
-        max_weights = full_weights.max(axis=0)
-        assert len(max_weights) == len(feature_idxs)
-        # Get the total number of features to use
-        k_int = int(len(feature_idxs) * self.top_k)
-        # Get the indices for these top-k features
-        topk_idxs = np.argsort(max_weights)[::-1][:k_int]
-        return feature_idxs[topk_idxs]
-
-    def get_performer_correlations(self, topk_idxs: np.array) -> np.array:
-        # Get weights for pijama tracks: (n_performers, top_k_features)
-        pijama_coef = self._get_weights(
-            self.full_x[np.ix_(self.pijama_idxs, topk_idxs)],  # subset feature set to just use top-k features
-            self.full_y[self.pijama_idxs]
-        )
-        # Get weights for JTD tracks: (n_performers, top_k_features)
-        jtd_coef = self._get_weights(
-            self.full_x[np.ix_(self.jtd_idxs, topk_idxs)],  # subset feature set to just use top-k features
-            self.full_y[self.jtd_idxs]
-        )
-        # Correlate both: (n_performers)
-        return np.array([
-            np.corrcoef(pijama_coef[i, :], jtd_coef[i, :])[0, 1] for i in range(pijama_coef.shape[0])
-        ])
-
-    def format_df(self, corrs: np.array, feature_name: str) -> pd.DataFrame:
-        tmp_res = []
-        for pianist, corr in zip(self.class_mapping.values(), corrs):
-            tmp_res.append(dict(pianist=pianist, corr=corr, p=np.nan, feature=feature_name.title(), low=0., high=0.))
-        return pd.DataFrame(tmp_res)
-
-    def explain(self):
-        # Melody
-        mel_topk_idxs = self.get_topk_weight_idxs(self.mel_idxs)
-        mel_corrs = self.get_performer_correlations(mel_topk_idxs)
-        mel_df = self.format_df(mel_corrs, "melody")
-        # Harmony
-        har_topk_idxs = self.get_topk_weight_idxs(self.har_idxs)
-        har_corrs = self.get_performer_correlations(har_topk_idxs)
-        har_df = self.format_df(har_corrs, "harmony")
-        # Stack dataframes
-        self.df = pd.concat([mel_df, har_df], axis=0)
-
-    def create_outputs(self):
-        # Create the barplot
-        bp = plotting.BarPlotWhiteboxDatabaseCoefficients(self.df)
-        bp.create_plot()
-        bp.fig.suptitle(f'$k$ = {self.top_k}')
-        bp.save_fig(os.path.join(self.output_dir, f'barplot_database_correlations_topk_{self.top_k}.png'))
-        # Save the dataframe
-        self.df.to_csv(os.path.join(self.output_dir, f'out_{self.top_k}.csv'))
