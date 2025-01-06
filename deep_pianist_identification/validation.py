@@ -89,6 +89,8 @@ class ValidateModule:
         # CHECKPOINTS
         self.checkpoint_folder = os.path.join(get_project_root(), 'checkpoints', self.experiment, self.run)
         self.load_checkpoint()  # Will raise errors when checkpoints cannot be found!
+        self.baseline_accuracy = None  # Will be filled in later
+        self.full_accuracy = None
 
     def get_class_mapping(self) -> dict:
         if self.classify_dataset:
@@ -135,15 +137,18 @@ class ValidateModule:
         # Save the dataframe inside the checkpoint folder for this run and log time
         accuracy_df.to_csv(os.path.join(save_path, "validation.csv"), index=False)
         logger.debug(f"Saved validation metrics to {save_path}")
-        # Save masked concept accuracy barplot
+        # Creating multichannel plots
         if self.validation_fn == self.validate_multichannel:
-            for plot in [plotting.BarPlotMaskedConceptsAccuracy, plotting.LollipopPlotMaskedConceptsAccuracy]:
-                for xvar, xlabel in zip(
-                        ["track_acc", "accuracy_loss"], ["Accuracy (track-level)", "Accuracy loss (track-level)"]
-                ):
-                    bp = plot(accuracy_df, xvar, xlabel)
-                    bp.create_plot()
-                    bp.save_fig()
+            lp = plotting.LollipopPlotMaskedConceptsAccuracy(
+                accuracy_df, "track_acc", "Accuracy", baseline_accuracy=self.baseline_accuracy
+            )
+            bp1 = plotting.BarPlotSingleConceptAccuracy(
+                accuracy_df, baseline_accuracy=self.baseline_accuracy, full_accuracy=self.full_accuracy
+            )
+            bp2 = plotting.BarPlotSingleMaskAccuracy(accuracy_df)
+            for plot_cls in [bp1, bp2, lp]:
+                plot_cls.create_plot()
+                plot_cls.save_fig()
 
     def create_confusion_matrix(self, predictions, targets, concept: str = ""):
         """Creates a confusion matrix for (track-wise) predictions and targets"""
@@ -158,6 +163,26 @@ class ValidateModule:
         cm = plotting.HeatmapConfusionMatrix(mat, pianist_mapping=self.class_mapping, title=title)
         cm.create_plot()
         cm.save_fig()
+
+    def get_zero_rate_accuracy(self, track_targets: list[torch.tensor], track_names: list[str]) -> float:
+        """Get accuracy for a model that just predicts the most frequent class"""
+        ground_truth = torch.cat(track_targets)
+        # Get the index of the pianist that appears most frequently (should be 2, i.e. Brad Mehldau)
+        most_frequent_pianist = torch.mode(ground_truth)[0].item()
+        # Create an array filled with 2s with shape (total_tracks)
+        total_tracks = len(set(track_names))
+        most_common_targets = torch.full((total_tracks,), most_frequent_pianist).to(DEVICE)
+        # This code simply returns the target class for each track
+        actual_targets = torch.tensor(
+            pd.DataFrame([track_names, ground_truth.tolist()])
+            .transpose()
+            .groupby(0)
+            .max()[1]
+            .to_numpy()
+            .astype(int)
+        ).to(DEVICE)
+        # Compute the accuracy function
+        return self.acc_fn(most_common_targets, actual_targets).item()
 
     def validate_multichannel(self) -> list[dict]:
         """Validation for multichannel models: compute accuracy for all combinations of masked concepts"""
@@ -213,8 +238,8 @@ class ValidateModule:
                     combo_accuracies[cmasks]["clip_accuracy"].append(combo_accuracy)
                     combo_accuracies[cmasks]["track_predictions"].append(softmaxed)
 
+        self.baseline_accuracy = self.get_zero_rate_accuracy(track_targets, track_names)
         global_accuracies, perclass_accuracies = [], []
-        all_concept_acc = None
         # Iterate through all individual combinations of masks
         sc_names, sc_cms = [], []
         for mask, vals in combo_accuracies.items():
@@ -224,7 +249,7 @@ class ValidateModule:
             p, t = groupby_tracks(track_names, vals["track_predictions"], track_targets)
             track_acc = self.acc_fn(p, t).item()
             if mask == "melody+harmony+rhythm+dynamics":
-                all_concept_acc = track_acc
+                self.full_accuracy = track_acc
             # Create confusion matrix
             cm = self.confusion_matrix_fn(p, t)
             # Append the confusion matrix for our single-concept confusion matrix plot
@@ -240,7 +265,7 @@ class ValidateModule:
             self.create_confusion_matrix(p, t, mask)
             # Log and store a dictionary for this combination of masks
             logger.info(f"Results for concepts {mask}: clip accuracy {clip_acc:.5f}, track accuracy {track_acc:.5f}")
-            logger.info(f"Accuracy loss vs. full model: {1 - (track_acc / all_concept_acc):.5f}")
+            logger.info(f"Accuracy loss vs. full model: {1 - (track_acc / self.full_accuracy):.5f}")
             global_accuracies.append(dict(model=self.run, concepts=mask, clip_acc=clip_acc, track_acc=track_acc))
         # Create plot of all single-concept confusion matrices
         hm = plotting.HeatmapConfusionMatrices(sc_cms, sc_names, pianist_mapping=self.class_mapping)
@@ -272,6 +297,7 @@ class ValidateModule:
                 track_names.extend(tracks)
                 track_preds.append(softmaxed)
                 track_targets.append(targets)
+        self.baseline_accuracy = self.get_zero_rate_accuracy(track_targets, track_names)
         # Group tracks by the name and get the average predictions and target classes
         predictions, targets = groupby_tracks(track_names, track_preds, track_targets)
         # Calculate track-level accuracy and mean clip-level accuracy

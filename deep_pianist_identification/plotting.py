@@ -40,6 +40,7 @@ GREEN = '#008000'
 BLUE = '#0000FF'
 YELLOW = '#FFFF00'
 RGB = [RED, GREEN, BLUE]
+CONCEPT_COLOR_MAPPING = {"Melody": "#ff0000ff", "Harmony": "#00ff00ff", "Rhythm": "#0000ffff", "Dynamics": "#ff9900ff"}
 
 LINEWIDTH = 2
 LINESTYLE = '-'
@@ -216,12 +217,86 @@ class BarPlotMaskedConceptsAccuracy(BasePlot):
     def _format_fig(self):
         self.fig.tight_layout()
 
-    def save_fig(self):
+    def save_fig(self, title: str = 'barplot_masked_concept'):
         fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations")
         if not os.path.isdir(fold):
             os.makedirs(fold)
-        fp = os.path.join(fold, f"barplot_masked_concept_{self.xvar}.png")
+        fp = os.path.join(fold, f"{title}_{self.xvar}.png")
         self.fig.savefig(fp, **SAVE_KWS)
+
+
+class BarPlotSingleMaskAccuracy(BarPlotMaskedConceptsAccuracy):
+    def __init__(self, df, **kwargs):
+        super().__init__(df, xvar="accuracy_loss", xlabel="Accuracy loss", **kwargs)
+        self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH // 2, WIDTH // 3))
+
+    def _format_df(self, df):
+        def format_concept(row):
+            row_concepts = row['concepts'].split(', ')
+            masked_concept = [i for i in all_concepts if i not in row_concepts][0]
+            row['concepts'] = masked_concept
+            return row
+
+        df = super()._format_df(df)
+        all_concepts = df[df['n_concepts'] == 0]['concepts'].iloc[0].split(', ')
+        single_concept = df[df['n_concepts'] == 1].apply(format_concept, axis=1)
+        single_concept['cmap'] = single_concept['concepts'].map(CONCEPT_COLOR_MAPPING)
+        return single_concept.sort_values(by='accuracy_loss', ascending=False)
+
+    def _create_plot(self):
+        sns.barplot(
+            self.df, y='concepts', x=self.xvar, hue='concepts', legend=True,
+            edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE,
+            ax=self.ax, zorder=10, palette=self.df['cmap'].tolist()
+        )
+
+    def _format_ax(self):
+        super()._format_ax()
+        self.ax.get_legend().remove()
+        self.ax.set(ylabel='Musical dimensions', xlim=(0, self.df[self.xvar].max() * 1.1))
+
+    def save_fig(self, title: str = 'barplot_single_mask'):
+        super().save_fig(title)
+
+
+class BarPlotSingleConceptAccuracy(BarPlotMaskedConceptsAccuracy):
+    VLINE_KWS = dict(ymin=0, ymax=1, zorder=1000, linewidth=LINEWIDTH, linestyle=DASHED)
+
+    def __init__(self, df, **kwargs):
+        super().__init__(df, xvar="track_acc", xlabel='Accuracy', **kwargs)
+        self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH // 2, WIDTH // 3))
+        self.baseline_accuracy = kwargs.get("baseline_accuracy", None)
+        self.full_accuracy = kwargs.get("full_accuracy", None)
+
+    def _format_df(self, df):
+        df = super()._format_df(df)
+        single_concept = df[df['n_concepts'] == 3]
+        single_concept['cmap'] = single_concept['concepts'].map(CONCEPT_COLOR_MAPPING)
+        return single_concept
+
+    def _create_plot(self):
+        sns.barplot(
+            self.df, y='concepts', x=self.xvar, hue='concepts', legend=True,
+            edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE,
+            ax=self.ax, zorder=10, palette=self.df['cmap'].tolist()
+        )
+
+    def _format_ax(self):
+        super()._format_ax()
+        self.ax.get_legend().remove()
+        self.ax.set_ylabel('Musical dimensions')
+        if self.full_accuracy is not None:
+            self.ax.set_xlim(0, self.full_accuracy * 1.1)
+        else:
+            self.ax.set_xlim(0, self.df[self.xvar].max() * 1.1)
+        for acc, acc_name in zip([self.baseline_accuracy, self.full_accuracy], ["Baseline", "Full"]):
+            if acc is None:
+                continue
+            self.ax.axvline(acc, color=BLACK, **self.VLINE_KWS)
+            self.ax.text(acc, -0.75, f'${acc_name}$', ha='center', va='bottom')
+
+    def save_fig(self, title: str = 'barplot_single_concept'):
+        super().save_fig(title)
 
 
 class StripplotTopKFeatures(BasePlot):
@@ -950,11 +1025,12 @@ class BarPlotCAVMixedLMCoefficients(BasePlot):
 
 
 class LollipopPlotMaskedConceptsAccuracy(BarPlotMaskedConceptsAccuracy):
-    COLOR_MAPPING = {"Melody": "#ff0000ff", "Harmony": "#00ff00ff", "Rhythm": "#0000ffff", "Dynamics": "#ff9900ff"}
-    LPOP_KWS = dict(width=0.025 * 0.9, height=1 * 0.9, zorder=10000, edgecolor=BLACK, linewidth=LINEWIDTH)
+    LPOP_KWS = dict(width=0.025 * 0.9, height=1 * 0.9, zorder=100, edgecolor=BLACK, linewidth=LINEWIDTH)
+    VLINE_KWS = dict(ymin=0, ymax=1, zorder=1000, linewidth=LINEWIDTH, linestyle=DASHED)
 
     def __init__(self, df, xvar: str = "track_acc", xlabel: str = "Accuracy (track-level)", **kwargs):
         super().__init__(df, xvar, xlabel, **kwargs)
+        self.baseline_accuracy = kwargs.get('baseline_accuracy', None)
 
     def _create_plot(self) -> None:
         sns.barplot(
@@ -966,17 +1042,17 @@ class LollipopPlotMaskedConceptsAccuracy(BarPlotMaskedConceptsAccuracy):
         for idx, row in self.df.iterrows():
             concepts = sorted(row['concepts'].split(', '))
             for n_concept, concept in enumerate(concepts):
-                color = self.COLOR_MAPPING[concept]
+                color = CONCEPT_COLOR_MAPPING[concept]
                 circ = mpatches.Ellipse(xy=(x + (n_concept / lpop_space), idx), facecolor=color, **self.LPOP_KWS)
                 self.ax.add_patch(circ)
 
     def _add_legend(self):
         hands = []
-        for color in self.COLOR_MAPPING.values():
+        for color in CONCEPT_COLOR_MAPPING.values():
             patch = mpatches.Ellipse(xy=(0, 0), facecolor=color, **self.LPOP_KWS)
             hands.append(patch)
-        labs = list(self.COLOR_MAPPING.keys())
-        self.ax.legend(hands, labs, loc="lower right", title='Dimensions', **LEGEND_KWS)
+        labs = list(CONCEPT_COLOR_MAPPING.keys())
+        self.ax.legend(hands, labs, loc="lower right", title='', **LEGEND_KWS)
 
     def _format_ax(self):
         self._add_lollipop()
@@ -989,6 +1065,9 @@ class LollipopPlotMaskedConceptsAccuracy(BarPlotMaskedConceptsAccuracy):
         plt.setp(self.ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
         self.ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
         self.ax.grid(axis="x", zorder=0, **GRID_KWS)
+        if self.baseline_accuracy is not None:
+            self.ax.axvline(self.baseline_accuracy, **self.VLINE_KWS)
+            self.ax.text(self.baseline_accuracy, -0.75, '$Baseline$', ha='center', va='bottom')
 
     def save_fig(self):
         fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations")
