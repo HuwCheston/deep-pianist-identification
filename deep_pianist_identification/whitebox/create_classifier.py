@@ -108,7 +108,7 @@ def create_classifier(
     logger.info(f'... shapes: x {all_xs.shape}, y {all_ys.shape}, ')
     # Iterate through some different top-k values
     # Floats are interpreted as a fraction of the total feature space, ints as the number of features
-    for k in [0.01, 0.01, 0.2, 0.5, 1., 100, 200, 500, 1000]:
+    for k in [0.01, 0.1, 0.2, 0.5, 1., 100, 200, 500, 1000]:
         database_explainer = DatabasePermutationExplainer(
             x=all_xs,
             y=all_ys,
