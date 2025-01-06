@@ -121,7 +121,7 @@ def create_classifier(
     database_explainer.create_outputs()
     # Log the mean and SD coefficients for melody and harmony to the console
     logger.info(
-        f'mean melody r {database_explainer.mel_coefs.mean()}, SD {database_explainer.mel_coefs.std()}',
+        f'mean melody r {database_explainer.mel_coefs.mean()}, SD {database_explainer.mel_coefs.std()}, '
         f'mean harmony r {database_explainer.har_coefs.mean()}, SD {database_explainer.har_coefs.std()}'
     )
     # Permutation feature importance: this class will do all analysis and create plots/outputs
