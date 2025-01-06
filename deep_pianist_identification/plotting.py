@@ -17,9 +17,10 @@ import seaborn as sns
 from loguru import logger
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from music21.chord import Chord
-from music21.clef import bestClef
+from music21.clef import TrebleClef
+from music21.duration import Duration
 from music21.meter import TimeSignature
-from music21.note import Note
+from music21.note import Note, Rest
 from music21.stream import Part, Measure, Score
 from pretty_midi import note_name_to_number, note_number_to_name
 from skimage import io
@@ -346,6 +347,23 @@ class StripplotTopKFeatures(BasePlot):
         # Music21 expects note names, so convert to a name and append to the list
         return Note(note_number_to_name(next_number), quarterLength=1)
 
+    @staticmethod
+    def center_music21_on_c5(score: Score, center: int = utils.MIDDLE_C + utils.OCTAVE):
+        def mean_pitch(notes_or_chord: Note | Chord):
+            pitches = []
+            for note_or_chord in notes_or_chord:
+                if isinstance(note_or_chord, Note):
+                    pitches.append(note_or_chord.pitch.midi)
+                else:
+                    for note in note_or_chord:
+                        pitches.append(note.pitch.midi)
+            return np.mean(pitches)
+
+        # Continuously transpose up by an octave until the mean pitch reaches or exceeds C5 (MIDI 72)
+        while mean_pitch(score.recurse().notes) < center:
+            for n in score.recurse().notes:
+                n.transpose(utils.OCTAVE, inPlace=True)
+
     def _create_music21(self, ngram: str) -> Score:
         # These hold all the note instances we'll create
         score, part, measure = Score(), Part(), Measure()
@@ -353,10 +371,15 @@ class StripplotTopKFeatures(BasePlot):
         ngram_list = eval(ngram)
         ts_numerator = len(ngram_list) if self.concept_name == "melody" else 1
         # Time signature with same number of quarter notes as ICs in n-gram
-        ts = TimeSignature(f"{ts_numerator}/4")
+        ts = TimeSignature(f"{ts_numerator + 4}/4")
         ts.style.hideObjectOnPrint = True  # hides the time signature
         # Add the time signature to the measure
         measure.append(ts)
+        # Add a spacer rest with a short duration (hidden rest)
+        spacer = Rest()  # Invisible rest
+        spacer.duration = Duration(0.5)
+        spacer.style.hideObjectOnPrint = True  # Ensure it's invisible in the score
+        measure.append(spacer)
         # We'll express all notation with relation to middle C
         measure.append(Note(note_number_to_name(utils.MIDDLE_C), quarterLength=1))
         # Iterate over all the ICs in the n-gram
@@ -365,13 +388,14 @@ class StripplotTopKFeatures(BasePlot):
             measure.append(self.ic_to_music21_note(ic, measure[-1].pitch))
         # Converting the measure to a chord and then back will remove all rhythmic information
         if self.concept_name == "harmony":
-            measure = Measure(Chord([i for i in measure if not isinstance(i, TimeSignature)]))
+            measure = Measure([spacer, Chord([i for i in measure if isinstance(i, Note)])])
         # Add the measure to the part and the part to the score
         part.append(measure)
         score.append(part)
-        # Get the best clef for the part recursively
-        cl = bestClef(part, recurse=True)
-        part.append(cl)
+        # Transpose recursively so the mean pitch is centered on C5
+        self.center_music21_on_c5(score)
+        # Always use a treble clef as centered around c5
+        part.append(TrebleClef())
         # Remove the final bar line from the part
         part[-1].rightBarline = None
         return score
@@ -391,7 +415,7 @@ class StripplotTopKFeatures(BasePlot):
 
         # Read the image in to matplotlib and add to the axes
         image = plt.imread("tmp-1.png")
-        imagebox = OffsetImage(image, zoom=0.25)
+        imagebox = OffsetImage(image, zoom=0.3)
         ab = AnnotationBbox(imagebox, (1.025, y), xycoords='axes fraction', frameon=False, box_alignment=(0, 0.5))
         self.ax.add_artist(ab)
         # Remove the temporary files we've created
