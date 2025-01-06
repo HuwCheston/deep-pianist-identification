@@ -283,10 +283,10 @@ def parse_arguments(parser) -> dict:
     )
     parser.add_argument(
         "-k", "--database-k-coefs",
-        default=1000,
+        default=500,
         type=int,
         help="Number of k coefficients to extract when computing correlation between different datasets."
-             "-1 uses all coefficients."
+             "Either int or float is accepted: float is interpreted as fraction of total features"
     )
     # Parse all arguments and return
     args = vars(parser.parse_args())

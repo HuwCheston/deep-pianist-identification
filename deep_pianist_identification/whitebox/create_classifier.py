@@ -105,29 +105,25 @@ def create_classifier(
     dataset_idxs: np.array = wb_utils.get_database_mapping(train_clips, test_clips, validation_clips)
     # Correlation between top-k coefficients from the full model for individual database models
     logger.info('---EXPLAINING: DATASET FEATURE CORRELATIONS---')
-    logger.info(f'... shapes: x {all_xs.shape}, y {all_ys.shape}, ')
-    # Iterate through some different top-k values
-    # Floats are interpreted as a fraction of the total feature space, ints as the number of features
-    for k in [0.01, 0.1, 0.2, 0.5, 1., 100, 200, 500, 1000]:
-        database_explainer = DatabasePermutationExplainer(
-            x=all_xs,
-            y=all_ys,
-            k=k,
-            dataset_idxs=dataset_idxs,
-            feature_names=feature_names,
-            class_mapping=class_mapping,
-            classifier_params=best_params,
-            classifier_type=classifier_type,
-            n_iter=n_iter
-        )
-        database_explainer.explain()
-        database_explainer.create_outputs()
-        # Log the mean and SD coefficients for melody and harmony to the console
-        logger.info(
-            f'... k: {k}, '
-            f'mean melody r {database_explainer.mel_coefs.mean()}, SD {database_explainer.mel_coefs.std()}',
-            f'mean harmony r {database_explainer.har_coefs.mean()}, SD {database_explainer.har_coefs.std()}'
-        )
+    logger.info(f'...  k: {database_k_coefs}, x_shape: {all_xs.shape}, y_shape: {all_ys.shape},')
+    database_explainer = DatabasePermutationExplainer(
+        x=all_xs,
+        y=all_ys,
+        k=database_k_coefs,
+        dataset_idxs=dataset_idxs,
+        feature_names=feature_names,
+        class_mapping=class_mapping,
+        classifier_params=best_params,
+        classifier_type=classifier_type,
+        n_iter=n_iter
+    )
+    database_explainer.explain()
+    database_explainer.create_outputs()
+    # Log the mean and SD coefficients for melody and harmony to the console
+    logger.info(
+        f'mean melody r {database_explainer.mel_coefs.mean()}, SD {database_explainer.mel_coefs.std()}',
+        f'mean harmony r {database_explainer.har_coefs.mean()}, SD {database_explainer.har_coefs.std()}'
+    )
     # Permutation feature importance: this class will do all analysis and create plots/outputs
     logger.info('---EXPLAINING: PERMUTATION FEATURE IMPORTANCE (GLOBAL)---')
     # logger.info(f'... shapes: harmony {valid_x_arr_har.shape}, melody {valid_x_arr_mel.shape}, y {valid_y_mel.shape}')
