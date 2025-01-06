@@ -1199,6 +1199,15 @@ class BarPlotWhiteboxFeatureCounts(BasePlot):
         self.df = self._format_df(None)
         self.fig, self.ax = plt.subplots(1, 2, figsize=(WIDTH, WIDTH // 2), sharex=False, sharey=False)
 
+    @staticmethod
+    def map_ngram_to_pitches(intervals: str) -> str:
+        pitch_set = [0]
+        current_pitch = 0
+        for interval in eval(intervals):
+            current_pitch += interval
+            pitch_set.append(current_pitch)
+        return str(tuple(pitch_set))
+
     def _format_df(self, _):
         def format_feature(idxs, names) -> tuple[np.ndarray, np.ndarray]:
             features_counts = self.feature_counts_summed[idxs]
@@ -1215,6 +1224,9 @@ class BarPlotWhiteboxFeatureCounts(BasePlot):
         # Formatting for each feature set
         mel_topk_counts, mel_topk_names = format_feature(mel_idxs, self.mel_names)
         har_topk_counts, har_topk_names = format_feature(har_idxs, self.har_names)
+        # Additional formatting
+        mel_topk_names = [self.map_ngram_to_pitches(ng) for ng in mel_topk_names]
+        har_topk_names = [str((0, *eval(ch))) for ch in har_topk_names]
         # Creating the dataframe with given column names
         return pd.DataFrame({
             'Melody_name': mel_topk_names,
@@ -1224,8 +1236,11 @@ class BarPlotWhiteboxFeatureCounts(BasePlot):
         })
 
     def _create_plot(self):
-        for ax, feature, color in zip(self.ax.flatten(), ["Melody", "Harmony"], RGB):
-            sns.barplot(data=self.df, x=f"{feature}_name", y=f"{feature}_count", ax=ax, color=color, **self.BAR_KWS)
+        for ax, feature in zip(self.ax.flatten(), ["Melody", "Harmony"]):
+            sns.barplot(
+                data=self.df, x=f"{feature}_name", y=f"{feature}_count",
+                ax=ax, color=CONCEPT_COLOR_MAPPING[feature], **self.BAR_KWS
+            )
             ax.set(
                 title=feature, xlabel="Feature", ylabel="Count",
                 ylim=self.ax[0].get_ylim(), yticks=self.ax[0].get_yticks()
