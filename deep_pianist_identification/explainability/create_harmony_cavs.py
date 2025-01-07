@@ -192,33 +192,6 @@ def create_kernel_heatmaps(track_names: list[str], cavs: list[cav_utils.CAV], cl
             hm.save_fig()
 
 
-def create_mixed_effects_models(
-        cavs: list[cav_utils.CAV],
-        inputs: torch.tensor,
-        targets: torch.tensor,
-        track_names: torch.tensor,
-        n_experiments: int
-) -> list[cav_utils.CAVMixedLM]:
-    import json
-
-    def get_recording_year(track_name: str):
-        json_path = os.path.sep.join(track_name.replace('clips', 'raw').split(os.path.sep)[:-1]) + '/metadata.json'
-        assert os.path.isfile(json_path)
-        with open(json_path, 'r') as f:
-            loaded = json.load(f)
-        return int(loaded['recording_year'])
-
-    recording_years = torch.tensor(np.array([get_recording_year(t) for t in track_names]))
-    res = []
-    for cav_idx in range(len(cavs)):
-        mlm = cav_utils.CAVMixedLM(cavs[cav_idx], n_experiments)
-        mlm.get_data(inputs, targets, recording_years)
-        mlm.fit()
-        logger.info(f'{cav_utils.CAV_MAPPING[cav_idx]}: mean {mlm.coef}, ci {mlm.ci}')
-        res.append(mlm)
-    return res
-
-
 def main(
         model: str,
         attribution_fn: str,
@@ -280,15 +253,6 @@ def main(
     )
     hmpc.create_plot()
     hmpc.save_fig()
-    # Create mixed effects models and plot coefficients
-    mlms = create_mixed_effects_models(cav_list, features, targets, track_names, n_experiments)
-    bp = plotting.BarPlotCAVMixedLMCoefficients(
-        mlm_coefs=np.array([mlm.coef for mlm in mlms]),
-        mlm_cis=np.array([mlm.ci for mlm in mlms]),
-        cav_names=cav_utils.CAV_MAPPING,
-    )
-    bp.create_plot()
-    bp.save_fig()
     # Create plots for individual tracks
     create_kernel_heatmaps(track_names, cav_list, tm.class_mapping)
 

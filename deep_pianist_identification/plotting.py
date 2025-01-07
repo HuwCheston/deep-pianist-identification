@@ -1014,59 +1014,6 @@ class HeatmapCAVKernelSensitivity(BasePlot):
         plt.close(self.fig)
 
 
-class BarPlotCAVMixedLMCoefficients(BasePlot):
-    BAR_KWS = dict(edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, zorder=10, width=0.75, legend=False)
-    ERROR_KWS = dict(lw=LINEWIDTH, color=BLACK, capsize=8, zorder=100, elinewidth=LINEWIDTH, ls='none')
-
-    def __init__(
-            self,
-            mlm_coefs: np.array,
-            mlm_cis: np.array,
-            cav_names: list[str]
-    ):
-        super().__init__()
-        self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH // 2))
-        df_tmp = pd.DataFrame([mlm_coefs, mlm_cis[:, 0], mlm_cis[:, 1], cav_names[:len(mlm_coefs)]])
-        self.df = self._format_df(df_tmp)
-
-    def _format_df(self, df: pd.DataFrame):
-        mlm_df = df.T
-        mlm_df.columns = ['coef', 'low', 'high', 'cav']
-        mlm_df['sig'] = ~((mlm_df['low'] <= 0) & (0 <= mlm_df['high']))
-        mlm_df['low'] = mlm_df['coef'] - mlm_df['low']
-        mlm_df['high'] = mlm_df['high'] - mlm_df['coef']
-        return mlm_df
-
-    def _create_plot(self):
-        sns.barplot(data=self.df, x='cav', y='coef', hue='sig', ax=self.ax, **self.BAR_KWS)
-        self.ax.errorbar(x=self.df['cav'], y=self.df['coef'], yerr=[self.df['low'], self.df['high']], **self.ERROR_KWS)
-
-    def _format_ax(self):
-        self.ax.axhline(0, 0, 1, linewidth=LINEWIDTH, color=BLACK, linestyle=LINESTYLE)
-        plt.setp(self.ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
-        self.ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
-        self.ax.set_xticklabels(self.ax.get_xticklabels(), rotation=45, ha='right')
-        self.ax.grid(axis='y', zorder=0, **GRID_KWS)
-        self.ax.set(xlabel='Concept', ylabel=r'Coefficient $\beta$')
-
-    def _format_fig(self):
-        self.fig.tight_layout()
-
-    def save_fig(self):
-        # Get the directory to save the heatmap in
-        di = os.path.join(
-            utils.get_project_root(),
-            "reports/figures/ablated_representations/cav_plots",
-        )
-        if not os.path.isdir(di):
-            os.makedirs(di)
-        fp = os.path.join(di, f'barplot_mixedlm_coefficients.png')
-        # Save the figure
-        self.fig.savefig(fp, **SAVE_KWS)
-        # Close the figure
-        plt.close(self.fig)
-
-
 class LollipopPlotMaskedConceptsAccuracy(BarPlotMaskedConceptsAccuracy):
     LPOP_KWS = dict(width=0.025 * 0.9, height=1 * 0.9, zorder=100, edgecolor=BLACK, linewidth=LINEWIDTH)
     VLINE_KWS = dict(ymin=0, ymax=1, zorder=1000, linewidth=LINEWIDTH, linestyle=DASHED)
