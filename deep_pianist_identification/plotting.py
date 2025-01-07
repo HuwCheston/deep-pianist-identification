@@ -8,6 +8,7 @@ import os
 from datetime import timedelta
 from urllib.error import HTTPError, URLError
 
+import cmcrameri.cm as cmc
 import matplotlib as mpl
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
@@ -616,8 +617,11 @@ class BarPlotWhiteboxDatabaseCoefficients(BasePlot):
         self.fig.savefig(outpath, **SAVE_KWS)
 
 
+# Create heatmap with significance asterisks
 class HeatmapCAVSensitivity(BasePlot):
-    HEATMAP_KWS = dict(square=True, cmap="vlag", center=0.5, linecolor=WHITE, linewidth=LINEWIDTH // 2, vmin=0, vmax=1)
+    HEATMAP_KWS = dict(
+        square=True, center=0.5, linecolor=WHITE, linewidth=LINEWIDTH // 2, cmap=cmc.bam, vmin=0, vmax=1, alpha=0.7
+    )
 
     def __init__(
             self,
