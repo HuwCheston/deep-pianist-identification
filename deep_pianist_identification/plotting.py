@@ -400,7 +400,7 @@ class StripplotTopKFeatures(BasePlot):
         part[-1].rightBarline = None
         return score
 
-    def _add_notation(self, ngram: str, y: float, right_crop: float = 0.8) -> None:
+    def _add_notation(self, ngram: str, y: float, right_crop: float = 0.7) -> None:
         """Adds a given feature/ngram as notation onto the axis with a given y coordinate"""
         notes = self._create_music21(ngram)
         # Export the notation as an image
@@ -484,7 +484,9 @@ class StripplotTopKFeatures(BasePlot):
         self._add_performer_image()
         self.ax.tick_params(right=True)
         self.ax.set(title=f'{self.pianist_name}, {self.concept_name} features', xlabel='Odds ratio', ylabel='Feature')
-        self.ax.set_yticklabels([self.format_feature_str(yl.get_text()) for yl in self.ax.get_yticklabels()])
+        self.ax.set_yticks(
+            self.ax.get_yticks(), [self.format_feature_str(yl.get_text()) for yl in self.ax.get_yticklabels()]
+        )
         self.ax.grid(axis='x', zorder=0, **GRID_KWS)
         self.ax.axhline(4.5, 0, 1, linewidth=LINEWIDTH, color=BLACK, alpha=ALPHA, ls=DASHED)
         self.ax.axvline(1, 0, 1, linewidth=LINEWIDTH, color=BLACK)
@@ -493,8 +495,8 @@ class StripplotTopKFeatures(BasePlot):
 
     def _format_fig(self):
         """Setting plot aeshetics on a figure-level basis"""
-        r = 0.825 if self.concept_name == "melody" else 0.875
-        self.fig.subplots_adjust(left=0.11, top=0.935, bottom=0.11, right=r)
+        r = 0.85 if self.concept_name == "melody" else 0.9
+        self.fig.subplots_adjust(left=0.14, top=0.935, bottom=0.11, right=r)
 
     def save_fig(self, output_dir: str):
         fp = os.path.join(
