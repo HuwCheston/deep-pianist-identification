@@ -274,6 +274,10 @@ class ValidateModule:
         # Create the per-class, per-concept accuracy dataframe and save to a csv
         perclass_acc_df = pd.DataFrame(perclass_accuracies)
         perclass_acc_df.to_csv(os.path.join(self.checkpoint_folder, "validation", "class_accuracy.csv"), index=False)
+        # Plot per-class accuracy for each concept
+        bp = plotting.BarPlotConceptClassAccuracy(perclass_acc_df)
+        bp.create_plot()
+        bp.save_fig()
         return global_accuracies
 
     def validate_singlechannel(self) -> list[dict]:

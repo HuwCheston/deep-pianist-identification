@@ -1272,6 +1272,54 @@ class BarPlotWhiteboxFeatureCounts(BasePlot):
         plt.close(self.fig)
 
 
+class BarPlotConceptClassAccuracy(BasePlot):
+    BAR_KWS = dict(edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, zorder=10)
+
+    def __init__(self, df: pd.DataFrame):
+        super().__init__()
+        self.df = self._format_df(df)
+        self.fig, self.ax = plt.subplots(4, 1, figsize=(WIDTH, WIDTH), sharex=True, sharey=True)
+
+    def _format_df(self, df):
+        df['concepts'] = df['concepts'].str.title()
+        df['n_concepts'] = df['concepts'].apply(lambda x: len(x.split('+')))
+        return df[df['n_concepts'] == 1]
+
+    def _create_plot(self):
+        for ax, (concept, color) in zip(self.ax.flatten(), CONCEPT_COLOR_MAPPING.items()):
+            sns.barplot(
+                data=self.df[self.df["concepts"] == concept],
+                ax=ax,
+                x='pianist',
+                y='class_acc',
+                color=color,
+                **self.BAR_KWS
+            )
+            ax.set_title(concept)
+
+    def _format_ax(self):
+        for ax in self.ax.flatten():
+            # Set axis and tick thickness
+            plt.setp(ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
+            ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
+            ax.grid(axis='y', zorder=0, **GRID_KWS)
+            ax.set(xlabel='', ylabel='', ylim=(0, 1), yticks=[0, 0.25, 0.5, 0.75, 1.0],
+                   yticklabels=[0, 25, 50, 75, 100])
+        self.ax[-1].set_xticks(self.ax[-1].get_xticks(), self.ax[-1].get_xticklabels(), rotation=90)
+
+    def _format_fig(self):
+        self.fig.supxlabel('Pianist')
+        self.fig.supylabel('Recordings Classified Correctly (%)')
+        self.fig.tight_layout()
+
+    def save_fig(self):
+        fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations")
+        if not os.path.isdir(fold):
+            os.makedirs(fold)
+        fp = os.path.join(fold, f"barplot_concept_class_accuracy.png")
+        self.fig.savefig(fp, **SAVE_KWS)
+
+
 if __name__ == "__main__":
     met = utils.get_track_metadata(utils.get_pianist_names())
     bp = BarPlotDatasetDurationCount(met)
