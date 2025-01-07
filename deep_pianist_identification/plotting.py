@@ -348,7 +348,7 @@ class StripplotTopKFeatures(BasePlot):
         return Note(note_number_to_name(next_number), quarterLength=1)
 
     @staticmethod
-    def center_music21_on_c5(score: Score, center: int = utils.MIDDLE_C + utils.OCTAVE):
+    def center_music21_on_c5(score: Score, center: int = utils.MIDDLE_C + (utils.OCTAVE // 2)):
         def mean_pitch(notes_or_chord: Note | Chord):
             pitches = []
             for note_or_chord in notes_or_chord:
@@ -360,7 +360,7 @@ class StripplotTopKFeatures(BasePlot):
             return np.mean(pitches)
 
         # Continuously transpose up by an octave until the mean pitch reaches or exceeds C5 (MIDI 72)
-        while mean_pitch(score.recurse().notes) < center:
+        while mean_pitch(score.recurse().notes) <= center:
             for n in score.recurse().notes:
                 n.transpose(utils.OCTAVE, inPlace=True)
 
@@ -400,7 +400,7 @@ class StripplotTopKFeatures(BasePlot):
         part[-1].rightBarline = None
         return score
 
-    def _add_notation(self, ngram: str, y: float) -> None:
+    def _add_notation(self, ngram: str, y: float, right_crop: float = 0.8) -> None:
         """Adds a given feature/ngram as notation onto the axis with a given y coordinate"""
         notes = self._create_music21(ngram)
         # Export the notation as an image
@@ -415,7 +415,10 @@ class StripplotTopKFeatures(BasePlot):
 
         # Read the image in to matplotlib and add to the axes
         image = plt.imread("tmp-1.png")
-        imagebox = OffsetImage(image, zoom=0.3)
+        # Crop the image
+        right_edge = int(image.shape[1] * right_crop)
+        cropped_image = image[:, :right_edge]
+        imagebox = OffsetImage(cropped_image, zoom=0.25)
         ab = AnnotationBbox(imagebox, (1.025, y), xycoords='axes fraction', frameon=False, box_alignment=(0, 0.5))
         self.ax.add_artist(ab)
         # Remove the temporary files we've created
@@ -463,11 +466,25 @@ class StripplotTopKFeatures(BasePlot):
         ab = AnnotationBbox(imagebox, (0.95, 0.95), xycoords='axes fraction', frameon=False, box_alignment=(1., 1.))
         self.ax.add_artist(ab)
 
+    def format_feature_str(self, intervals: str) -> str:
+        if self.concept_name == "melody":
+            pitch_set = [0]
+            current_pitch = 0
+            for interval in eval(intervals):
+                current_pitch += interval
+                pitch_set.append(current_pitch)
+            return str(tuple(pitch_set))
+        elif self.concept_name == "harmony":
+            return str(tuple([0, *eval(intervals)]))
+        else:
+            return intervals
+
     def _format_ax(self):
         """Setting plot aesthetics on an axis-level basis"""
         self._add_performer_image()
         self.ax.tick_params(right=True)
         self.ax.set(title=f'{self.pianist_name}, {self.concept_name} features', xlabel='Odds ratio', ylabel='Feature')
+        self.ax.set_yticklabels([self.format_feature_str(yl.get_text()) for yl in self.ax.get_yticklabels()])
         self.ax.grid(axis='x', zorder=0, **GRID_KWS)
         self.ax.axhline(4.5, 0, 1, linewidth=LINEWIDTH, color=BLACK, alpha=ALPHA, ls=DASHED)
         self.ax.axvline(1, 0, 1, linewidth=LINEWIDTH, color=BLACK)
