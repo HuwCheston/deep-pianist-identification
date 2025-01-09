@@ -5,6 +5,7 @@
 
 import json
 import os
+import subprocess
 from datetime import timedelta
 from urllib.error import HTTPError, URLError
 
@@ -16,10 +17,12 @@ import numpy as np
 import pandas as pd
 import partitura as pt
 import seaborn as sns
+from PIL import Image
 from loguru import logger
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from music21.chord import Chord
 from music21.clef import TrebleClef, BassClef
+from music21.converter import subConverters
 from music21.duration import Duration
 from music21.meter import TimeSignature
 from music21.note import Note, Rest
@@ -321,23 +324,30 @@ class _StripplotTopKFeatures(BasePlot):
     def _create_music21(self, _: str) -> Score:
         return Score()
 
-    def _add_notation(self, ngram: str, y: float, x: float = 1.025, zoom: float = 0.25,
-                      right_crop: float = 0.7) -> None:
+    def _add_notation(
+            self,
+            ngram: str,
+            y: float,
+            x: float = 1.025,
+            zoom: float = 0.25,
+            right_crop: float = 0.7,
+            png_dim: tuple = (125, 350, 1000, 650),
+            dpi: int = 300
+    ) -> None:
         """Adds a given feature/ngram as notation onto the axis with a given y coordinate"""
         notes = self._create_music21(ngram)
-        # Export the notation as an image
-        try:
-            notes.write("musicxml.png", "tmp.png")
-        except OSError:
-            # When running in a screen instance, this line may fail with a cryptic QT error
-            # Something like `qt.qpa.plugin: Could not load the Qt platform plugin "xcb"`
-            # The solution is to set the environment variable `QT_QPA_PLATFORM=offscreen` and retry
-            os.environ["QT_QPA_PLATFORM"] = "offscreen"
-            notes.write("musicxml.png", "tmp.png")
-
-        # Read the image in to matplotlib and add to the axes
-        image = plt.imread("tmp-1.png")
+        # When running in a screen instance, saving may fail with a cryptic QT error
+        # Something like `qt.qpa.plugin: Could not load the Qt platform plugin "xcb"`
+        # The solution is to set the environment variable `QT_QPA_PLATFORM=offscreen` and retry
+        os.environ["QT_QPA_PLATFORM"] = "offscreen"
+        # Save the stream as MusicXML
+        subConverters.ConverterMusicXML().write(notes, fmt="musicxml", fp="tmp.musicxml")
+        # Call musescore and output the svg
+        subprocess.run(["mscore3", "tmp.musicxml", "-o", "tmp.png", "-D", str(dpi)], stdout=subprocess.DEVNULL)
+        # Open the existing PNG image
+        image = Image.open("tmp-1.png").crop(png_dim)
         # Crop the image
+        image = np.array(image)
         right_edge = int(image.shape[1] * right_crop)
         cropped_image = image[:, :right_edge]
         imagebox = OffsetImage(cropped_image, zoom=zoom)
@@ -431,7 +441,7 @@ class _StripplotTopKFeatures(BasePlot):
 
     def _format_fig(self):
         """Setting plot aeshetics on a figure-level basis"""
-        self.fig.subplots_adjust(left=0.14, top=0.935, bottom=0.11, right=0.85)
+        self.fig.subplots_adjust(left=0.14, top=0.95, bottom=0.11, right=0.85)
 
     def _save_fig(self, output_dir: str, concept_name: str):
         fp = os.path.join(
@@ -535,7 +545,7 @@ class StripplotTopKMelodyFeatures(_StripplotTopKFeatures):
     def _format_ax(self):
         self._add_performer_image()
         self.ax.tick_params(right=True)
-        self.ax.set_title(f'{self.pianist_name}, melody features')
+        # self.ax.set_title(f'{self.pianist_name}, melody features')
         self.ax.set(ylabel='Odds ratio', xlabel='Feature')
         fmt_text = [str(self.format_feature(yl.get_text())) for yl in self.ax.get_yticklabels()]
         self.ax.set_yticks(self.ax.get_yticks(), fmt_text)
@@ -562,7 +572,7 @@ class StripplotTopKHarmonyFeatures(_StripplotTopKFeatures):
 
     def _create_plot(self):
         # Maybe not a good idea to hardcode these positions but whatever
-        notation_x_positions = [[0.025, 0.125, 0.225, 0.325, 0.425], [0.525, 0.625, 0.725, 0.825, 0.925]]
+        notation_x_positions = [[0.015, 0.115, 0.215, 0.315, 0.415], [0.515, 0.615, 0.715, 0.815, 0.915]]
         for direction, all_positions in zip(['bottom', 'top'], notation_x_positions):
             sorters = np.array(range(len(self.concept_dict[f"{direction}_ors"])))
             if direction == 'top':
@@ -582,7 +592,7 @@ class StripplotTopKHarmonyFeatures(_StripplotTopKFeatures):
             )
             # Add notation for all features
             for x, ng in zip(all_positions, names):
-                self._add_notation(ng, x=x, y=1.1, zoom=0.3)  # using a fixed y-axis position
+                self._add_notation(ng, x=x, y=1.15, zoom=0.25)  # using a fixed y-axis position
 
     def _feature_to_notes(self, feature: list[int]):
         """Populate two separate measure objects with notes from the feature: one each for left/right hands"""
@@ -651,7 +661,7 @@ class StripplotTopKHarmonyFeatures(_StripplotTopKFeatures):
     def _format_ax(self):
         self._add_performer_image(x=0.125)
         self.ax.tick_params(top=True)
-        self.ax.set_title(f'{self.pianist_name}, harmony features', y=1.175)
+        # self.ax.set_title(f'{self.pianist_name}, harmony features', y=1.175)
         self.ax.set(xlabel='Odds ratio', ylabel='Feature')
         fmt_text = [str(self.format_feature(yl.get_text())) for yl in self.ax.get_xticklabels()]
         self.ax.set_xticks(self.ax.get_xticks(), fmt_text, rotation=90, va='top', ha='right')
@@ -663,7 +673,7 @@ class StripplotTopKHarmonyFeatures(_StripplotTopKFeatures):
 
     def _format_fig(self):
         """Setting plot aeshetics on a figure-level basis"""
-        self.fig.subplots_adjust(left=0.075, top=0.85, bottom=0.2, right=0.95)
+        self.fig.subplots_adjust(left=0.075, top=0.84, bottom=0.2, right=0.95)
 
     def save_fig(self, output_dir: str):
         super()._save_fig(output_dir, "harmony")
@@ -828,8 +838,8 @@ class HeatmapCAVSensitivity(BasePlot):
         fmt_heatmap_axis(self.ax)
         # Set axis and tick thickness
         self.ax.set(
-            xlabel="Harmony CAV (→→→ $increasing$ $complexity$ →→→)",
-            ylabel="Pianist (→→→ $increasing$ $birth$ $year$ →→→)"
+            xlabel="Harmony CAV (â†’â†’â†’ $increasing$ $complexity$ â†’â†’â†’)",
+            ylabel="Pianist (â†’â†’â†’ $increasing$ $birth$ $year$ â†’â†’â†’)"
         )
         self.ax.invert_yaxis()
 
@@ -1114,7 +1124,7 @@ class HeatmapCAVKernelSensitivity(BasePlot):
             except FileNotFoundError:
                 continue
             else:
-                return (f'{loaded["bandleader"]} — "{loaded["track_name"]}" ({clip_start_fmt}—{clip_end_fmt}) '
+                return (f'{loaded["bandleader"]} â€” "{loaded["track_name"]}" ({clip_start_fmt}â€”{clip_end_fmt}) '
                         f'\nfrom "{loaded["album_name"]}", {loaded["recording_year"]}. CAV: {self.cav_name.title()}')
 
     def _create_plot(self):
