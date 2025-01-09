@@ -592,7 +592,7 @@ class StripplotTopKHarmonyFeatures(_StripplotTopKFeatures):
             )
             # Add notation for all features
             for x, ng in zip(all_positions, names):
-                self._add_notation(ng, x=x, y=1.125, zoom=0.25, png_dim=(100, 350, 500, 1050))
+                self._add_notation(ng, x=x, y=1.125, zoom=0.25, png_dim=(100, 350, 500, 850))
 
     def _feature_to_notes(self, feature: list[int]):
         """Populate two separate measure objects with notes from the feature: one each for left/right hands"""
