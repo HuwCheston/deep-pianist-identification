@@ -448,7 +448,7 @@ class _StripplotTopKFeatures(BasePlot):
             output_dir,
             f'topk_stripplot_{self.pianist_name.lower().replace(" ", "_")}_{concept_name}.png'
         )
-        self.fig.savefig(fp, **SAVE_KWS)
+        self.fig.savefig(fp, **SAVE_KWS, dpi=300)
         plt.close('all')
 
 
@@ -592,7 +592,7 @@ class StripplotTopKHarmonyFeatures(_StripplotTopKFeatures):
             )
             # Add notation for all features
             for x, ng in zip(all_positions, names):
-                self._add_notation(ng, x=x, y=1.15, zoom=0.25)  # using a fixed y-axis position
+                self._add_notation(ng, x=x, y=1.125, zoom=0.25, png_dim=(100, 350, 500, 850))
 
     def _feature_to_notes(self, feature: list[int]):
         """Populate two separate measure objects with notes from the feature: one each for left/right hands"""
@@ -838,8 +838,8 @@ class HeatmapCAVSensitivity(BasePlot):
         fmt_heatmap_axis(self.ax)
         # Set axis and tick thickness
         self.ax.set(
-            xlabel="Harmony CAV (â†’â†’â†’ $increasing$ $complexity$ â†’â†’â†’)",
-            ylabel="Pianist (â†’â†’â†’ $increasing$ $birth$ $year$ â†’â†’â†’)"
+            xlabel="Harmony CAV (Ã¢â€ â€™Ã¢â€ â€™Ã¢â€ â€™ $increasing$ $complexity$ Ã¢â€ â€™Ã¢â€ â€™Ã¢â€ â€™)",
+            ylabel="Pianist (Ã¢â€ â€™Ã¢â€ â€™Ã¢â€ â€™ $increasing$ $birth$ $year$ Ã¢â€ â€™Ã¢â€ â€™Ã¢â€ â€™)"
         )
         self.ax.invert_yaxis()
 
@@ -1124,7 +1124,8 @@ class HeatmapCAVKernelSensitivity(BasePlot):
             except FileNotFoundError:
                 continue
             else:
-                return (f'{loaded["bandleader"]} â€” "{loaded["track_name"]}" ({clip_start_fmt}â€”{clip_end_fmt}) '
+                return (
+                    f'{loaded["bandleader"]} Ã¢â‚¬â€ "{loaded["track_name"]}" ({clip_start_fmt}Ã¢â‚¬â€{clip_end_fmt}) '
                         f'\nfrom "{loaded["album_name"]}", {loaded["recording_year"]}. CAV: {self.cav_name.title()}')
 
     def _create_plot(self):
