@@ -178,7 +178,7 @@ class LRWeightExplainer(WhiteBoxExplainer):
         for perf in self.df.keys():
             # Create the melody and harmony plots
             mel_plot = plotting.StripplotTopKMelodyFeatures(self.df[perf]["melody"], pianist_name=perf)
-            har_plot = plotting.StripplotTopKMelodyFeatures(self.df[perf]["harmony"], pianist_name=perf)
+            har_plot = plotting.StripplotTopKHarmonyFeatures(self.df[perf]["harmony"], pianist_name=perf)
             # Save in the default (reports/figures/whitebox) directory
             for sp in [mel_plot, har_plot]:
                 sp.create_plot()
