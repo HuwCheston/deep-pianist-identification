@@ -321,7 +321,8 @@ class _StripplotTopKFeatures(BasePlot):
     def _create_music21(self, _: str) -> Score:
         return Score()
 
-    def _add_notation(self, ngram: str, y: float, x: float = 1.025, right_crop: float = 0.7) -> None:
+    def _add_notation(self, ngram: str, y: float, x: float = 1.025, zoom: float = 0.25,
+                      right_crop: float = 0.7) -> None:
         """Adds a given feature/ngram as notation onto the axis with a given y coordinate"""
         notes = self._create_music21(ngram)
         # Export the notation as an image
@@ -339,7 +340,7 @@ class _StripplotTopKFeatures(BasePlot):
         # Crop the image
         right_edge = int(image.shape[1] * right_crop)
         cropped_image = image[:, :right_edge]
-        imagebox = OffsetImage(cropped_image, zoom=0.25)
+        imagebox = OffsetImage(cropped_image, zoom=zoom)
         ab = AnnotationBbox(imagebox, (x, y), xycoords='axes fraction', frameon=False, box_alignment=(0, 0.5))
         self.ax.add_artist(ab)
         # Remove the temporary files we've created
@@ -557,6 +558,7 @@ class StripplotTopKHarmonyFeatures(_StripplotTopKFeatures):
             pianist_name: str = "",
     ):
         super().__init__(concept_dict, pianist_name)
+        self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH // 1.5))
 
     def _create_plot(self):
         # Maybe not a good idea to hardcode these positions but whatever
@@ -579,8 +581,8 @@ class StripplotTopKHarmonyFeatures(_StripplotTopKFeatures):
                 **self.SCATTER_KWS, ax=self.ax, label=f"{direction.title()}-5",
             )
             # Add notation for all features
-            for x, ng in zip(notation_x_positions, names):
-                self._add_notation(ng, x=x, y=1.1)  # using a fixed y-axis position
+            for x, ng in zip(all_positions, names):
+                self._add_notation(ng, x=x, y=1.1, zoom=0.3)  # using a fixed y-axis position
 
     def _feature_to_notes(self, feature: list[int]):
         """Populate two separate measure objects with notes from the feature: one each for left/right hands"""
@@ -649,7 +651,7 @@ class StripplotTopKHarmonyFeatures(_StripplotTopKFeatures):
     def _format_ax(self):
         self._add_performer_image(x=0.125)
         self.ax.tick_params(top=True)
-        self.ax.set_title(f'{self.pianist_name}, harmony features', y=1.2)
+        self.ax.set_title(f'{self.pianist_name}, harmony features', y=1.175)
         self.ax.set(xlabel='Odds ratio', ylabel='Feature')
         fmt_text = [str(self.format_feature(yl.get_text())) for yl in self.ax.get_xticklabels()]
         self.ax.set_xticks(self.ax.get_xticks(), fmt_text, rotation=90, va='top', ha='right')
@@ -661,7 +663,7 @@ class StripplotTopKHarmonyFeatures(_StripplotTopKFeatures):
 
     def _format_fig(self):
         """Setting plot aeshetics on a figure-level basis"""
-        self.fig.subplots_adjust(left=0.14, top=0.935, bottom=0.11, right=0.9)
+        self.fig.subplots_adjust(left=0.075, top=0.85, bottom=0.2, right=0.95)
 
     def save_fig(self, output_dir: str):
         super()._save_fig(output_dir, "harmony")
