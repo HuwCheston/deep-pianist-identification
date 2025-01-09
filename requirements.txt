@@ -25,3 +25,4 @@ music21
 captum
 statsmodels
 cmcrameri
+partitura
