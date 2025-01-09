@@ -174,18 +174,13 @@ class LRWeightExplainer(WhiteBoxExplainer):
 
     def create_outputs(self):
         super().create_outputs()
-        # Dump top-k dictionary to a JSON
-        # with open(os.path.join(self.output_dir, 'topk.json'), 'w') as fp:
-        #     json.dump(self.df, fp)
         # Iterate through all performers and concepts
         for perf in self.df.keys():
-            for concept in ['melody', 'harmony']:
-                # Create the plot and save in the default (reports/figures/whitebox) directory
-                sp = plotting.StripplotTopKFeatures(
-                    self.df[perf][concept],
-                    pianist_name=perf,
-                    concept_name=concept
-                )
+            # Create the melody and harmony plots
+            mel_plot = plotting.StripplotTopKMelodyFeatures(self.df[perf]["melody"], pianist_name=perf)
+            har_plot = plotting.StripplotTopKMelodyFeatures(self.df[perf]["harmony"], pianist_name=perf)
+            # Save in the default (reports/figures/whitebox) directory
+            for sp in [mel_plot, har_plot]:
                 sp.create_plot()
                 sp.save_fig(self.output_dir)
 

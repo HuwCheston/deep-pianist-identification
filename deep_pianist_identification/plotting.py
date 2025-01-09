@@ -14,16 +14,17 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import partitura as pt
 import seaborn as sns
 from loguru import logger
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from music21.chord import Chord
-from music21.clef import TrebleClef
+from music21.clef import TrebleClef, BassClef
 from music21.duration import Duration
 from music21.meter import TimeSignature
 from music21.note import Note, Rest
 from music21.stream import Part, Measure, Score
-from pretty_midi import note_name_to_number, note_number_to_name
+from pretty_midi import note_number_to_name
 from skimage import io
 from skimage.transform import resize
 
@@ -54,7 +55,7 @@ HATCHES = ['/', '\\', '|', '-', '+', 'x', 'o', 'O', '.', '*']
 DOTTED = 'dotted'
 DASHED = 'dashed'
 
-# Remove URL where images of all pianists are stored
+# Remote URL where images of all pianists are stored
 IMG_LOC = "https://raw.githubusercontent.com/HuwCheston/Jazz-Trio-Database/refs/heads/main/references/images/musicians"
 # Used for saving PNG images with the correct background
 SAVE_KWS = dict(format='png', facecolor=WHITE)
@@ -301,24 +302,8 @@ class BarPlotSingleConceptAccuracy(BarPlotMaskedConceptsAccuracy):
         super().save_fig(title)
 
 
-class StripplotTopKFeatures(BasePlot):
-    """Creates a strip/scatter plot showing the top/bottom-K features for a given performer
-
-    Examples:
-        >>> t = dict(
-        >>>     top_ors=np.array([1.2, 1.15, 1.10, 1.05, 1.01]),    # The top K odds ratios for this performer
-        >>>     bottom_ors=np.array([0.8, 0.85, 0.9, 0.95, 0.975]),    # The bottom K odds ratios
-        >>>     top_std=np.array([0.01, 0.01, 0.01, 0.01, 0.01]),    # The corresponding top K standard deviations
-        >>>     bottom_std=np.array([0.01, 0.01, 0.01, 0.01, 0.01]),    # Bottom k standard deviations
-        >>>     # These arrays contain the names of the n-grams
-        >>>     top_names=np.array(["M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]"]),
-        >>>     bottom_names=np.array(["M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]", "M_[1, 1, 1]"])
-        >>> )
-        >>> plo = StripplotTopKFeatures(t, "Testy McTestFace")
-        >>> plo.create_plot()
-        >>> plo.save_fig()
-
-    """
+class _StripplotTopKFeatures(BasePlot):
+    """Parent class for strip plots showing the top/bottom-K features for a given performer"""
 
     ERROR_KWS = dict(lw=LINEWIDTH, color=BLACK, capsize=8, zorder=0, elinewidth=LINEWIDTH, ls='none')
     SCATTER_KWS = dict(legend=False, s=200, edgecolor=BLACK, zorder=10)
@@ -327,81 +312,16 @@ class StripplotTopKFeatures(BasePlot):
             self,
             concept_dict: dict,
             pianist_name: str = "",
-            concept_name: str = ""
     ):
         super().__init__()
         self.concept_dict = concept_dict
         self.pianist_name = pianist_name
-        self.concept_name = concept_name
         self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH // 2.25))
 
-    def ic_to_music21_note(self, ic: int, prev_note):
-        # Get the previous note as a name ("C5") and convert to a MIDI number
-        prev_number = note_name_to_number(str(prev_note))
-        # Add the current interval class to the previous note number
-        next_number = prev_number + ic
-        # If we're plotting chords, we want to express all chords on the same octave
-        if self.concept_name == "harmony":
-            # So keep subtracting an octave from the note until it's within the same octave as middle C
-            while next_number >= utils.MIDDLE_C + utils.OCTAVE:
-                next_number -= utils.OCTAVE
-        # Music21 expects note names, so convert to a name and append to the list
-        return Note(note_number_to_name(next_number), quarterLength=1)
+    def _create_music21(self, _: str) -> Score:
+        return Score()
 
-    @staticmethod
-    def center_music21_on_c5(score: Score, center: int = utils.MIDDLE_C + (utils.OCTAVE // 2)):
-        def mean_pitch(notes_or_chord: Note | Chord):
-            pitches = []
-            for note_or_chord in notes_or_chord:
-                if isinstance(note_or_chord, Note):
-                    pitches.append(note_or_chord.pitch.midi)
-                else:
-                    for note in note_or_chord:
-                        pitches.append(note.pitch.midi)
-            return np.mean(pitches)
-
-        # Continuously transpose up by an octave until the mean pitch reaches or exceeds C5 (MIDI 72)
-        while mean_pitch(score.recurse().notes) <= center:
-            for n in score.recurse().notes:
-                n.transpose(utils.OCTAVE, inPlace=True)
-
-    def _create_music21(self, ngram: str) -> Score:
-        # These hold all the note instances we'll create
-        score, part, measure = Score(), Part(), Measure()
-        # Evaluate the n-gram as a list of integers
-        ngram_list = eval(ngram)
-        ts_numerator = len(ngram_list) if self.concept_name == "melody" else 1
-        # Time signature with same number of quarter notes as ICs in n-gram
-        ts = TimeSignature(f"{ts_numerator + 4}/4")
-        ts.style.hideObjectOnPrint = True  # hides the time signature
-        # Add the time signature to the measure
-        measure.append(ts)
-        # Add a spacer rest with a short duration (hidden rest)
-        spacer = Rest()  # Invisible rest
-        spacer.duration = Duration(0.5)
-        spacer.style.hideObjectOnPrint = True  # Ensure it's invisible in the score
-        measure.append(spacer)
-        # We'll express all notation with relation to middle C
-        measure.append(Note(note_number_to_name(utils.MIDDLE_C), quarterLength=1))
-        # Iterate over all the ICs in the n-gram
-        for ic in ngram_list:
-            # Add the note to the measure
-            measure.append(self.ic_to_music21_note(ic, measure[-1].pitch))
-        # Converting the measure to a chord and then back will remove all rhythmic information
-        if self.concept_name == "harmony":
-            measure = Measure([spacer, Chord([i for i in measure if isinstance(i, Note)])])
-        # Add the measure to the part and the part to the score
-        part.append(measure)
-        score.append(part)
-        # Transpose recursively so the mean pitch is centered on C5
-        self.center_music21_on_c5(score)
-        # Always use a treble clef as centered around c5
-        part.append(TrebleClef())
-        # Remove the final bar line from the part
-        part[-1].rightBarline = None
-        return score
-
-    def _add_notation(self, ngram: str, y: float, right_crop: float = 0.7) -> None:
+    def _add_notation(self, ngram: str, y: float, x: float = 1.025, right_crop: float = 0.7) -> None:
         """Adds a given feature/ngram as notation onto the axis with a given y coordinate"""
         notes = self._create_music21(ngram)
         # Export the notation as an image
@@ -420,27 +340,171 @@ class StripplotTopKFeatures(BasePlot):
         right_edge = int(image.shape[1] * right_crop)
         cropped_image = image[:, :right_edge]
         imagebox = OffsetImage(cropped_image, zoom=0.25)
-        ab = AnnotationBbox(imagebox, (1.025, y), xycoords='axes fraction', frameon=False, box_alignment=(0, 0.5))
+        ab = AnnotationBbox(imagebox, (x, y), xycoords='axes fraction', frameon=False, box_alignment=(0, 0.5))
         self.ax.add_artist(ab)
         # Remove the temporary files we've created
         os.remove("tmp-1.png")
         os.remove("tmp.musicxml")
 
+    @staticmethod
+    def _invisible_rest(duration: float = 0.5):
+        """Add an (invisible) rest with a custom duration"""
+        spacer = Rest()
+        spacer.duration = Duration(duration)
+        spacer.style.hideObjectOnPrint = True  # Ensure it's invisible in the score
+        return spacer
+
+    @staticmethod
+    def _time_signature(numerator: int = 2, denominator: int = 4):
+        """Returns a (hidden) time signature with a given numerator"""
+        ts = TimeSignature(f"{numerator}/{denominator}")
+        ts.style.hideObjectOnPrint = True  # hides the time signature
+        return ts
+
+    @staticmethod
+    def _center_feature(feature: list[int], threshold: int = utils.MIDDLE_C):
+        """Centers the notes in a feature by transposing them by octaves until the mean pitch is below the threshold"""
+        # Note that we're expecting our feature to be a list of integers here, i.e. that returned by .format_feature
+        while np.mean(feature) <= threshold:
+            feature = [i + utils.OCTAVE for i in feature]
+        return feature
+
     def add_notation(self, direction: str, ngram_names: list[str]):
-        """Adds all features as notation onto the axis at a given position"""
-        # Hard-coding our y-axis positions is maybe not the best solution for scalability, but works for now
-        if direction == 'bottom':
-            ys = [0.95, 0.85, 0.75, 0.65, 0.55]
-        else:
-            ys = [0.45, 0.35, 0.25, 0.15, 0.05]
-        for y, ng in zip(ys, ngram_names):
-            self._add_notation(ng, y)
+        pass
 
     def _create_plot(self):
-        for direction in ['bottom', 'top']:
+        pass
+
+    @staticmethod
+    def pt_note_to_midi(partitura_note: tuple) -> str:
+        """Partitura structured arrays are in format (note, accidental, octave). We want to parse this to a MIDI note"""
+        note, accidental, octave = partitura_note
+        # if the accidental is flat
+        if accidental == -1:
+            accidental_fmt = '-'
+        # If it is sharp
+        elif accidental == 1:
+            accidental_fmt = '#'
+        # otherwise, no accidental
+        else:
+            accidental_fmt = ''
+        # parse everything as a MIDI note, e.g. C#5
+        return f'{note}{accidental_fmt}{octave}'
+
+    def get_estimated_spelling(self, score: Score) -> list[str]:
+        """Gets the estimated spelling for all notes within a `score` object using partitura"""
+        # Export to MusicXML file
+        musicxml_path = 'tmp_to_partitura.xml'
+        score.write('musicxml', fp=musicxml_path)
+        # Load the Musicxml in partitura and remove the temporary file
+        parti = pt.load_musicxml(musicxml_path)
+        os.remove(musicxml_path)
+        # Estimate the spelling and convert the structured array to a list of MIDI note names
+        estimated_spelling = pt.musicanalysis.pitch_spelling.estimate_spelling(parti)
+        return [self.pt_note_to_midi(n) for n in estimated_spelling]
+
+    def _add_performer_image(self, x: float = 0.95, y: float = 0.95):
+        """Adds an image of the performer into the plot with the desired x- and y-coordinates"""
+        gh = f"{IMG_LOC}/{self.pianist_name.lower().replace(' ', '_')}.png"
+        try:
+            image = io.imread(gh)
+        except (HTTPError, URLError):
+            logger.warning(f"Couldn't find performer image for {self.pianist_name} at {gh}!")
+            return
+        imagebox = OffsetImage(image, zoom=1.0)
+        ab = AnnotationBbox(imagebox, (x, y), xycoords='axes fraction', frameon=False, box_alignment=(1., 1.))
+        self.ax.add_artist(ab)
+
+    @staticmethod
+    def measure_to_part(measure: Measure):
+        """Converts a measure to a part and sets the final barline to be invisible"""
+        part = Part(measure)
+        # Remove the final bar line from the part
+        part[-1].rightBarline = None
+        return part
+
+    def _format_ax(self):
+        """Setting plot aesthetics on an axis-level basis"""
+        plt.setp(self.ax.spines.values(), linewidth=LINEWIDTH)
+        self.ax.tick_params(axis='both', width=TICKWIDTH)
+
+    def _format_fig(self):
+        """Setting plot aeshetics on a figure-level basis"""
+        self.fig.subplots_adjust(left=0.14, top=0.935, bottom=0.11, right=0.85)
+
+    def _save_fig(self, output_dir: str, concept_name: str):
+        fp = os.path.join(
+            output_dir,
+            f'topk_stripplot_{self.pianist_name.lower().replace(" ", "_")}_{concept_name}.png'
+        )
+        self.fig.savefig(fp, **SAVE_KWS)
+        plt.close('all')
+
+
+class StripplotTopKMelodyFeatures(_StripplotTopKFeatures):
+    """ Creates a strip plot showing the top-/bottom-k melody features associated with a given performer
+
+    Examples:
+    >>> t = dict(
+    >>>     top_ors=np.array([1.2, 1.15, 1.10, 1.05, 1.01]),    # The top K odds ratios for this performer
+    >>>     bottom_ors=np.array([0.8, 0.85, 0.9, 0.95, 0.975]),    # The bottom K odds ratios
+    >>>     top_std=np.array([0.01, 0.01, 0.01, 0.01, 0.01]),    # The corresponding top K standard deviations
+    >>>     bottom_std=np.array([0.01, 0.01, 0.01, 0.01, 0.01]),    # Bottom k standard deviations
+    >>>     # These arrays contain the names of the n-grams, each of them should be unique
+    >>>     top_names=np.array(["M_[1, 2, 1]", "M_[1, 1, 3]", "M_[1, 2, 1]", "M_[1, 5, 1]", "M_[2, 1, 2]"]),
+    >>>     bottom_names=np.array(["M_[1, 2, 3]", "M_[1, -4, 1]", "M_[-1, -1, -5]", "M_[1, -2, 5]", "M_[-1, -1, 3]"])
+    >>> )
+    >>> plo = StripplotTopKMelodyFeatures(t, "Testy McTestFace")
+    >>> plo.create_plot()
+    >>> plo.save_fig()
+    """
+
+    def __init__(
+            self,
+            concept_dict: dict,
+            pianist_name: str = ""
+    ):
+        super().__init__(concept_dict, pianist_name)
+
+    def _feature_to_notes(self, feature: list[int]) -> Measure:
+        """Converts a feature (list of integers) to a music21 Measure, populated with the desired notes"""
+        # Melody plots only use treble clef, with the time signature set according to the number of notes
+        measure = Measure([TrebleClef(), self._time_signature(len(feature) + 4), self._invisible_rest(0.5)])
+        for midi_number in feature:
+            midi_name = note_number_to_name(midi_number)
+            measure.append(Note(midi_name, quarterLength=1))
+        return measure
+
+    @staticmethod
+    def _adjust_m21_spelling_to_partitura(m21_notes: Score, pt_notes: list) -> None:
+        for m21_note, pt_note in zip(m21_notes.recurse().notes, pt_notes):
+            if str(m21_note.pitch) != pt_note:
+                m21_note.pitch.getEnharmonic(inPlace=True)
+
+    def _create_music21(self, feature: str) -> Score:
+        # Evaluate the n-gram as a list of integers
+        eval_feature = self.format_feature(feature)
+        # Center the feature so that the mean pitch height is G4
+        g4 = utils.MIDDLE_C + (utils.OCTAVE // 2)
+        centered_feature = self._center_feature(eval_feature, threshold=g4)
+        # Convert the feature to a music21 measure
+        measure = self._feature_to_notes(centered_feature)
+        # Add the measure to the part and the part to the score
+        part = self.measure_to_part(measure)
+        score = Score([part])
+        # Estimate the spelling
+        estimated_spelling = self.get_estimated_spelling(score)
+        self._adjust_m21_spelling_to_partitura(score, estimated_spelling)
+        return score
+
+    def _create_plot(self):
+        # Hard-coding our y-axis positions is maybe not the best solution for scalability, but works for now
+        notation_y_positions = [[0.95, 0.85, 0.75, 0.65, 0.55], [0.45, 0.35, 0.25, 0.15, 0.05]]
+        for direction, all_positions in zip(['bottom', 'top'], notation_y_positions):
             sorters = np.array(range(len(self.concept_dict[f"{direction}_ors"])))
             if direction == 'top':
                 sorters = sorters[::-1]
+            # Format the name by removing the first two characters
             names = np.array([i[2:] for i in self.concept_dict[f"{direction}_names"]])[sorters]
             # Creating the errorbar, showing standard deviation
             self.ax.errorbar(
@@ -453,59 +517,154 @@ class StripplotTopKFeatures(BasePlot):
                 facecolor=GREEN if direction == 'top' else RED,
                 **self.SCATTER_KWS, ax=self.ax, label=f"{direction.title()}-5",
             )
-            self.add_notation(direction, names)
-        self.ax.legend(**LEGEND_KWS, loc='lower left')
+            # Adds all features as notation onto the axis at a given position
+            for y, ng in zip(all_positions, names):
+                self._add_notation(ng, y)
 
-    def _add_performer_image(self):
-        gh = f"{IMG_LOC}/{self.pianist_name.lower().replace(' ', '_')}.png"
-        try:
-            image = io.imread(gh)
-        except (HTTPError, URLError):
-            logger.warning(f"Couldn't find performer image for {self.pianist_name} at {gh}!")
-            return
-        imagebox = OffsetImage(image, zoom=1.0)
-        ab = AnnotationBbox(imagebox, (0.95, 0.95), xycoords='axes fraction', frameon=False, box_alignment=(1., 1.))
-        self.ax.add_artist(ab)
-
-    def format_feature_str(self, intervals: str) -> str:
-        if self.concept_name == "melody":
-            pitch_set = [0]
-            current_pitch = 0
-            for interval in eval(intervals):
-                current_pitch += interval
-                pitch_set.append(current_pitch)
-            return str(tuple(pitch_set))
-        elif self.concept_name == "harmony":
-            return str(tuple([0, *eval(intervals)]))
-        else:
-            return intervals
+    @staticmethod
+    def format_feature(feature: str) -> tuple:
+        """Formats the feature from a string to a tuple"""
+        pitch_set = [0]
+        current_pitch = 0
+        for interval in eval(feature):
+            current_pitch += interval
+            pitch_set.append(current_pitch)
+        return tuple(pitch_set)
 
     def _format_ax(self):
-        """Setting plot aesthetics on an axis-level basis"""
         self._add_performer_image()
         self.ax.tick_params(right=True)
-        self.ax.set(title=f'{self.pianist_name}, {self.concept_name} features', xlabel='Odds ratio', ylabel='Feature')
-        self.ax.set_yticks(
-            self.ax.get_yticks(), [self.format_feature_str(yl.get_text()) for yl in self.ax.get_yticklabels()]
-        )
+        self.ax.set_title(f'{self.pianist_name}, melody features')
+        self.ax.set(ylabel='Odds ratio', xlabel='Feature')
+        fmt_text = [str(self.format_feature(yl.get_text())) for yl in self.ax.get_yticklabels()]
+        self.ax.set_yticks(self.ax.get_yticks(), fmt_text)
         self.ax.grid(axis='x', zorder=0, **GRID_KWS)
         self.ax.axhline(4.5, 0, 1, linewidth=LINEWIDTH, color=BLACK, alpha=ALPHA, ls=DASHED)
         self.ax.axvline(1, 0, 1, linewidth=LINEWIDTH, color=BLACK)
-        plt.setp(self.ax.spines.values(), linewidth=LINEWIDTH)
-        self.ax.tick_params(axis='both', width=TICKWIDTH)
+        self.ax.legend(**LEGEND_KWS, loc='lower left')
+        super()._format_ax()
+
+    def save_fig(self, output_dir: str):
+        super()._save_fig(output_dir, "melody")
+
+
+class StripplotTopKHarmonyFeatures(_StripplotTopKFeatures):
+    """ Creates a strip plot showing the top-/bottom-k harmony features associated with a given performer"""
+
+    def __init__(
+            self,
+            concept_dict: dict,
+            pianist_name: str = "",
+    ):
+        super().__init__(concept_dict, pianist_name)
+
+    def _create_plot(self):
+        # Maybe not a good idea to hardcode these positions but whatever
+        notation_x_positions = [[0.025, 0.125, 0.225, 0.325, 0.425], [0.525, 0.625, 0.725, 0.825, 0.925]]
+        for direction, all_positions in zip(['bottom', 'top'], notation_x_positions):
+            sorters = np.array(range(len(self.concept_dict[f"{direction}_ors"])))
+            if direction == 'top':
+                sorters = sorters[::-1]
+            # Remove the first two characters from the name of each feature
+            names = np.array([i[2:] for i in self.concept_dict[f"{direction}_names"]])[sorters]
+            # Creating the errorbar, showing standard deviation
+            self.ax.errorbar(
+                names, self.concept_dict[f"{direction}_ors"][sorters],
+                yerr=self.concept_dict[f"{direction}_std"][sorters], **self.ERROR_KWS
+            )
+            # Creating the scatter plot
+            sns.scatterplot(
+                y=self.concept_dict[f"{direction}_ors"][sorters], x=names,
+                facecolor=GREEN if direction == 'top' else RED,
+                **self.SCATTER_KWS, ax=self.ax, label=f"{direction.title()}-5",
+            )
+            # Add notation for all features
+            for x, ng in zip(notation_x_positions, names):
+                self._add_notation(ng, x=x, y=1.1)  # using a fixed y-axis position
+
+    def _feature_to_notes(self, feature: list[int]):
+        """Populate two separate measure objects with notes from the feature: one each for left/right hands"""
+        # The 2/4 time signature means we can have one invisible 1/4 note rest and one 1/4 note for the chord itself
+        right_hand = Measure([TrebleClef(), self._time_signature(2), self._invisible_rest(0.5)])
+        left_hand = Measure([BassClef(), self._time_signature(2), self._invisible_rest(0.5)])
+        # Iterate over every note in the feature
+        for midi_number in feature:
+            # Converting to music21 format
+            midi_name = note_number_to_name(midi_number)
+            note = Note(midi_name, quarterLength=1)
+            # Notes at and below middle C go to left hand, everything else goes to right
+            if midi_number <= utils.MIDDLE_C:
+                left_hand.append(note)
+            else:
+                right_hand.append(note)
+        return right_hand, left_hand
+
+    @staticmethod
+    def to_chord(measure: Measure) -> Chord:
+        """Convert all music21 notes in a measure to a chord while preserving non-note elements"""
+        is_note = [i for i in measure if isinstance(i, Note)]
+        is_not_note = [i for i in measure if not isinstance(i, Note)]
+        return Measure([*is_not_note, Chord(is_note)])  # order of elements doesn't really matter here
+
+    @staticmethod
+    def _adjust_m21_spelling_to_partitura(m21_notes: Score, pt_notes: list) -> None:
+        rh, lh = m21_notes
+        counter = 0  # Counter used to get the required partitura note from our list
+        # Iterate in order of left hand, right hand (by default, music21 would do the inverse)
+        for part in [lh, rh]:
+            # Iterate over every element
+            for element in part.recurse():
+                # If we have a chord, iterate over each note
+                if isinstance(element, Chord):
+                    for m21_note in element:
+                        # If partitura is saying we should spell the note differently
+                        if str(m21_note.pitch) != pt_notes[counter]:
+                            # Get the enharmonic spelling, adjusted in place
+                            m21_note.pitch.getEnharmonic(inPlace=True)
+                        counter += 1
+
+    @staticmethod
+    def format_feature(feature: str) -> tuple:
+        """Formats the feature from a string to a tuple"""
+        return tuple(sorted({0, *eval(feature)}))
+
+    def _create_music21(self, feature: str) -> Score:
+        # Evaluate the feature as a list of integers
+        eval_feature = self.format_feature(feature)
+        # Center the feature around middle C
+        centered_feature = self._center_feature(eval_feature)
+        # Convert the feature into note classes with separate right and left hand
+        rh, lh = self._feature_to_notes(centered_feature)
+        # Convert the notes into chords
+        rh_chord, lh_chord = self.to_chord(rh), self.to_chord(lh)
+        # Convert the chords into parts
+        rh_part, lh_part = self.measure_to_part(rh_chord), self.measure_to_part(lh_chord)
+        # Convert the parts to a score
+        score = Score([rh_part, lh_part])
+        # Estimate the correct enharmonic spelling
+        estimated_spelling = self.get_estimated_spelling(score)
+        self._adjust_m21_spelling_to_partitura(score, estimated_spelling)
+        return score
+
+    def _format_ax(self):
+        self._add_performer_image(x=0.125)
+        self.ax.tick_params(top=True)
+        self.ax.set_title(f'{self.pianist_name}, harmony features', y=1.2)
+        self.ax.set(xlabel='Odds ratio', ylabel='Feature')
+        fmt_text = [str(self.format_feature(yl.get_text())) for yl in self.ax.get_xticklabels()]
+        self.ax.set_xticks(self.ax.get_xticks(), fmt_text, rotation=90, va='top', ha='right')
+        self.ax.grid(axis='y', zorder=0, **GRID_KWS)
+        self.ax.axvline(4.5, 0, 1, linewidth=LINEWIDTH, color=BLACK, alpha=ALPHA, ls=DASHED)
+        self.ax.axhline(1, 0, 1, linewidth=LINEWIDTH, color=BLACK)
+        self.ax.legend(**LEGEND_KWS, loc='lower right')
+        super()._format_ax()
 
     def _format_fig(self):
         """Setting plot aeshetics on a figure-level basis"""
-        r = 0.85 if self.concept_name == "melody" else 0.9
-        self.fig.subplots_adjust(left=0.14, top=0.935, bottom=0.11, right=r)
+        self.fig.subplots_adjust(left=0.14, top=0.935, bottom=0.11, right=0.9)
 
     def save_fig(self, output_dir: str):
-        fp = os.path.join(
-            output_dir,
-            f'topk_stripplot_{self.pianist_name.lower().replace(" ", "_")}_{self.concept_name}.png'
-        )
-        self.fig.savefig(fp, **SAVE_KWS)
-        plt.close('all')
+        super()._save_fig(output_dir, "harmony")
 
 
 class HeatmapWhiteboxFeaturePianoRoll(BasePlot):
