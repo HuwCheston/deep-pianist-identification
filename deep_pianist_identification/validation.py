@@ -122,10 +122,6 @@ class ValidateModule:
 
     def run_validation(self) -> None:
         """Runs the required validation function and saves outputs (plots, csv files)"""
-        # Create the folder inside the checkpoints directory to save the output in
-        save_path = os.path.join(self.checkpoint_folder, "validation")
-        if not os.path.exists(save_path):
-            os.mkdir(save_path)
         # Model should always be in evaluation mode during validation
         self.model.eval()
         start = time()
@@ -134,9 +130,7 @@ class ValidateModule:
         logger.debug(f'Took {time() - start:.2f} seconds to calculate validation accuracy')
         # Convert validation accuracy (list of dictionaries) to a dataframe
         accuracy_df = pd.DataFrame(accuracies)
-        # Save the dataframe inside the checkpoint folder for this run and log time
-        accuracy_df.to_csv(os.path.join(save_path, "validation.csv"), index=False)
-        logger.debug(f"Saved validation metrics to {save_path}")
+        self.save_csv(accuracy_df, "validation.csv")
         # Creating multichannel plots
         if self.validation_fn == self.validate_multichannel:
             lp = plotting.LollipopPlotMaskedConceptsAccuracy(
@@ -273,12 +267,24 @@ class ValidateModule:
         hm.save_fig()
         # Create the per-class, per-concept accuracy dataframe and save to a csv
         perclass_acc_df = pd.DataFrame(perclass_accuracies)
-        perclass_acc_df.to_csv(os.path.join(self.checkpoint_folder, "validation", "class_accuracy.csv"), index=False)
+        self.save_csv(perclass_acc_df, "class_accuracy.csv")
         # Plot per-class accuracy for each concept
         bp = plotting.BarPlotConceptClassAccuracy(perclass_acc_df)
         bp.create_plot()
         bp.save_fig()
         return global_accuracies
+
+    @staticmethod
+    def save_csv(df: pd.DataFrame, name: str):
+        # Create the folder if it doesn't exist
+        fold = os.path.join(get_project_root(), "reports/figures/ablated_representations")
+        if not os.path.isdir(fold):
+            os.makedirs(fold)
+        # Convert to a DataFrame if not currently one
+        if not isinstance(df, pd.DataFrame):
+            df = pd.DataFrame(df)
+        # Dump to a csv with the required name
+        df.to_csv(os.path.join(fold, f"{name}.csv"), index=False)
 
     def validate_singlechannel(self) -> list[dict]:
         """Validation function for single channel (i.e., baseline) models, with no concept of masking"""
