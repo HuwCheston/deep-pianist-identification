@@ -157,6 +157,11 @@ class ValidateModule:
         cm = plotting.HeatmapConfusionMatrix(mat, pianist_mapping=self.class_mapping, title=title)
         cm.create_plot()
         cm.save_fig()
+        # Save the CSV file to inside the confusion matrices folder
+        df = pd.DataFrame(mat)
+        df.columns = self.class_mapping.values()  # adding column headings
+        df.index = self.class_mapping.values()  # adding row headings
+        self.save_csv(df, f'confusion_matrices/confusion_matrix_{title}.csv')
 
     def get_zero_rate_accuracy(self, track_targets: list[torch.tensor], track_names: list[str]) -> float:
         """Get accuracy for a model that just predicts the most frequent class"""
@@ -283,8 +288,10 @@ class ValidateModule:
         # Convert to a DataFrame if not currently one
         if not isinstance(df, pd.DataFrame):
             df = pd.DataFrame(df)
-        # Dump to a csv with the required name
-        df.to_csv(os.path.join(fold, f"{name}.csv"), index=False)
+        # Dump to a csv with the required name, adding the file extension if needed
+        if not name.endswith('.csv'):
+            name = name + '.csv'
+        df.to_csv(os.path.join(fold, name), index=False)
 
     def validate_singlechannel(self) -> list[dict]:
         """Validation function for single channel (i.e., baseline) models, with no concept of masking"""

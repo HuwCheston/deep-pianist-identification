@@ -169,11 +169,6 @@ class HeatmapConfusionMatrix(BasePlot):
         if not os.path.isdir(fold):
             os.makedirs(fold)
         self.fig.savefig(os.path.join(fold, f"heatmap_confusion_matrix_{self.title}.png"), **SAVE_KWS)
-        # Dump the csv file as well
-        df = pd.DataFrame(self.mat)
-        df.columns = self.pianist_mapping.values()
-        df.index = self.pianist_mapping.values()
-        df.to_csv(os.path.join(fold, f"confusion_matrix_{self.title}.csv"))
 
 
 class BarPlotMaskedConceptsAccuracy(BasePlot):
