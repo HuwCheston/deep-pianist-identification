@@ -138,6 +138,7 @@ class CAV:
             model: torch.nn.Module,
             layer: torch.nn.Module,
             layer_attribution: str = "gradient_x_activation",
+            test_train_split: bool = False,
             multiply_by_inputs: bool = True,
             standardize: bool = False,
             batch_size: int = BATCH_SIZE
@@ -160,6 +161,8 @@ class CAV:
         # Variables for linear classifier separating concept and random activations
         self.classifier = LogisticRegression
         self.standardize = standardize
+        # whether we'll split inputs into separate train-test sets or just use all data to create CAV
+        self.test_train_split = test_train_split
         # All of these variables will be updated when creating the CAV
         self.acc = []  # Accuracy scores of linear models separating concept and random datasets
         self.cav = []
@@ -232,6 +235,18 @@ class CAV:
         # Concatenate the embeddings
         return np.concatenate(embeds)
 
+    @staticmethod
+    def get_cav_test_acc(x: np.ndarray, y: np.ndarray, classifier) -> float:
+        # Split into test-train sets with 0.2/0.8 split
+        x_train, x_test, y_train, y_test = train_test_split(
+            x, y, test_size=TEST_SIZE, stratify=y, random_state=utils.SEED
+        )
+        # Fit the model and predict the test set
+        classifier.fit(x_train, y_train)  # will probably raise convergence warnings
+        y_pred = classifier.predict(x_test)
+        # Return accuracy of test set predictions
+        return accuracy_score(y_test, y_pred)
+
     @ignore_warnings(category=ConvergenceWarning)
     def get_cav(
             self,
@@ -247,23 +262,20 @@ class CAV:
         # Scale the features if required; not used in initial TCAV implementation
         if self.standardize:
             x = SCALER.fit_transform(x)
-        # Split into train-test sets
-        x_train, x_test, y_train, y_test = train_test_split(
-            x, y, test_size=TEST_SIZE, stratify=y, random_state=utils.SEED
-        )
-        # # Log dimensionality of all inputs
-        # logger.info(f'Shape of training inputs: X = {x_train.shape}, y = {y_train.shape}')
-        # logger.info(f'Shape of testing inputs: X = {x_test.shape}, y = {y_test.shape}')
-        # Initialise the classifier class
-        classifier = self.classifier(random_state=utils.SEED)
-        # Fit the model and predict the test set
-        classifier.fit(x_train, y_train)  # will probably raise convergence warnings
-        y_pred = classifier.predict(x_test)
-        # Get test set accuracy and log
-        acc = accuracy_score(y_test, y_pred)
-        # Extract coefficients - these are our CAVs
-        # TODO: still unsure whether something needs to happen for `orthogonal` here
-        return torch.tensor(classifier.coef_.astype(np.float32)).flatten(), acc
+        # Initialise the classifier class, ensure no warm start so that we don't re-use parameters across fittings
+        classifier = self.classifier(random_state=utils.SEED, warm_start=False)
+        # If we're splitting into separate training and testing sets (not by default)
+        if self.test_train_split:
+            acc = self.get_cav_test_acc(x, y, classifier)
+        # If we're just fitting to the entire dataset without splitting
+        else:
+            # No need to predict, just set accuracy to NaN so we have something to return
+            acc = np.nan
+        # Fit to the entire dataset
+        classifier.fit(x, y)
+        # Extract coefficients from the fitted classifier - these are our CAVs
+        cav = torch.tensor(classifier.coef_.astype(np.float32)).flatten()
+        return cav, acc
 
     def compute_cav_sensitivity(self, feat: torch.tensor, targ: torch.tensor, cav: torch.tensor) -> torch.tensor:
         """Given input `features` and `targets`, compute sensitivitiy to provided `cav`"""
@@ -328,8 +340,9 @@ class CAV:
             # Append everything to a list
             self.acc.append(acc)
             self.cav.append(cav)
-        # Log the accuracy to the console
-        logger.info(f'Mean test accuracy for CAV: {np.mean(self.acc):.5f}, SD {np.std(self.acc):.5f}')
+        # Log the accuracy to the console if we want to do this
+        if self.test_train_split:
+            logger.info(f'Mean test accuracy for CAV: {np.mean(self.acc):.5f}, SD {np.std(self.acc):.5f}')
 
     def interpret(self, features: torch.tensor, targets: torch.tensor, class_mapping: list) -> None:
         # Get sensitivity for all features/targets to all CAVs
@@ -358,6 +371,7 @@ class RandomCAV(CAV):
             n_clips: int,
             model: torch.nn.Module,
             layer: torch.nn.Module,
+            test_train_split: bool = False,
             layer_attribution: str = "gradient_x_activation",
             multiply_by_inputs: bool = True,
             standardize: bool = False,
@@ -369,6 +383,7 @@ class RandomCAV(CAV):
             model=model,
             layer=layer,
             layer_attribution=layer_attribution,
+            test_train_split=test_train_split,
             multiply_by_inputs=multiply_by_inputs,
             standardize=standardize,
             batch_size=batch_size
@@ -394,7 +409,8 @@ class RandomCAV(CAV):
             self.acc.append(acc)
             self.cav.append(cav)
         # Log the accuracy to the console, should be about 50%
-        logger.info(f'Mean test accuracy for random CAV: {np.mean(self.acc):.5f}, SD {np.std(self.acc):.5f}')
+        if self.test_train_split:
+            logger.info(f'Mean test accuracy for random CAV: {np.mean(self.acc):.5f}, SD {np.std(self.acc):.5f}')
 
 
 class VoicingLoaderReal(Dataset):
