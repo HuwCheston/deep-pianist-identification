@@ -240,10 +240,6 @@ def main(
         model, layer, features, targets, tm.class_mapping, attribution_fn,
         multiply_by_inputs, n_experiments, batch_size, n_cavs, n_random_clips,
     )
-    # Log accuracies for all CAVs
-    all_accs = np.concatenate([i.acc for i in cav_list])
-    for func, name in zip([np.mean, np.std, np.max, np.min], ['mean', 'std', 'max', 'min']):
-        logger.info(f'CAV accuracy {name}: {func(all_accs):.5f}')
     # Shape (n_cavs, n_performers, n_experiments)
     all_sign_counts = np.stack([cav.sign_counts for cav in cav_list])
     # Shape (n_performers, n_cavs)
