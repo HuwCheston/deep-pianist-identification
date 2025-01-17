@@ -852,6 +852,9 @@ class HeatmapCAVSensitivity(BasePlot):
             os.makedirs(fold)
         fp = os.path.join(fold, f"cav_plots/{self.sensitivity_type.replace(' ', '_').lower()}_heatmap.png")
         self.fig.savefig(fp, **SAVE_KWS)
+        # Dump the csv file as well
+        fp = os.path.join(fold, f"cav_plots/{self.sensitivity_type.replace(' ', '_').lower()}.csv")
+        self.df.to_csv(fp)
 
 
 class HeatmapCAVPairwiseCorrelation(BasePlot):
@@ -885,6 +888,9 @@ class HeatmapCAVPairwiseCorrelation(BasePlot):
             os.makedirs(fold)
         fp = os.path.join(fold, f"cav_plots/cav_sensitivity_pairwise_correlation_heatmap.png")
         self.fig.savefig(fp, **SAVE_KWS)
+        # Dump the csv file as well
+        fp = os.path.join(fold, f"cav_plots/cav_sensitivity_pairwise_correlation.csv")
+        self.df.to_csv(fp)
 
 
 class BarPlotDatasetDurationCount(BasePlot):
