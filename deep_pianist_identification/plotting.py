@@ -836,9 +836,10 @@ class HeatmapCAVSensitivity(BasePlot):
     def _format_ax(self):
         fmt_heatmap_axis(self.ax)
         # Set axis and tick thickness
+        # There seems to occasionally be an encoding issue with the arrows here
         self.ax.set(
-            xlabel="Harmony CAV (Ã¢â€ â€™Ã¢â€ â€™Ã¢â€ â€™ $increasing$ $complexity$ Ã¢â€ â€™Ã¢â€ â€™Ã¢â€ â€™)",
-            ylabel="Pianist (Ã¢â€ â€™Ã¢â€ â€™Ã¢â€ â€™ $increasing$ $birth$ $year$ Ã¢â€ â€™Ã¢â€ â€™Ã¢â€ â€™)"
+            xlabel="Harmony CAV (→→→ $increasing$ $complexity$ →→→)",
+            ylabel="Pianist (→→→ $increasing$ $birth$ $year$ →→→)"
         )
         self.ax.invert_yaxis()
 
