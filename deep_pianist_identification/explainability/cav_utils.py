@@ -47,6 +47,9 @@ N_JOBS = 1  # seems to be faster than parallel processing?
 N_EXPERIMENTS = 10  # Same as in Foscarin
 N_RANDOM_CLIPS = 250
 
+# These are paths to clips that we'll create the concept sensitivity heatmaps for
+HEATMAP_CLIPS = ["pijama/tynerm-tivoli-unaccompanied-xxxx-zzs1xka8/clip_008.mid"]
+
 
 def parse_arguments(argparser) -> dict:
     """Adds required CLI arguments to an `ArgumentParser` object and parses them to a dictionary"""
@@ -91,6 +94,13 @@ def parse_arguments(argparser) -> dict:
         default=BATCH_SIZE,
         type=int,
         help='Size of batches to use for GPU processing'
+    )
+    argparser.add_argument(
+        '-s', '--sensitivity-heatmap-clips',
+        default=HEATMAP_CLIPS,
+        action='append',
+        type=str,
+        help='Clips to create concept sensitivity heatmaps for, can be passed multiple times',
     )
     return vars(argparser.parse_args())
 

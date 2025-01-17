@@ -169,13 +169,28 @@ def create_or_load_cavs(
     return cav_list, random_cav
 
 
-def create_kernel_heatmaps(track_names: list[str], cavs: list[cav_utils.CAV], class_mapping: dict) -> None:
+def create_static_sensitivity_heatmap(
+        clip_paths: list[str],
+        cavs: list[cav_utils.CAV],
+        class_mapping: dict
+) -> None:
     """Creates kernel heatmaps for all combinations of tracks and CAVs"""
-    for track_name in tqdm(track_names, desc='Creating heatmaps...'):
-        for cav_idx in range(len(cavs)):
-            # Create the slider instance: slides a kernel over transcription and comptues change in sensitivity to CAV
+    # If we've somehow only ended up with a single string
+    if isinstance(clip_paths, str):
+        # Convert this to a list of strings
+        clip_paths = [clip_paths]
+    # Iterate over all the clips we've passed in
+    for clip_path in clip_paths:
+        # Formatting the clip path correctly
+        if not clip_path.endswith('.mid'):
+            clip_path += '.mid'
+        full_clip_path = os.path.join(utils.get_project_root(), 'data/clips', clip_path)
+        assert os.path.isfile(full_clip_path), f"Could not find MIDI at {clip_path}!"
+        # Iterate over all concepts for this clip
+        for cav_idx in tqdm(range(len(cavs)), f'Creating heatmaps for clip {clip_path}...'):
+            # Create the slider instance: slides a kernel over transcription and computes change in sensitivity to CAV
             slider = cav_utils.CAVKernelSlider(
-                clip_path=track_name,
+                clip_path=clip_path,
                 cav=cavs[cav_idx],
                 kernel_size=(24, 2.5),
                 stride=(2.0, 2.0),
@@ -183,7 +198,7 @@ def create_kernel_heatmaps(track_names: list[str], cavs: list[cav_utils.CAV], cl
             )
             # Create the plot, which takes in the attributes computed from the CAVKernelSlider class
             hm = plotting.HeatmapCAVKernelSensitivity(
-                clip_path=track_name,
+                clip_path=clip_path,
                 sensitivity_array=slider.compute_kernel_sensitivities(),
                 clip_roll=slider.clip_roll,
                 cav_name=cav_utils.CAV_MAPPING[cav_idx],
@@ -199,7 +214,8 @@ def main(
         n_experiments: int,
         n_random_clips: int,
         n_cavs: int,
-        batch_size: int
+        batch_size: int,
+        sensitivity_heatmap_clips: list[str]
 ):
     """Creates all CAVs, generates similarity matrix, and saves plots"""
     logger.info(f"Initialising model with config file {model}")
@@ -254,7 +270,7 @@ def main(
     hmpc.create_plot()
     hmpc.save_fig()
     # Create plots for individual tracks
-    create_kernel_heatmaps(track_names, cav_list, tm.class_mapping)
+    create_static_sensitivity_heatmap(sensitivity_heatmap_clips, cav_list, tm.class_mapping)
 
 
 if __name__ == '__main__':
@@ -272,5 +288,6 @@ if __name__ == '__main__':
         n_experiments=args["n_experiments"],
         n_random_clips=args["n_random_clips"],
         n_cavs=args['n_cavs'],
-        batch_size=args['batch_size']
+        batch_size=args['batch_size'],
+        sensitivity_heatmap_clips=args['sensitivity_heatmap_clips']
     )
