@@ -190,7 +190,7 @@ def create_static_sensitivity_heatmap(
         for cav_idx in tqdm(range(len(cavs)), f'Creating heatmaps for clip {clip_path}...'):
             # Create the slider instance: slides a kernel over transcription and computes change in sensitivity to CAV
             slider = cav_utils.CAVKernelSlider(
-                clip_path=clip_path,
+                clip_path=full_clip_path,
                 cav=cavs[cav_idx],
                 kernel_size=(24, 2.5),
                 stride=(2.0, 2.0),
@@ -198,7 +198,7 @@ def create_static_sensitivity_heatmap(
             )
             # Create the plot, which takes in the attributes computed from the CAVKernelSlider class
             hm = plotting.HeatmapCAVKernelSensitivity(
-                clip_path=clip_path,
+                clip_path=full_clip_path,
                 sensitivity_array=slider.compute_kernel_sensitivities(),
                 clip_roll=slider.clip_roll,
                 cav_name=cav_utils.CAV_MAPPING[cav_idx],
