@@ -1120,19 +1120,23 @@ class HeatmapCAVKernelSensitivity(BasePlot):
         return clip_start, clip_end
 
     def parse_human_readable_trackname(self):
+        # Parse the start and end of the clip to a human-readable timestamp
         clip_start_fmt = self.seconds_to_timedelta(self.clip_start)
         clip_end_fmt = self.seconds_to_timedelta(self.clip_end)
-        for dataset in ['jtd', 'pijama']:
-            temp_path = f'{dataset}/{self.clip_path.split("_")[0].split("/")[1]}'
-            json_path = os.path.join(utils.get_project_root(), 'data/raw', temp_path, 'metadata.json')
-            try:
-                loaded = json.load(open(json_path, 'r'))
-            except FileNotFoundError:
-                continue
-            else:
-                return (
-                    f'{loaded["bandleader"]} Ã¢â‚¬â€ "{loaded["track_name"]}" ({clip_start_fmt}Ã¢â‚¬â€{clip_end_fmt}) '
-                        f'\nfrom "{loaded["album_name"]}", {loaded["recording_year"]}. CAV: {self.cav_name.title()}')
+        # Getting metadata json location from clip path
+        fmt_fpath = os.path.sep.join(self.clip_path.replace("clips", "raw").split(os.path.sep)[:-1])
+        json_path = f'{fmt_fpath}/metadata.json'
+        # If we can't load the metadata for whatever reason, just return an empty string
+        try:
+            loaded = json.load(open(json_path, 'r'))
+        except FileNotFoundError:
+            return ""
+        # Otherwise, return the formatted timestamp using the same format as our LIME plots
+        else:
+            return (
+                f'{loaded["bandleader"]} — "{loaded["track_name"]}" ({clip_start_fmt}—{clip_end_fmt}) '
+                f'\nfrom "{loaded["album_name"]}", {loaded["recording_year"]}. CAV: {self.cav_name.title()}'
+            )
 
     def _create_plot(self):
         # Create the background for the heatmap by resizing to the same size as the piano roll
@@ -1159,8 +1163,6 @@ class HeatmapCAVKernelSensitivity(BasePlot):
     def _format_fig(self):
         # Figure aesthetics
         self.fig.subplots_adjust(right=1.075, left=0.05, top=0.875, bottom=0.15)
-
-    # self.fig.subplots_adjust(right=1.07, left=0.05, top=0.93, bottom=0.20)
 
     def _format_ax(self):
         # Axis aesthetics
