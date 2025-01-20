@@ -178,6 +178,8 @@ class CAV:
         self.cav = []
         self.magnitudes = []
         self.sign_counts = []
+        # A dictionary with clip filenames as the keys and sensitivity values (n_experiments) as the values
+        self.clip_sensitivity_dict = {}
 
     def initialise_concept_dataloader(self):
         # Create one concept dataset, which we'll use in every experiment
@@ -354,10 +356,30 @@ class CAV:
         if self.test_train_split:
             logger.info(f'Mean test accuracy for CAV: {np.mean(self.acc):.5f}, SD {np.std(self.acc):.5f}')
 
-    def interpret(self, features: torch.tensor, targets: torch.tensor, class_mapping: list) -> None:
+    def generate_clip_sensitivites_dict(self, clip_sensitivities: torch.tensor, clip_names: np.ndarray) -> None:
+        """Generates a dictionary mapping clip names to sensitivity values for this concept"""
+        # Iterate through the filepath to a clip and the sensitivity of that clip to the concept
+        for clip_name, clip_sensitivity in zip(clip_names, torch.transpose(clip_sensitivities, 0, 1)):
+            # Format the clip filepath so we just get "source_database/track_name/clip_index"
+            # So, the format becomes something like 'jtd/evansb-allofyoutake3-lafarosmotianp-1961-e166b7f3/clip_001.mid'
+            clip_name_fmt = os.path.sep.join(clip_name.split(os.path.sep)[-3:])
+            # Set the value to a pure list for dumping in JSON format later
+            self.clip_sensitivity_dict[clip_name_fmt] = clip_sensitivity.numpy().tolist()  # shape is (n_experiments)
+        # All lengths should be identical
+        assert len(self.clip_sensitivity_dict.keys()) == len(clip_names) == clip_sensitivities.shape[1]
+
+    def interpret(
+            self,
+            features: torch.tensor,
+            targets: torch.tensor,
+            class_mapping: list,
+            clip_names: np.ndarray
+    ) -> None:
         # Get sensitivity for all features/targets to all CAVs
         # Shape is (n_experiments, n_clips)
         sensitivities = self.compute_cav_sensitivities(features, targets)
+        # Dump raw sensitivity values to a dictionary that we can later save e.g. as a JSON
+        self.generate_clip_sensitivites_dict(sensitivities, clip_names)
         # Iterate over all class indexes
         for class_idx in class_mapping:
             # Get indices of clips by this performer
@@ -703,19 +725,3 @@ class CAVKernelSlider:
         self.sensitivity_array = np.array(all_sensitivities).reshape(self.heatmap_size)
         self.sensitivity_array /= self.original_sensitivity
         return self.sensitivity_array
-
-
-def update_loaded_cav(concept: CAV, n_experiments: int, attribution_fn: str, multiply_by_inputs: bool) -> None:
-    """Update a loaded `CAV` with required arguments"""
-    # Set these attributes correctly if they haven't already been set
-    for attr, val in zip(["attr_fn_str", "multiply_by_inputs"], [attribution_fn, multiply_by_inputs]):
-        if not hasattr(concept, attr):
-            setattr(concept, attr, val)
-    # Set the number of experiments correctly
-    # I.e., if we created too many random datasets, reduce the number to the one given in the CLI
-    for attr in ["sign_counts", "magnitudes", "cav", "acc"]:
-        loaded = getattr(concept, attr)
-        if isinstance(loaded, list):
-            setattr(concept, attr, loaded[:n_experiments])
-        elif isinstance(loaded, np.ndarray):
-            setattr(concept, attr, loaded[:, :n_experiments])

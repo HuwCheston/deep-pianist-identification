@@ -3,6 +3,7 @@
 
 """Create and plot harmony CAVs using MIDI from Dan Haerle's 'Jazz Piano Voicing Skills'"""
 
+import json
 import os
 import pickle
 from argparse import ArgumentParser
@@ -16,6 +17,11 @@ from tqdm import tqdm
 from deep_pianist_identification import utils, plotting
 from deep_pianist_identification.explainability import cav_utils
 from deep_pianist_identification.training import DEFAULT_CONFIG, TrainModule
+
+# We'll dump everything we create here
+OUTPUT_DIR = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations/cav_plots")
+if not os.path.isdir(OUTPUT_DIR):
+    os.makedirs(OUTPUT_DIR)  # create folder if it doesn't already exist
 
 
 def get_training_module(cfg_path: str) -> TrainModule:
@@ -35,6 +41,7 @@ def create_all_cavs(
         layer: torch.nn.Module,
         features: torch.tensor,
         targets: torch.tensor,
+        track_names: np.ndarray,
         class_mapping: dict,
         n_experiments: int,
         n_cavs: int,
@@ -44,7 +51,7 @@ def create_all_cavs(
 ) -> list[cav_utils.CAV]:
     all_cavs = []
     for idx in range(1, n_cavs + 1):
-        logger.info(f'Creating CAV {idx}...')
+        logger.info(f'Creating CAV {idx}: {cav_utils.CAV_MAPPING[idx - 1]}...')  # log name and index of CAV
         cav = cav_utils.CAV(
             cav_idx=idx,
             model=model,
@@ -55,7 +62,7 @@ def create_all_cavs(
         )
         cav.fit(n_experiments=n_experiments)
         # Interpret using the features and targets
-        cav.interpret(features, targets, class_mapping)
+        cav.interpret(features, targets, class_mapping, track_names)
         all_cavs.append(cav)
     return all_cavs
 
@@ -65,6 +72,7 @@ def create_random_cav(
         layer: torch.nn.Module,
         features: torch.tensor,
         targets: torch.tensor,
+        track_names: np.ndarray,
         class_mapping: dict,
         n_experiments: int,
         n_clips: int,
@@ -81,7 +89,7 @@ def create_random_cav(
         batch_size=batch_size
     )
     rc.fit(n_experiments=n_experiments)
-    rc.interpret(features, targets, class_mapping)
+    rc.interpret(features, targets, class_mapping, track_names)
     return rc
 
 
@@ -120,6 +128,7 @@ def create_or_load_cavs(
         layer: torch.nn.Module,
         features: torch.tensor,
         targets: torch.tensor,
+        track_names: np.ndarray,
         class_mapping: dict,
         attribution_fn: str,
         multiply_by_inputs: bool,
@@ -127,22 +136,22 @@ def create_or_load_cavs(
         batch_size: int,
         n_cavs: int,
         n_random_clips: int,
-        save_loc: str = os.path.join(utils.get_project_root(), 'references/cavs')
 ) -> tuple[list[cav_utils.CAV], cav_utils.CAV]:
     """Load CAVs from disk at `save_loc` or create them from scratch with given arguments"""
     logger.info('Creating CAVs...')
     try:
         # Try unpickling all objects at provided location
-        cav_list = pickle.load(open(os.path.join(save_loc, 'cavs.p'), 'rb'))
-        random_cav = pickle.load(open(os.path.join(save_loc, 'random_cav.p'), 'rb'))
+        cav_list = pickle.load(open(os.path.join(OUTPUT_DIR, 'cavs.p'), 'rb'))
+        random_cav = pickle.load(open(os.path.join(OUTPUT_DIR, 'random_cav.p'), 'rb'))
     except FileNotFoundError:
-        logger.info(f"... couldn't find CAVs at {save_loc}, creating them from scratch!")
+        logger.info(f"... couldn't find CAVs at {OUTPUT_DIR}, creating them from scratch!")
         # Create concept AVs
         cav_args = dict(
             model=model,
             layer=layer,
             features=features,
             targets=targets,
+            track_names=track_names,
             class_mapping=class_mapping,
             attribution_fn=attribution_fn,
             multiply_by_inputs=multiply_by_inputs,
@@ -154,18 +163,21 @@ def create_or_load_cavs(
         # Create random AVs
         random_cav = create_random_cav(**cav_args, n_clips=n_random_clips)
         logger.info(f'... created random CAV!')
-        # Dump CAVs and random CAV to disk
-        with open(os.path.join(save_loc, 'cavs.p'), 'wb') as f:
+        # Dump CAVs to disk
+        with open(os.path.join(OUTPUT_DIR, 'cavs.p'), 'wb') as f:
             pickle.dump(cav_list, f)
-        with open(os.path.join(save_loc, 'random_cav.p'), 'wb') as f:
+            logger.info(f'... dumped fitted CAV classes to {OUTPUT_DIR}/cavs.p!')
+        # Dump random CAVs to disk
+        with open(os.path.join(OUTPUT_DIR, 'random_cav.p'), 'wb') as f:
             pickle.dump(random_cav, f)
-        logger.info(f'... dumped CAVs to {save_loc}!')
+            logger.info(f'... dumped random CAV class to {OUTPUT_DIR}/random_cav.p!')
+        # Dump clip sensitivities for all concepts to a single JSON within our output dictionary
+        with open(os.path.join(OUTPUT_DIR, 'clip_sensitivities.json'), 'w') as f:
+            json.dump({cav.cav_name: cav.clip_sensitivity_dict for cav in cav_list}, f, ensure_ascii=False, indent=4)
+            logger.info(f'... dumped clip sensitivity JSON to {OUTPUT_DIR}/clip_sensitivities.json!')
     else:
-        # For backwards compatibility, add in some attributes that might be missing to each concept
-        for concept in [*cav_list, random_cav]:
-            cav_utils.update_loaded_cav(concept, n_experiments, attribution_fn, multiply_by_inputs)
-        logger.info(f'... loaded {len(cav_list)} concept CAVs from {save_loc}!')
-        logger.info(f'... loaded random CAV from {save_loc}!')
+        logger.info(f'... loaded {len(cav_list)} concept CAVs from {OUTPUT_DIR}!')
+        logger.info(f'... loaded random CAV from {OUTPUT_DIR}!')
     return cav_list, random_cav
 
 
@@ -237,7 +249,7 @@ def main(
     logger.info(f"... got data with shape {features.shape}")
     # Load CAVs from disk or create them from scratch
     cav_list, random_cav = create_or_load_cavs(
-        model, layer, features, targets, tm.class_mapping, attribution_fn,
+        model, layer, features, targets, track_names, tm.class_mapping, attribution_fn,
         multiply_by_inputs, n_experiments, batch_size, n_cavs, n_random_clips,
     )
     # Shape (n_cavs, n_performers, n_experiments)
