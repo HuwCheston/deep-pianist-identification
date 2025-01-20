@@ -1,7 +1,7 @@
 pandas
 numpy<2.0.0
 scikit-learn
-scipy
+scipy==1.14.0
 matplotlib
 seaborn
 jupyter
