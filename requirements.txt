@@ -28,3 +28,4 @@ cmcrameri
 partitura
 pillow
 beautifulsoup4
+coverage
