@@ -234,59 +234,59 @@ def parse_arguments(parser) -> dict:
         "-d", "--dataset",
         default="20class_80min",
         type=str,
-        help="Name of dataset inside `references/data_split`"
+        help="Name of dataset inside `references/data_split`, default is '20class_80min'."
     )
     parser.add_argument(
         "-i", "--n-iter",
         default=N_ITER,
         type=int,
-        help="Number of optimization iterations"
+        help="Number of optimization iterations, default is 10000."
     )
     parser.add_argument(
         "-r", "--remove-leaps",
         default=True,
         type=utils.string_to_bool,
-        help="Remove leaps of more than +/- 15 semitones",
+        help="Whether to remove leaps of more than +/- 15 semitones, default is True.",
     )
     parser.add_argument(
         '-l', '--ngrams',
         nargs='+',
         type=int,
-        help="Extract these n-grams",
+        help="Extract these n-grams and harmony features, default is [2, 3] (i.e., triads and tetrads for harmony)",
         default=NGRAMS
     )
     parser.add_argument(
         "-s", "--min-count",
         default=MIN_COUNT,
         type=int,
-        help="Minimum number of tracks an n-gram can appear in"
+        help="Minimum number of tracks an n-gram can appear in, default is 10."
     )
     parser.add_argument(
         "-b", "--max-count",
         default=MAX_COUNT,
         type=int,
-        help="Maximum number of tracks an n-gram can appear in"
+        help="Maximum number of tracks an n-gram can appear in, default is 1000."
     )
     parser.add_argument(
         "-c", "--classifier-type",
-        default="rf",
+        default="lr",
         type=str,
-        help="Classifier type to use. "
-             "Either 'rf' (random forest)', 'svm' (support vector machine), "
-             "'nb' (naive Bayes), or 'lr' (logistic regression)"
+        help="Classifier type to use when fitting model. "
+             "Either 'rf' (random forest)', 'svm' (support vector machine), or 'lr' (logistic regression, default)"
     )
     parser.add_argument(
         "-z", "--scale",
         default=True,
         type=utils.string_to_bool,
-        help="Whether to scale data using z-transformation or not"
+        help="Whether to scale data using z-transformation or not, default is True."
     )
     parser.add_argument(
         "-k", "--database-k-coefs",
         default=500,
         type=int,
-        help="Number of k coefficients to extract when computing correlation between different datasets."
-             "Either int or float is accepted: float is interpreted as fraction of total features"
+        help="Number of features to use when computing correlation between different datasets, default is 500. "
+             "Either int or float is accepted: float is interpreted as fraction of total features. "
+             "-1 is interpreted as using all available features."
     )
     # Parse all arguments and return
     args = vars(parser.parse_args())
