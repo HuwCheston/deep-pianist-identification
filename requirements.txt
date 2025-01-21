@@ -27,3 +27,4 @@ statsmodels
 cmcrameri
 partitura
 pillow
+beautifulsoup4
