@@ -3,9 +3,11 @@
 
 """Explainer classes for whitebox classification models."""
 
+import json
 import os
 import pickle
 from copy import deepcopy
+from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
@@ -168,12 +170,25 @@ class LRWeightExplainer(WhiteBoxExplainer):
             res[self.class_mapping[class_idx]] = perf_res
         return res
 
+    def convert_dict_values(self, d: Any, convert_func: Callable):
+        """Recursively convert values in a dictionary using `convert_func"""
+        if isinstance(d, dict):
+            return {k: self.convert_dict_values(v, convert_func) for k, v in d.items()}
+        elif isinstance(d, np.ndarray):
+            return convert_func(d)
+        else:
+            return d
+
     def explain(self):
         weights, boot_weights = self.get_classifier_weights()
         self.df = self.get_topk_features(weights, boot_weights)
 
     def create_outputs(self):
         super().create_outputs()
+        # Dump the JSON to the output directory
+        with open(os.path.join(self.output_dir, 'lr_weights.json'), 'w') as f:
+            no_lists = self.convert_dict_values(self.df, lambda x: x.tolist())  # recursively convert arrays to lists
+            json.dump(no_lists, f, indent=4, ensure_ascii=False)
         # Iterate through all performers and concepts
         for perf in self.df.keys():
             # Create the melody and harmony plots
