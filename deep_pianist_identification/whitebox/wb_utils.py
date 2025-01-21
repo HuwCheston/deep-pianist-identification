@@ -21,6 +21,7 @@ from sklearn.svm import SVC
 from tenacity import retry, retry_if_exception_type, wait_random_exponential, stop_after_attempt
 
 from deep_pianist_identification import utils
+from deep_pianist_identification.whitebox.features import FEATURE_MIN_TRACKS, FEATURE_MAX_TRACKS, DEFAULT_FEATURE_SIZES
 
 # These are the parameters we'll sample from when optimizing different types of model
 RF_OPTIMIZE_PARAMS = dict(
@@ -82,12 +83,6 @@ GNB_OPTIMIZE_PARAMS = dict(
 N_ITER = 10000  # default number of iterations for optimization process
 N_JOBS = -1  # number of parallel processing cpu cores. -1 means use all cores.
 N_BOOT_FEATURES = 2000  # number of features to sample when bootstrapping permutation importance scores
-
-MIN_COUNT = 10
-MAX_COUNT = 1000
-
-MAX_LEAP = 15  # If we leap by more than this number of semitones (once in an n-gram, twice in a chord), drop it
-NGRAMS = [2, 3]  # The ngrams to consider when extracting melody (horizontal) or chords (vertical)
 
 
 @retry(
@@ -243,27 +238,21 @@ def parse_arguments(parser) -> dict:
         help="Number of optimization iterations, default is 10000."
     )
     parser.add_argument(
-        "-r", "--remove-leaps",
-        default=True,
-        type=utils.string_to_bool,
-        help="Whether to remove leaps of more than +/- 15 semitones, default is True.",
-    )
-    parser.add_argument(
-        '-l', '--ngrams',
+        '-l', '--feature-sizes',
         nargs='+',
         type=int,
         help="Extract these n-grams and harmony features, default is [2, 3] (i.e., triads and tetrads for harmony)",
-        default=NGRAMS
+        default=DEFAULT_FEATURE_SIZES
     )
     parser.add_argument(
         "-s", "--min-count",
-        default=MIN_COUNT,
+        default=FEATURE_MIN_TRACKS,
         type=int,
         help="Minimum number of tracks an n-gram can appear in, default is 10."
     )
     parser.add_argument(
         "-b", "--max-count",
-        default=MAX_COUNT,
+        default=FEATURE_MAX_TRACKS,
         type=int,
         help="Maximum number of tracks an n-gram can appear in, default is 1000."
     )

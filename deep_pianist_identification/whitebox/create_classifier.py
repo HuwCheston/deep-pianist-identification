@@ -14,7 +14,9 @@ from deep_pianist_identification.whitebox.classifiers import fit_classifier
 from deep_pianist_identification.whitebox.explainers import (
     LRWeightExplainer, PermutationExplainer, DatabasePermutationExplainer
 )
-from deep_pianist_identification.whitebox.features import get_harmony_features, get_melody_features
+from deep_pianist_identification.whitebox.features import (
+    get_harmony_features, get_melody_features, drop_invalid_features
+)
 
 
 def create_classifier(
@@ -22,8 +24,7 @@ def create_classifier(
         n_iter: int,
         min_count: int,
         max_count: int,
-        ngrams: list[int],
-        remove_leaps: bool,
+        feature_sizes: list[int],
         database_k_coefs: int,
         classifier_type: str = "rf",
         scale: bool = True,
@@ -31,32 +32,32 @@ def create_classifier(
     """Fit the random forest to both melody and harmony features"""
     logger.info("Creating white box classifier using melody and harmony data!")
     logger.info(f'... using model type {classifier_type}')
-    logger.info(f"... using ngrams {ngrams}, with remove_leaps {remove_leaps}")
+    logger.info(f"... using feature sizes {feature_sizes}")
     # Get the class mapping dictionary from the dataset
     class_mapping = utils.get_class_mapping(dataset)
     # Get all clips from the given dataset
     train_clips, test_clips, validation_clips = wb_utils.get_all_clips(dataset)
     # Melody extraction
     logger.info('---MELODY---')
-    train_x_arr_mel, test_x_arr_mel, valid_x_arr_mel, mel_features, train_y_mel, test_y_mel, valid_y_mel = get_melody_features(
+    train_x_full_mel, test_x_full_mel, valid_x_full_mel, train_y_mel, test_y_mel, valid_y_mel = get_melody_features(
         train_clips=train_clips,
         test_clips=test_clips,
         validation_clips=validation_clips,
-        min_count=min_count,
-        max_count=max_count,
-        ngrams=ngrams,
-        remove_leaps=remove_leaps
+        feature_sizes=feature_sizes,
+    )
+    train_x_arr_mel, test_x_arr_mel, valid_x_arr_mel, mel_features = drop_invalid_features(
+        train_x_full_mel, test_x_full_mel, valid_x_full_mel, min_count, max_count
     )
     # HARMONY EXTRACTION
     logger.info('---HARMONY---')
-    train_x_arr_har, test_x_arr_har, valid_x_arr_har, har_features, train_y_har, test_y_har, valid_y_har = get_harmony_features(
+    train_x_full_har, test_x_full_har, valid_x_full_har, train_y_har, test_y_har, valid_y_har = get_harmony_features(
         train_clips=train_clips,
         test_clips=test_clips,
         validation_clips=validation_clips,
-        min_count=min_count,
-        max_count=max_count,
-        ngrams=ngrams,
-        remove_leaps=remove_leaps
+        feature_sizes=feature_sizes,
+    )
+    train_x_arr_har, test_x_arr_har, valid_x_arr_har, har_features = drop_invalid_features(
+        train_x_full_har, test_x_full_har, valid_x_full_har, min_count, max_count
     )
     # Check targets are identical for both melody and harmony
     assert train_y_mel == train_y_har, "Melody and Harmony train targets are not identical (shouldn't happen!)"
@@ -170,8 +171,7 @@ if __name__ == "__main__":
         dataset=args['dataset'],
         n_iter=args["n_iter"],
         min_count=args["min_count"],
-        ngrams=args['ngrams'],
-        remove_leaps=args['remove_leaps'],
+        feature_sizes=args['feature_sizes'],
         max_count=args["max_count"],
         classifier_type=args["classifier_type"],
         scale=args["scale"],
