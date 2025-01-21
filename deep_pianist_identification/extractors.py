@@ -218,6 +218,8 @@ class MelodyExtractor(RollExtractor):
         # self.lower_bound = kwargs.get('lower_bound', 40)  # By default, use all notes above the E below middle C
         self.lower_bound = kwargs.get('lower_bound', MIDI_OFFSET)  # Use all notes by default
         self.quantize_resolution = kwargs.get('quantize_resolution', 1 / FPS)  # Snap to nearest 10 ms
+        # Special attribute that holds the results of skylining without adjusting duration
+        self.skylined = None
         # Initialise the parent class and call all the overridden methods
         super().__init__(midi_obj, clip_start=clip_start)
 
@@ -237,6 +239,8 @@ class MelodyExtractor(RollExtractor):
                 quantized_notes.append((note_start, note_end, note_pitch, note_velocity))
         # Apply the skyline algorithm and adjust the duration of notes
         skylined = list(self.apply_skyline(quantized_notes))
+        # Set the special attribute which contains original note durations with the skyline applied
+        self.skylined = note_list_to_midi(skylined, self.input_midi.resolution, self.input_midi.instruments[0].program)
         return self.adjust_durations(skylined)
 
     @staticmethod
