@@ -12,7 +12,7 @@ from deep_pianist_identification import utils, plotting
 from deep_pianist_identification.whitebox import wb_utils
 from deep_pianist_identification.whitebox.classifiers import fit_classifier
 from deep_pianist_identification.whitebox.explainers import (
-    LRWeightExplainer, PermutationExplainer, DatabasePermutationExplainer
+    LRWeightExplainer, DomainExplainer, DatabasePermutationExplainer
 )
 from deep_pianist_identification.whitebox.features import (
     get_harmony_features, get_melody_features, drop_invalid_features
@@ -96,6 +96,25 @@ def create_classifier(
         n_iter,
         classifier_type
     )
+    # Domain/feature importance: this class will do all analysis and create plots/outputs
+    logger.info('---EXPLAINING: DOMAIN IMPORTANCE---')
+    logger.info(f'... n_iter {n_iter}, initial accuracy {valid_acc}')
+    permute_explainer = DomainExplainer(
+        harmony_features=valid_x_arr[:, valid_x_arr_mel.shape[1]:],  # we can subset to just get the harmony features
+        melody_features=valid_x_arr[:, :valid_x_arr_mel.shape[1]],  # same for the melody features
+        y=valid_y_mel,
+        classifier=clf_opt,
+        init_acc=valid_acc,
+        n_iter=n_iter,
+    )
+    permute_explainer.explain()
+    permute_explainer.create_outputs(classifier_type)
+    logger.info(
+        f'all melody: {permute_explainer.df.iloc[2]["mean"]}, SD {permute_explainer.df.iloc[2]["std"]}\n'
+        f'all harmony: {permute_explainer.df.iloc[0]["mean"]}, SD {permute_explainer.df.iloc[0]["std"]}\n'
+        f'bootstrap melody: {permute_explainer.df.iloc[3]["mean"]}, SD {permute_explainer.df.iloc[3]["std"]}\n'
+        f'bootstrap harmony: {permute_explainer.df.iloc[1]["mean"]}, SD {permute_explainer.df.iloc[1]["std"]}'
+    )
     # Don't create the other outputs if the classifier isn't a logistic regression
     if classifier_type != "lr":
         return
@@ -122,25 +141,9 @@ def create_classifier(
     database_explainer.create_outputs()
     # Log the mean and SD coefficients for melody and harmony to the console
     logger.info(
-        f'mean melody r {database_explainer.mel_coefs.mean()}, SD {database_explainer.mel_coefs.std()}, '
+        f'mean melody r {database_explainer.mel_coefs.mean()}, SD {database_explainer.mel_coefs.std()}\n'
         f'mean harmony r {database_explainer.har_coefs.mean()}, SD {database_explainer.har_coefs.std()}'
     )
-    # Permutation feature importance: this class will do all analysis and create plots/outputs
-    logger.info('---EXPLAINING: PERMUTATION FEATURE IMPORTANCE (GLOBAL)---')
-    # logger.info(f'... shapes: harmony {valid_x_arr_har.shape}, melody {valid_x_arr_mel.shape}, y {valid_y_mel.shape}')
-    logger.info(f'... scale: {scale}, n_iter {n_iter}, n_boots {n_iter}, initial accuracy {valid_acc}')
-    permute_explainer = PermutationExplainer(
-        harmony_features=valid_x_arr_har,
-        melody_features=valid_x_arr_mel,
-        y=valid_y_mel,
-        classifier=clf_opt,
-        init_acc=valid_acc,
-        scale=scale,
-        n_iter=n_iter,
-        n_boot_features=n_iter
-    )
-    permute_explainer.explain()
-    permute_explainer.create_outputs()
     # Weights for top k features for each performer across melody/harmony features
     logger.info('---EXPLAINING: MODEL WEIGHTS (LOCAL)---')
     logger.info(f'... shapes: x {all_xs.shape}, y {all_ys.shape}, feature names {feature_names.shape}')

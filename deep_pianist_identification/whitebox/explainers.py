@@ -13,13 +13,12 @@ import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
 from sklearn.metrics import accuracy_score
-from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 
 from deep_pianist_identification import utils, plotting
 from deep_pianist_identification.whitebox.wb_utils import get_classifier_and_params, N_ITER, N_JOBS
 
-N_PERMUTATION_COEFS = 2000
+N_PERMUTATION_COEFS = 1000
 
 
 class WhiteBoxExplainer:
@@ -200,7 +199,7 @@ class LRWeightExplainer(WhiteBoxExplainer):
                 sp.save_fig(self.output_dir)
 
 
-class PermutationExplainer(WhiteBoxExplainer):
+class DomainExplainer(WhiteBoxExplainer):
     def __init__(
             self,
             harmony_features: np.array,
@@ -208,26 +207,16 @@ class PermutationExplainer(WhiteBoxExplainer):
             y: np.array,
             classifier,
             init_acc: float,
-            scale: bool = True,
             n_iter: int = N_ITER,
-            n_boot_features: int = N_PERMUTATION_COEFS,
-            n_features: int = None
     ):
         super().__init__(output_dir='permutation')
         self.harmony_features = harmony_features
         self.melody_features = melody_features
-        if n_features is not None:
-            self.harmony_features = self.harmony_features[:, :n_features // 2]
-            self.melody_features = self.melody_features[:, :n_features // 2]
         self.y = y
         self.classifier = classifier
         self.init_acc = init_acc
         self.n_iter = n_iter
-        self.n_boot_features = n_boot_features
-        # If we're going to be z-transforming features
-        self.scale = scale
-        if self.scale:
-            self.scaler = StandardScaler()
+        self.n_boot_features = N_PERMUTATION_COEFS
         # We'll create this when calling `self.explain`
         self.df = None
 
@@ -270,9 +259,6 @@ class PermutationExplainer(WhiteBoxExplainer):
         #  this is the case for harmony features
         else:
             combined = np.concatenate([features_not_to_shuffle, shuff], axis=1)
-        # Z-transform data if required
-        if self.scale:
-            combined = self.scaler.fit_transform(combined)
         # Return loss in accuracy with permuted feature set
         return self.permutation_importance(combined)
 
@@ -336,10 +322,10 @@ class PermutationExplainer(WhiteBoxExplainer):
         self.df = pd.DataFrame([har_dict, har_boot_dict, mel_dict, mel_boot_dict])
         return self.df
 
-    def create_outputs(self):
+    def create_outputs(self, classifier_type: str = "lr"):
         super().create_outputs()
-        # Save the dataframe
-        self.df.to_csv(os.path.join(self.output_dir, 'out.csv'))
+        # Save the dataframe, using the classifier type to make sure we don't overwrite previous runs
+        self.df.to_csv(os.path.join(self.output_dir, f'domain_importance_{classifier_type}.csv'))
 
 
 class DatabasePermutationExplainer(WhiteBoxExplainer):
