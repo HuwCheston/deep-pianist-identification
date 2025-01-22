@@ -1470,8 +1470,70 @@ class BarPlotConceptClassAccuracy(BasePlot):
         self.fig.savefig(fp, **SAVE_KWS)
 
 
+class BarPlotWhiteboxDomainImportance(BasePlot):
+    RESULTS_LOC = os.path.join(utils.get_project_root(), 'reports/figures/whitebox/permutation')
+    PALETTE = [CONCEPT_COLOR_MAPPING[con] for con in ["Harmony", "Melody"]]
+    BAR_KWS = dict(legend=True, zorder=10, palette=PALETTE, edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE)
+    ERROR_KWS = dict(
+        x=[-0.2, 0.2, 0.75, 1.25, 1.8, 2.2], lw=LINEWIDTH, color=BLACK,
+        capsize=8, zorder=10000, elinewidth=LINEWIDTH, ls='none'
+    )
+
+    def __init__(self):
+        super().__init__()
+        self.df = self._format_df(None)
+        self.fig, self.ax = plt.subplots(
+            nrows=1, ncols=2, figsize=(WIDTH, WIDTH // 3),
+            sharex=True, sharey=False
+        )
+
+    def _format_df(self, _):
+        all_dfs = []
+        for md in ["lr", "svm", "rf"]:
+            csv_loc = os.path.join(self.RESULTS_LOC, f'domain_importance_{md}.csv')
+            if not os.path.exists(csv_loc):
+                fake = [{"feature": val} | {col: np.nan for col in ["mean", "std", "high", "low"]} for val in
+                        ["Harmony", "Harmony (Bootstrapped)", "Melody", "Melody (Bootstrapped)"]]
+                read = pd.DataFrame(fake)
+            else:
+                read = pd.read_csv(csv_loc, index_col=0)
+            read['md_type'] = md.upper()
+            all_dfs.append(read)
+        df = pd.concat(all_dfs, axis=0).reset_index(drop=True)
+        df['bootstrapped'] = df['feature'].str.contains("Boot")
+        df['feature'] = df['feature'].str.replace(" (Bootstrapped)", "")
+        return df
+
+    def _create_plot(self) -> None:
+        for a, is_boot in zip(self.ax.flatten(), [False, True]):
+            subset = self.df[self.df['bootstrapped'] == is_boot]
+            sns.barplot(subset, ax=a, x='md_type', y='mean', hue='feature', **self.BAR_KWS)
+            a.errorbar(y=subset['mean'], yerr=subset['std'], **self.ERROR_KWS)
+
+    def _format_ax(self):
+        for ax, tit in zip(self.ax.flatten(), ['All features', "Bootstrapped samples of 1,000 features"]):
+            ax.set(
+                ylabel='Mean feature importance', xlabel='Model type', title=tit, ylim=(0, ax.get_ylim()[1] * 1.5)
+            )
+            ax.grid(axis='y', zorder=-1, **GRID_KWS)
+            plt.setp(ax.spines.values(), linewidth=LINEWIDTH)
+            ax.tick_params(axis='both', width=TICKWIDTH)
+            sns.move_legend(ax, loc="upper right", title="Feature", **LEGEND_KWS)
+
+    def _format_fig(self) -> None:
+        self.fig.tight_layout()
+
+    def save_fig(self):
+        fp = os.path.join(self.RESULTS_LOC, 'barplot_domain_importance.png')
+        self.fig.savefig(fp, **SAVE_KWS)
+
+
 if __name__ == "__main__":
+    # This just generates some plots that we can't easily create otherwise
     met = utils.get_track_metadata(utils.get_pianist_names())
     bp = BarPlotDatasetDurationCount(met)
     bp.create_plot()
     bp.save_fig()
+    bp2 = BarPlotWhiteboxDomainImportance()
+    bp2.create_plot()
+    bp2.save_fig()
