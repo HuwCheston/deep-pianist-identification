@@ -1528,12 +1528,54 @@ class BarPlotWhiteboxDomainImportance(BasePlot):
         self.fig.savefig(fp, **SAVE_KWS)
 
 
+class HeatmapMelodyExtraction(BasePlot):
+    def __init__(self):
+        super().__init__()
+        self.fig, self.ax = plt.subplots(2, 1, figsize=(WIDTH, WIDTH // 3), sharex=True, sharey=True)
+        self.pianorolls = self._get_pianorolls()
+
+    @staticmethod
+    def _get_pianorolls():
+        from pretty_midi import PrettyMIDI
+
+        names = ['example_polyphony', 'example_polyphony_skylined']
+        for name in names:
+            path = os.path.join(utils.get_project_root(), 'references', name + '.mid')
+            poly = PrettyMIDI(path)
+            poly_roll = np.flipud(poly.get_piano_roll(100))
+            poly_roll[poly_roll != 0] = 255
+            poly_roll[poly_roll == 0] = np.nan
+            yield poly_roll
+
+    def _create_plot(self):
+        for roll, ax in zip(self.pianorolls, self.ax.flatten()):
+            ax.imshow(roll, aspect='auto')
+
+    def _format_ax(self):
+        for ax_, tit in zip(self.ax.flatten(), ['Original', "Melody (Skyline)"]):
+            ax_.set(
+                xlabel='Time', ylabel='Pitch', title=tit, yticklabels=[], xticklabels=[],
+                xticks=[], yticks=[], ylim=(utils.MIDI_OFFSET + utils.PIANO_KEYS, utils.MIDI_OFFSET),
+            )
+            plt.setp(ax_.spines.values(), linewidth=LINEWIDTH)
+
+    def _format_fig(self) -> None:
+        self.fig.tight_layout()
+
+    def save_fig(self):
+        out = os.path.join(utils.get_project_root(), 'reports/figures/melody_extraction_demo.png')
+        self.fig.savefig(out, **SAVE_KWS)
+
+
 if __name__ == "__main__":
     # This just generates some plots that we can't easily create otherwise
-    met = utils.get_track_metadata(utils.get_pianist_names())
-    bp = BarPlotDatasetDurationCount(met)
-    bp.create_plot()
-    bp.save_fig()
-    bp2 = BarPlotWhiteboxDomainImportance()
-    bp2.create_plot()
-    bp2.save_fig()
+    # met = utils.get_track_metadata(utils.get_pianist_names())
+    # bp = BarPlotDatasetDurationCount(met)
+    # bp.create_plot()
+    # bp.save_fig()
+    # bp2 = BarPlotWhiteboxDomainImportance()
+    # bp2.create_plot()
+    # bp2.save_fig()
+    hm = HeatmapMelodyExtraction()
+    hm.create_plot()
+    hm.save_fig()
