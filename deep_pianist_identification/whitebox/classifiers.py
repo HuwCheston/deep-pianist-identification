@@ -22,6 +22,25 @@ from deep_pianist_identification.whitebox.wb_utils import get_classifier_and_par
 ACC_TOP_KS = [1, 2, 3, 5, 10]  # We'll print the model top-k accuracy at these levels
 
 
+def log_topk_acc(validation_x: np.ndarray, validation_y: np.ndarray, classifier_optimised) -> None:
+    """Tries to log top-k accuracy at various values of k for models that support the `.predict_proba` function"""
+    try:
+        valid_y_proba = classifier_optimised.predict_proba(validation_x)
+    except AttributeError:
+        logger.warning(f"... couldn't compute top-k accuracy for this classifier type!")
+    else:
+        for k in ACC_TOP_KS:
+            topk_acc = top_k_accuracy_score(validation_y, valid_y_proba, k=k)
+            logger.info(f'... top-{k} validation accuracy: {topk_acc:.6f}')
+
+
+def save_classifier(outpath: str, classifier) -> None:
+    """Saves a fitted sklearn classifier as a pickle file"""
+    with open(outpath, "wb") as f:
+        pickle.dump(classifier, f, protocol=5)  # protocol=5 recommended in sklearn documentation
+    logger.info(f"... classifier instance dumped to {outpath}")
+
+
 def fit_classifier(
         train_x: np.ndarray,
         test_x: np.ndarray,
@@ -49,10 +68,7 @@ def fit_classifier(
     clf_opt = classifier(**optimized_params)
     clf_opt.fit(train_x, train_y)
     # Dump the classifier
-    picklepath = csvpath.replace("csv", "p")
-    with open(picklepath, "wb") as f:
-        pickle.dump(clf_opt, f, protocol=5)  # protocol=5 recommended in sklearn documentation
-    logger.info(f"... classifier instance dumped to {picklepath}")
+    save_classifier(csvpath.replace("csv", "p"), clf_opt)
     # Get the optimized test accuracy
     test_y_pred = clf_opt.predict(test_x)
     test_acc = accuracy_score(test_y, test_y_pred)
@@ -61,11 +77,8 @@ def fit_classifier(
     valid_y_pred = clf_opt.predict(valid_x)
     valid_acc = accuracy_score(valid_y, valid_y_pred)
     logger.info(f"... validation accuracy: {valid_acc:.6f}")
-    # Get the top-k accuracy
-    valid_y_proba = clf_opt.predict_proba(valid_x)
-    for k in ACC_TOP_KS:
-        topk_acc = top_k_accuracy_score(valid_y, valid_y_proba, k=k)
-        logger.info(f'... top-{k} validation accuracy: {topk_acc:.6f}')
+    # Get the top-k accuracy if we can
+    log_topk_acc(valid_x, valid_y, clf_opt)
     # Return the fitted classifier for e.g., permutation importance testing
     warnings.filterwarnings("default")
     return clf_opt, valid_acc, optimized_params
