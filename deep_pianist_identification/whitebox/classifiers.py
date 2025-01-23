@@ -5,6 +5,7 @@
 
 import pickle
 import warnings
+from datetime import datetime
 from multiprocessing import Manager, Process
 from time import time
 
@@ -57,7 +58,7 @@ def fit_classifier(
     logger.info(f"... optimization results will be saved in {csvpath}")
     logger.info(f"... shape of training features: {train_x.shape}")
     logger.info(f"... shape of testing features: {test_x.shape}")
-    warnings.filterwarnings("ignore")
+    warnings.filterwarnings("ignore", category=UserWarning)
     # Run the hyperparameter optimization here and get the optimized parameter settings
     optimized_params = _optimize_classifier(
         train_x, train_y, test_x, test_y, csvpath, n_iter=n_iter, classifier_type=classifier_type
@@ -80,7 +81,7 @@ def fit_classifier(
     # Get the top-k accuracy if we can
     log_topk_acc(valid_x, valid_y, clf_opt)
     # Return the fitted classifier for e.g., permutation importance testing
-    warnings.filterwarnings("default")
+    warnings.filterwarnings("default", category=UserWarning)
     return clf_opt, valid_acc, optimized_params
 
 
@@ -117,6 +118,7 @@ def _optimize_classifier(
 
     def __step(iteration: int, parameters: dict) -> dict:
         """Inner optimization function"""
+        warnings.filterwarnings("ignore", category=UserWarning)
         start = time()
         # Try and load in the CSV file for this particular task
         if use_cache:
@@ -135,7 +137,13 @@ def _optimize_classifier(
         # Create the results dictionary and save
         end = time() - start
         # line = str(acc) + ',' + str(iteration) + ',' + str(end) + ',' + ','.join(str(i) for i in parameters.values())
-        results_dict = {'accuracy': acc, 'iteration': iteration, 'time': end, **parameters}
+        results_dict = {
+            'accuracy': acc,
+            'iteration': iteration,
+            'time': end,
+            'clock_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            **parameters
+        }
         # threadsafe_save_csv(results_dict, out)
         q.put(','.join(str(i) for i in results_dict.values()))
         # Return the results for this optimization step
