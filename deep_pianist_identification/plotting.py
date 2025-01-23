@@ -15,23 +15,17 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import partitura as pt
 import seaborn as sns
 from PIL import Image
 from loguru import logger
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
-from music21.chord import Chord
-from music21.clef import TrebleClef, BassClef
 from music21.converter import subConverters
-from music21.duration import Duration
-from music21.meter import TimeSignature
-from music21.note import Note, Rest
-from music21.stream import Part, Measure, Score
 from pretty_midi import note_number_to_name
 from skimage import io
 from skimage.transform import resize
 
 from deep_pianist_identification import utils
+from deep_pianist_identification.preprocessing import m21_utils as m21_utils
 
 # Define constants
 WIDTH = 18.8  # This is a full page width: half page plots will need to use 18.8 / 2
@@ -320,8 +314,8 @@ class _StripplotTopKFeatures(BasePlot):
         self.pianist_name = pianist_name
         self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH // 2.25))
 
-    def _create_music21(self, _: str) -> Score:
-        return Score()
+    def _create_music21(self, _: str):
+        return
 
     def _add_notation(
             self,
@@ -356,62 +350,11 @@ class _StripplotTopKFeatures(BasePlot):
         os.remove("tmp-1.png")
         os.remove("tmp.musicxml")
 
-    @staticmethod
-    def _invisible_rest(duration: float = 0.5):
-        """Add an (invisible) rest with a custom duration"""
-        spacer = Rest()
-        spacer.duration = Duration(duration)
-        spacer.style.hideObjectOnPrint = True  # Ensure it's invisible in the score
-        return spacer
-
-    @staticmethod
-    def _time_signature(numerator: int = 2, denominator: int = 4):
-        """Returns a (hidden) time signature with a given numerator"""
-        ts = TimeSignature(f"{numerator}/{denominator}")
-        ts.style.hideObjectOnPrint = True  # hides the time signature
-        return ts
-
-    @staticmethod
-    def _center_feature(feature: list[int], threshold: int = utils.MIDDLE_C):
-        """Centers the notes in a feature by transposing them by octaves until the mean pitch is below the threshold"""
-        # Note that we're expecting our feature to be a list of integers here, i.e. that returned by .format_feature
-        while np.mean(feature) <= threshold:
-            feature = [i + utils.OCTAVE for i in feature]
-        return feature
-
     def add_notation(self, direction: str, ngram_names: list[str]):
         pass
 
     def _create_plot(self):
         pass
-
-    @staticmethod
-    def pt_note_to_midi(partitura_note: tuple) -> str:
-        """Partitura structured arrays are in format (note, accidental, octave). We want to parse this to a MIDI note"""
-        note, accidental, octave = partitura_note
-        # if the accidental is flat
-        if accidental == -1:
-            accidental_fmt = '-'
-        # If it is sharp
-        elif accidental == 1:
-            accidental_fmt = '#'
-        # otherwise, no accidental
-        else:
-            accidental_fmt = ''
-        # parse everything as a MIDI note, e.g. C#5
-        return f'{note}{accidental_fmt}{octave}'
-
-    def get_estimated_spelling(self, score: Score) -> list[str]:
-        """Gets the estimated spelling for all notes within a `score` object using partitura"""
-        # Export to MusicXML file
-        musicxml_path = 'tmp_to_partitura.xml'
-        score.write('musicxml', fp=musicxml_path)
-        # Load the Musicxml in partitura and remove the temporary file
-        parti = pt.load_musicxml(musicxml_path)
-        os.remove(musicxml_path)
-        # Estimate the spelling and convert the structured array to a list of MIDI note names
-        estimated_spelling = pt.musicanalysis.pitch_spelling.estimate_spelling(parti)
-        return [self.pt_note_to_midi(n) for n in estimated_spelling]
 
     def _add_performer_image(self, x: float = 0.95, y: float = 0.95):
         """Adds an image of the performer into the plot with the desired x- and y-coordinates"""
@@ -424,14 +367,6 @@ class _StripplotTopKFeatures(BasePlot):
         imagebox = OffsetImage(image, zoom=1.0)
         ab = AnnotationBbox(imagebox, (x, y), xycoords='axes fraction', frameon=False, box_alignment=(1., 1.))
         self.ax.add_artist(ab)
-
-    @staticmethod
-    def measure_to_part(measure: Measure):
-        """Converts a measure to a part and sets the final barline to be invisible"""
-        part = Part(measure)
-        # Remove the final bar line from the part
-        part[-1].rightBarline = None
-        return part
 
     def _format_ax(self):
         """Setting plot aesthetics on an axis-level basis"""
@@ -466,7 +401,6 @@ class StripplotTopKMelodyFeatures(_StripplotTopKFeatures):
     >>> )
     >>> plo = StripplotTopKMelodyFeatures(t, "Testy McTestFace")
     >>> plo.create_plot()
-    >>> plo.save_fig()
     """
 
     def __init__(
@@ -476,35 +410,20 @@ class StripplotTopKMelodyFeatures(_StripplotTopKFeatures):
     ):
         super().__init__(concept_dict, pianist_name)
 
-    def _feature_to_notes(self, feature: list[int]) -> Measure:
-        """Converts a feature (list of integers) to a music21 Measure, populated with the desired notes"""
-        # Melody plots only use treble clef, with the time signature set according to the number of notes
-        measure = Measure([TrebleClef(), self._time_signature(len(feature) + 4), self._invisible_rest(0.5)])
-        for midi_number in feature:
-            midi_name = note_number_to_name(midi_number)
-            measure.append(Note(midi_name, quarterLength=1))
-        return measure
-
-    @staticmethod
-    def _adjust_m21_spelling_to_partitura(m21_notes: Score, pt_notes: list) -> None:
-        for m21_note, pt_note in zip(m21_notes.recurse().notes, pt_notes):
-            if str(m21_note.pitch) != pt_note:
-                m21_note.pitch.getEnharmonic(inPlace=True)
-
-    def _create_music21(self, feature: str) -> Score:
+    def _create_music21(self, feature: str):
         # Evaluate the n-gram as a list of integers
-        eval_feature = self.format_feature(feature)
+        eval_feature = m21_utils.intervals_to_pitches(feature)
         # Center the feature so that the mean pitch height is G4
         g4 = utils.MIDDLE_C + (utils.OCTAVE // 2)
-        centered_feature = self._center_feature(eval_feature, threshold=g4)
+        centered_feature = m21_utils.center_feature(eval_feature, threshold=g4)
         # Convert the feature to a music21 measure
-        measure = self._feature_to_notes(centered_feature)
+        measure = m21_utils.melody_feature_to_m21_measure(centered_feature)
         # Add the measure to the part and the part to the score
-        part = self.measure_to_part(measure)
-        score = Score([part])
+        part = m21_utils.measure_to_part(measure)
+        score = m21_utils.part_to_score(part)
         # Estimate the spelling
-        estimated_spelling = self.get_estimated_spelling(score)
-        self._adjust_m21_spelling_to_partitura(score, estimated_spelling)
+        estimated_spelling = m21_utils.estimate_m21_score_spelling(score)
+        m21_utils.adjust_m21_melody_to_partitura(score, estimated_spelling)  # works in-place
         return score
 
     def _create_plot(self):
@@ -531,22 +450,12 @@ class StripplotTopKMelodyFeatures(_StripplotTopKFeatures):
             for y, ng in zip(all_positions, names):
                 self._add_notation(ng, y)
 
-    @staticmethod
-    def format_feature(feature: str) -> tuple:
-        """Formats the feature from a string to a tuple"""
-        pitch_set = [0]
-        current_pitch = 0
-        for interval in eval(feature):
-            current_pitch += interval
-            pitch_set.append(current_pitch)
-        return tuple(pitch_set)
-
     def _format_ax(self):
         self._add_performer_image()
         self.ax.tick_params(right=True)
         # self.ax.set_title(f'{self.pianist_name}, melody features')
         self.ax.set(ylabel='Odds ratio', xlabel='Feature')
-        fmt_text = [str(self.format_feature(yl.get_text())) for yl in self.ax.get_yticklabels()]
+        fmt_text = [str(m21_utils.intervals_to_pitches(yl.get_text())) for yl in self.ax.get_yticklabels()]
         self.ax.set_yticks(self.ax.get_yticks(), fmt_text)
         self.ax.grid(axis='x', zorder=0, **GRID_KWS)
         self.ax.axhline(4.5, 0, 1, linewidth=LINEWIDTH, color=BLACK, alpha=ALPHA, ls=DASHED)
@@ -559,7 +468,21 @@ class StripplotTopKMelodyFeatures(_StripplotTopKFeatures):
 
 
 class StripplotTopKHarmonyFeatures(_StripplotTopKFeatures):
-    """ Creates a strip plot showing the top-/bottom-k harmony features associated with a given performer"""
+    """ Creates a strip plot showing the top-/bottom-k harmony features associated with a given performer
+
+    Examples:
+        >>> t = dict(
+        >>>     top_ors = np.array([1.2, 1.15, 1.10, 1.05, 1.01]),  # The top K odds ratios for this performer
+        >>>     bottom_ors = np.array([0.8, 0.85, 0.9, 0.95, 0.975]),  # The bottom K odds ratios
+        >>>     top_std = np.array([0.01, 0.01, 0.01, 0.01, 0.01]),  # The corresponding top K standard deviations
+        >>>     bottom_std = np.array([0.01, 0.01, 0.01, 0.01, 0.01]),  # Bottom k standard deviations
+        >>>      # These arrays contain the names of the features, each of them should be unique
+        >>>     top_names = np.array(["H_[1, 2, 1]", "H_[1, 1, 3]", "H_[1, 7, 1]", "H_[1, 5, 1]", "H_[2, 1, 2]"]),
+        >>>     bottom_names = np.array(["H_[1, 2, 3]", "H_[1, 4, 1]", "H_[-1, 1, -5]", "H_[1, 2, 5]", "H_[-1, -1, 3]"])
+        >>> )
+        >>> plo = StripplotTopKHarmonyFeatures(t, "Testy McTestFace")
+        >>> plo.create_plot()
+    """
 
     def __init__(
             self,
@@ -593,68 +516,27 @@ class StripplotTopKHarmonyFeatures(_StripplotTopKFeatures):
             for x, ng in zip(all_positions, names):
                 self._add_notation(ng, x=x, y=1.125, zoom=0.25, png_dim=(100, 350, 500, 850))
 
-    def _feature_to_notes(self, feature: list[int]):
-        """Populate two separate measure objects with notes from the feature: one each for left/right hands"""
-        # The 2/4 time signature means we can have one invisible 1/4 note rest and one 1/4 note for the chord itself
-        right_hand = Measure([TrebleClef(), self._time_signature(2), self._invisible_rest(0.5)])
-        left_hand = Measure([BassClef(), self._time_signature(2), self._invisible_rest(0.5)])
-        # Iterate over every note in the feature
-        for midi_number in feature:
-            # Converting to music21 format
-            midi_name = note_number_to_name(midi_number)
-            note = Note(midi_name, quarterLength=1)
-            # Notes at and below middle C go to left hand, everything else goes to right
-            if midi_number <= utils.MIDDLE_C:
-                left_hand.append(note)
-            else:
-                right_hand.append(note)
-        return right_hand, left_hand
-
-    @staticmethod
-    def to_chord(measure: Measure) -> Chord:
-        """Convert all music21 notes in a measure to a chord while preserving non-note elements"""
-        is_note = [i for i in measure if isinstance(i, Note)]
-        is_not_note = [i for i in measure if not isinstance(i, Note)]
-        return Measure([*is_not_note, Chord(is_note)])  # order of elements doesn't really matter here
-
-    @staticmethod
-    def _adjust_m21_spelling_to_partitura(m21_notes: Score, pt_notes: list) -> None:
-        rh, lh = m21_notes
-        counter = 0  # Counter used to get the required partitura note from our list
-        # Iterate in order of left hand, right hand (by default, music21 would do the inverse)
-        for part in [lh, rh]:
-            # Iterate over every element
-            for element in part.recurse():
-                # If we have a chord, iterate over each note
-                if isinstance(element, Chord):
-                    for m21_note in element:
-                        # If partitura is saying we should spell the note differently
-                        if str(m21_note.pitch) != pt_notes[counter]:
-                            # Get the enharmonic spelling, adjusted in place
-                            m21_note.pitch.getEnharmonic(inPlace=True)
-                        counter += 1
-
     @staticmethod
     def format_feature(feature: str) -> tuple:
         """Formats the feature from a string to a tuple"""
         return tuple(sorted({0, *eval(feature)}))
 
-    def _create_music21(self, feature: str) -> Score:
+    def _create_music21(self, feature: str):
         # Evaluate the feature as a list of integers
         eval_feature = self.format_feature(feature)
         # Center the feature around middle C
-        centered_feature = self._center_feature(eval_feature)
+        centered_feature = m21_utils.center_feature(eval_feature)
         # Convert the feature into note classes with separate right and left hand
-        rh, lh = self._feature_to_notes(centered_feature)
+        rh, lh = m21_utils.feature_to_separate_hands(centered_feature)
         # Convert the notes into chords
-        rh_chord, lh_chord = self.to_chord(rh), self.to_chord(lh)
+        rh_chord, lh_chord = m21_utils.measure_to_chord(rh), m21_utils.measure_to_chord(lh)
         # Convert the chords into parts
-        rh_part, lh_part = self.measure_to_part(rh_chord), self.measure_to_part(lh_chord)
+        rh_part, lh_part = m21_utils.measure_to_part(rh_chord), m21_utils.measure_to_part(lh_chord)
         # Convert the parts to a score
-        score = Score([rh_part, lh_part])
+        score = m21_utils.part_to_score([rh_part, lh_part])
         # Estimate the correct enharmonic spelling
-        estimated_spelling = self.get_estimated_spelling(score)
-        self._adjust_m21_spelling_to_partitura(score, estimated_spelling)
+        estimated_spelling = m21_utils.estimate_m21_score_spelling(score)
+        m21_utils.adjust_m21_hands_to_partitura(score, estimated_spelling)
         return score
 
     def _format_ax(self):
