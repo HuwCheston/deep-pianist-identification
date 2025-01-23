@@ -4,11 +4,14 @@
 """Utility functions for working with musical notation in music21 and partitura"""
 
 import os
+import subprocess
 
 import numpy as np
 import partitura as pt
+from PIL import Image
 from music21.chord import Chord
 from music21.clef import TrebleClef, BassClef
+from music21.converter import subConverters
 from music21.duration import Duration
 from music21.meter import TimeSignature
 from music21.note import Note, Rest
@@ -153,3 +156,37 @@ def feature_to_separate_hands(feature: list[int]) -> tuple[Measure, Measure]:
         else:
             right_hand.append(note)
     return right_hand, left_hand
+
+
+def score_to_image_array(
+        score: Score,
+        dpi: int = 300,
+        right_crop: float = 0.7,
+        png_dim: tuple = (125, 350, 1000, 650),
+) -> np.ndarray:
+    """Converts a music21 score to an image (in the form of a numpy array) that can be saved or added to a plot"""
+    # When running in a screen instance, saving may fail with a cryptic QT error
+    # Something like `qt.qpa.plugin: Could not load the Qt platform plugin "xcb"`
+    # The solution is to set the environment variable `QT_QPA_PLATFORM=offscreen` and retry
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    # Save the stream as MusicXML
+    subConverters.ConverterMusicXML().write(score, fmt="musicxml", fp="tmp.musicxml")
+    # Call musescore and output the svg
+    subprocess.run(
+        ["mscore3", "tmp.musicxml", "-o", "tmp.png", "-D", str(dpi)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.STDOUT
+    )
+    # Open the existing PNG image as a numpy array
+    try:
+        image = Image.open("tmp-1.png")
+    except FileNotFoundError:
+        os.remove("tmp.musicxml")
+        return np.zeros(png_dim)
+    # Remove the temporary files we've created now everything is in memory
+    os.remove("tmp-1.png")
+    os.remove("tmp.musicxml")
+    # Crop the image according to the parameters we've passed in
+    image = np.array(image.crop(png_dim))
+    right_edge = int(image.shape[1] * right_crop)
+    return image[:, :right_edge]

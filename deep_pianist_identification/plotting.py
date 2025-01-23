@@ -5,7 +5,6 @@
 
 import json
 import os
-import subprocess
 from datetime import timedelta
 from urllib.error import HTTPError, URLError
 
@@ -16,10 +15,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from PIL import Image
 from loguru import logger
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
-from music21.converter import subConverters
 from pretty_midi import note_number_to_name
 from skimage import io
 from skimage.transform import resize
@@ -328,27 +325,14 @@ class _StripplotTopKFeatures(BasePlot):
             dpi: int = 300
     ) -> None:
         """Adds a given feature/ngram as notation onto the axis with a given y coordinate"""
+        # Create the music21 object as a Score
         notes = self._create_music21(ngram)
-        # When running in a screen instance, saving may fail with a cryptic QT error
-        # Something like `qt.qpa.plugin: Could not load the Qt platform plugin "xcb"`
-        # The solution is to set the environment variable `QT_QPA_PLATFORM=offscreen` and retry
-        os.environ["QT_QPA_PLATFORM"] = "offscreen"
-        # Save the stream as MusicXML
-        subConverters.ConverterMusicXML().write(notes, fmt="musicxml", fp="tmp.musicxml")
-        # Call musescore and output the svg
-        subprocess.run(["mscore3", "tmp.musicxml", "-o", "tmp.png", "-D", str(dpi)], stdout=subprocess.DEVNULL)
-        # Open the existing PNG image
-        image = Image.open("tmp-1.png").crop(png_dim)
-        # Crop the image
-        image = np.array(image)
-        right_edge = int(image.shape[1] * right_crop)
-        cropped_image = image[:, :right_edge]
+        # Convert this score into a numpy array
+        cropped_image = m21_utils.score_to_image_array(notes, right_crop=right_crop, png_dim=png_dim, dpi=dpi)
+        # Convert the numpy array into a matplotlib object
         imagebox = OffsetImage(cropped_image, zoom=zoom)
         ab = AnnotationBbox(imagebox, (x, y), xycoords='axes fraction', frameon=False, box_alignment=(0, 0.5))
         self.ax.add_artist(ab)
-        # Remove the temporary files we've created
-        os.remove("tmp-1.png")
-        os.remove("tmp.musicxml")
 
     def add_notation(self, direction: str, ngram_names: list[str]):
         pass
@@ -1451,13 +1435,13 @@ class HeatmapMelodyExtraction(BasePlot):
 
 if __name__ == "__main__":
     # This just generates some plots that we can't easily create otherwise
-    # met = utils.get_track_metadata(utils.get_pianist_names())
-    # bp = BarPlotDatasetDurationCount(met)
-    # bp.create_plot()
-    # bp.save_fig()
-    # bp2 = BarPlotWhiteboxDomainImportance()
-    # bp2.create_plot()
-    # bp2.save_fig()
+    met = utils.get_track_metadata(utils.get_pianist_names())
+    bp = BarPlotDatasetDurationCount(met)
+    bp.create_plot()
+    bp.save_fig()
+    bp2 = BarPlotWhiteboxDomainImportance()
+    bp2.create_plot()
+    bp2.save_fig()
     hm = HeatmapMelodyExtraction()
     hm.create_plot()
     hm.save_fig()
