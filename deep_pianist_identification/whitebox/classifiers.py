@@ -5,7 +5,6 @@
 
 import pickle
 import warnings
-from datetime import datetime
 from multiprocessing import Manager, Process
 from time import time
 
@@ -141,7 +140,7 @@ def _optimize_classifier(
             'accuracy': acc,
             'iteration': iteration,
             'time': end,
-            'clock_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            # 'clock_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             **parameters
         }
         # threadsafe_save_csv(results_dict, out)
