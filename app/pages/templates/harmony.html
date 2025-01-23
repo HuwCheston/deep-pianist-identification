@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abdullah Ibrahim – Harmony</title>
+    <script charset="utf-8" src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/focus-visible@5,npm/html-midi-player@1.5.0"></script>
+    <link rel="stylesheet" type="text/css" href="../../assets/css/cav_sensitivity.css"/>
+</head>
+<body>
+<div class="page-title">Abdullah Ibrahim – Harmony</div>
+<div class="grid-container">
+    <div class="concept-gallery">
+        <div><h2>Progressions</h2></div>
+        <div><strong>Block Chords</strong>
+            <button class="listen-button" onclick="playExampleMidi(1)">🔊</button>
+            <a href="#" alt="Block Chords" onclick="popSelect('Block Chords', 'Abdullah Ibrahim')"><img
+                    src="../../assets/images/concepts/cav_notation_001.png" alt="Block Chords"></a></div>
+        <div><strong>Shell Voicings</strong>
+            <button class="listen-button" onclick="playExampleMidi(2)">🔊</button>
+            <a href="#" alt="Shell Voicings" onclick="popSelect('Shell Voicings', 'Abdullah Ibrahim')"><img
+                    src="../../assets/images/concepts/cav_notation_002.png" alt="Shell Voicings"></a></div>
+        <div><strong>Diatonic 7th Chords</strong>
+            <button class="listen-button" onclick="playExampleMidi(3)">🔊</button>
+            <a href="#" alt="Diatonic 7th Chords" onclick="popSelect('Diatonic 7th Chords', 'Abdullah Ibrahim')"><img
+                    src="../../assets/images/concepts/cav_notation_003.png" alt="Diatonic 7th Chords"></a></div>
+        <div><strong>Cycle Progressions</strong>
+            <button class="listen-button" onclick="playExampleMidi(4)">🔊</button>
+            <a href="#" alt="Cycle Progressions" onclick="popSelect('Cycle Progressions', 'Abdullah Ibrahim')"><img
+                    src="../../assets/images/concepts/cav_notation_004.png" alt="Cycle Progressions"></a></div>
+        <div><strong>II-V-I's in Major and Minor</strong>
+            <button class="listen-button" onclick="playExampleMidi(5)">🔊</button>
+            <a href="#" alt="II-V-I's in Major and Minor"
+               onclick="popSelect('II-V-I\'s in Major and Minor', 'Abdullah Ibrahim')"><img
+                    src="../../assets/images/concepts/cav_notation_005.png" alt="II-V-I's in Major and Minor"></a></div>
+    </div>
+    <div class="tab-container">
+        <div><h2 id="progressionName">Choose a Progression</h2></div>
+        <div class="custom-dropdown">
+            <select id="dropdown-menu" onchange="setTrack(this.value)">
+                <option>Select a track...</option>
+            </select>
+        </div>
+        <div class="rollContainer" id="rollContainer"></div>
+        <midi-player id="mplayer" style="width:100%" class="mplayer"
+                     sound-font="https://storage.googleapis.com/magentadata/js/soundfonts/sgm_plus"></midi-player>
+    </div>
+    <button class="info-button" style="bottom: 2%; left: 97%" onclick="showInfoPopup()">i</button>
+    <button class="return-button" onclick="backToSelection()">Select another pianist...</button>
+</div>
+
+<div class="popup" id="popup">
+    <button class="closeButton" onclick="closeInfoPopup()">✖</button>
+    <h2 id="popupTitle">Pianist</h2>
+    <div class="popupContent">
+        <div class="popupText">
+            <h2>Progressions</h2>
+            <span>
+                    <em>Progressions</em> capture <strong>common jazz chord voicings and harmonic sequences</strong>. Hover each image to zoom and click 🔊 to play the progression. Click the image for a progression to show examples of this pianist using it <strong>in an actual performance</strong>!
+                </span>
+            <h2>Examples</h2>
+            <span>
+                    Use the dropdown menu to show all available recordings. Click a performance to load audio and a special type of graph called a <strong>heat map</strong>. The heat map shows the notes played on the piano in the performance. The colours underneath the notes show presence or absence of a progression. Intuitively, darker sections are <strong>more likely to contain</strong> evidence of a particular progression than lighter ones. You can use the playback bar or click notes on the heatmap to seek the audio.
+                </span>
+            <h2>For nerds 🧠</h2>
+            <span>
+                    We used a technique called <a href="https://arxiv.org/abs/1711.11279">testing with concept activation vectors</a> to encode each progression, using a book of <a
+                    href="https://www.jazzbooks.com/mm5/merchant.mvc?Screen=PROD&Product_code=DAN">jazz piano voicings</a> as our concepts. We train a linear classifier to separate concept examples from random examples, and then compute the similarity between the embeddings generated for an actual performance using our model and the weights learned by the linear classifier. To create the heatmaps, we used a masking technique whereby notes from the performance are systematically removed and the difference in concept sensitivity is calculated versus the original sensitivity.
+                </span>
+        </div>
+    </div>
+</div>
+<script src="../../assets/scripts/cav_sensitivity.js"></script>
+</body>
+</html>

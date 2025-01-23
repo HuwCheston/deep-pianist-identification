@@ -1,0 +1,228 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Open Sans", verdana, arial, sans-serif;
+    display: flex;
+    min-height: 100vh;
+    background-color: #e4e4e4;
+    overflow: hidden;
+}
+
+.grid-container {
+    display: grid;
+    grid-template-columns: 1fr 250px;
+    grid-template-rows: auto;
+    gap: 20px;
+    margin-top: 50px;
+    width: 50%;
+    height: 50%;
+    padding: 20px;
+}
+
+.static-figure {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.static-figure {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.radarplot {
+    border: none;
+    width: 500px;
+    height: 500px;
+    overflow: hidden;
+}
+
+.tab-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 300%;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.tabs {
+    display: flex; /* Horizontal layout for tabs */
+    justify-content: flex-start;
+    margin-bottom: 10px;
+}
+
+.tab {
+    padding: 10px 20px;
+    margin-right: 10px;
+    width: 200px;
+    cursor: pointer;
+    border: 2px solid #ccc;
+    border-radius: 5px;
+    background-color: #fff;
+    transition: background-color 0.3s ease;
+    text-align: center;
+}
+
+.tab:hover {
+    transform: scale(1.05);
+    transition: transform 0.3s ease, background-color 0.3s ease;
+}
+
+.active-tab {
+    background-color: #4CAF50;
+    color: white;
+    font-weight: bold;
+    border-color: #4CAF50;
+}
+
+.barplot {
+    border: none;
+    width: 750px;
+    height: 100%;
+    overflow: hidden;
+    display: none;
+}
+
+.barplot.active {
+    display: block;
+}
+
+.page-title {
+    position: absolute;
+    top: 10px;
+    left: 20px;
+    font-size: 42px;
+    font-weight: bold;
+}
+
+.info-button {
+    position: absolute;
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.info-button:hover {
+    background-color: #0056b3;
+}
+
+.popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    padding: 20px;
+    display: none;
+    z-index: 1000;
+    text-align: center;
+    width: 60%;
+}
+
+.popup h2 {
+    margin-bottom: 15px;
+}
+
+.popupContent {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+}
+
+.popupText {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.popupText div {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.popupText button {
+    margin: 0;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.popupText button:hover {
+    background-color: #ddd;
+}
+
+.popupText em {
+    margin: 0;
+    font-style: italic;
+}
+
+.closeButton {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 32px;
+    height: 32px;
+    background-color: red;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.closeButton:hover {
+    background-color: darkred;
+}
+
+.return-button {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    padding: 20px;
+    background-color: #333;
+    color: white;
+    font-size: 16px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: transform 0.3s ease, background-color 0.3s ease;
+}
+
+.return-button:hover {
+    transform: scale(1.05);
+    background-color: #555;
+}

@@ -1,0 +1,366 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Open Sans", verdana, arial, sans-serif;
+    display: flex;
+    min-height: 100vh;
+    background-color: #e4e4e4;
+    overflow: hidden;
+}
+
+.grid-container {
+    display: grid;
+    grid-template-columns: 1fr 250px;
+    grid-template-rows: auto;
+    gap: 20px;
+    margin-top: 50px;
+    width: 50%;
+    height: 50%;
+    padding: 20px;
+}
+
+.radarplot {
+    border: none;
+    width: 500px;
+    height: 500px;
+    overflow: hidden;
+}
+
+.tab-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 20px;
+    width: 1000px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.tabs {
+    display: flex; /* Horizontal layout for tabs */
+    justify-content: flex-start;
+    margin-bottom: 10px;
+}
+
+.tab {
+    padding: 10px 20px;
+    margin-right: 10px;
+    width: 200px;
+    cursor: pointer;
+    border: 2px solid #ccc;
+    border-radius: 5px;
+    background-color: #fff;
+    transition: background-color 0.3s ease;
+    text-align: center;
+}
+
+.tab:hover {
+    transform: scale(1.05);
+    transition: transform 0.3s ease, background-color 0.3s ease;
+}
+
+.active-tab {
+    background-color: #4CAF50;
+    color: white;
+    font-weight: bold;
+    border-color: #4CAF50;
+}
+
+.barplot {
+    border: none;
+    width: 750px;
+    height: 100%;
+    overflow: hidden;
+    display: none;
+}
+
+.barplot.active {
+    display: block;
+}
+
+.page-title {
+    position: absolute;
+    top: 10px;
+    left: 20px;
+    font-size: 42px;
+    font-weight: bold;
+}
+
+.info-button {
+    position: absolute;
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.info-button:hover {
+    background-color: #0056b3;
+}
+
+.popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    padding: 20px;
+    display: none;
+    z-index: 1000;
+    text-align: center;
+    width: 60%;
+}
+
+.popup h2 {
+    margin-bottom: 15px;
+}
+
+.popupContent {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+}
+
+.popupText {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.popupText div {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.popupText button {
+    margin: 0;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.popupText button:hover {
+    background-color: #ddd;
+}
+
+.popupText em {
+    margin: 0;
+    font-style: italic;
+}
+
+.closeButton {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 32px;
+    height: 32px;
+    background-color: red;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.closeButton:hover {
+    background-color: darkred;
+}
+
+.return-button {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    padding: 20px;
+    background-color: #333;
+    color: white;
+    font-size: 16px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: transform 0.3s ease, background-color 0.3s ease;
+}
+
+.return-button:hover {
+    transform: scale(1.05);
+    background-color: #555;
+}
+
+.concept-gallery {
+    display: inline-block;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.concept-gallery img {
+    width: 50%;
+    height: 10%;
+    padding-top: 20px;
+    /*border: 10px solid blue; !* Large border *!*/
+    transition: transform 0.3s ease, filter 0.3s ease;
+    transform-origin: top left;
+    /*position: relative;*/
+    z-index: 1;
+}
+
+.concept-gallery a:hover img {
+    transform: scale(200%);
+    z-index: 9999;
+}
+
+.concept-gallery a::after {
+    /*content: attr(alt);*/
+    /*position: absolute;*/
+    /*bottom: 0;*/
+    /*left: 50%;*/
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    padding: 10px;
+    font-size: 18px;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 1;
+}
+
+.concept-gallery a:hover::after {
+    opacity: 1;
+}
+
+.listen-button {
+    background-color: lightblue;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 25px;
+    height: 25px;
+    font-size: 16px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.listen-button:hover {
+    transform: scale(1.1);
+}
+
+.custom-dropdown {
+    position: relative;
+    display: inline-block;
+    width: auto;
+}
+
+select {
+    appearance: none;
+    width: 100%;
+    padding: 10px 40px 10px 15px;
+    font-size: 16px;
+    border: 2px solid #3498db;
+    border-radius: 5px;
+    background-color: white;
+    color: #333;
+    cursor: pointer;
+    outline: none;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+select:hover {
+    border-color: #2980b9;
+}
+
+select:focus {
+    border-color: #1abc9c;
+    box-shadow: 0 0 8px rgba(26, 188, 156, 0.6);
+}
+
+.rollContainer {
+    margin: 20px 0 20px 0;
+}
+
+midi-player {
+    display: block;
+    width: 100%;
+    margin: 4px;
+    margin-bottom: 0;
+}
+
+midi-player::part(control-panel) {
+    background: #ff5;
+    border: 2px solid #000;
+    border-radius: 10px 10px 0 0;
+}
+
+midi-player::part(play-button) {
+    color: #353;
+    border: 2px solid currentColor;
+    background-color: #4d4;
+    border-radius: 20px;
+    transition: all 0.2s;
+    content: 'hello';
+}
+
+midi-player::part(play-button):hover {
+    color: #0a0;
+    background-color: #5f5;
+    border-radius: 10px;
+}
+
+midi-player::part(time) {
+    font-family: monospace;
+}
+
+midi-visualizer .piano-roll-visualizer {
+    background: #ffd;
+    border: 2px solid black;
+    border-top: none;
+    border-radius: 0 0 10px 10px;
+    margin: 4px;
+    margin-top: 0;
+    width: 100%;
+    overflow: auto;
+}
+
+midi-visualizer svg rect.note {
+    opacity: 0.6;
+    stroke-width: 2;
+    transition: opacity 0.2s, fill 0.2s, stroke 0.2s; /* Smooth transitions for highlighting */
+}
+
+midi-visualizer svg rect.note[data-instrument="0"] {
+    fill: #e22;
+    stroke: #500;
+}
+
+midi-visualizer svg rect.note.active {
+    opacity: 0.9;
+    stroke: #000;
+    fill: #f44; /* Optionally highlight active notes differently */
+}

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abdullah Ibrahim – Style</title>
+    <link rel="stylesheet" type="text/css" href="../../assets/css/style_distinctiveness.css"/>
+</head>
+<body>
+<div class="page-title">Abdullah Ibrahim – Style</div>
+<div class="grid-container">
+    <div class="static-figure">
+        <div><h2>Distinctiveness</h2></div>
+        <iframe src="../../assets/plots/style/radarplots/radarplot_abdullah_ibrahim.html" class="radarplot"
+                scrolling="no"></iframe>
+    </div>
+    <div class="tab-container">
+        <h2>Similar Pianists</h2>
+        <div class="tabs">
+            <div class="tab active-tab" onclick="showPlot(0)">Melody</div>
+            <div class="tab" onclick="showPlot(1)">Harmony</div>
+            <div class="tab" onclick="showPlot(2)">Rhythm</div>
+            <div class="tab" onclick="showPlot(3)">Dynamics</div>
+        </div>
+        <iframe src="../../assets/plots/style/barplots/barplot_abdullah_ibrahim_melody.html" id="plot1" class="barplot"
+                scrolling="no"></iframe>
+        <iframe src="../../assets/plots/style/barplots/barplot_abdullah_ibrahim_harmony.html" id="plot2" class="barplot"
+                scrolling="no"></iframe>
+        <iframe src="../../assets/plots/style/barplots/barplot_abdullah_ibrahim_rhythm.html" id="plot3" class="barplot"
+                scrolling="no"></iframe>
+        <iframe src="../../assets/plots/style/barplots/barplot_abdullah_ibrahim_dynamics.html" id="plot4"
+                class="barplot" scrolling="no"></iframe>
+        <button class="info-button" style="bottom: 10%; left: 85%" onclick="showInfoPopup()">i</button>
+    </div>
+    <button class="return-button" onclick="backToSelection()">Select another pianist...</button>
+</div>
+
+<div class="popup" id="popup">
+    <button class="closeButton" onclick="closeInfoPopup()">✖</button>
+    <h2 id="popupTitle">Pianist</h2>
+    <div class="popupContent">
+        <div class="popupText">
+            <h2>Distinctiveness</h2>
+            <span>
+                    <em>Distinctiveness</em> is our way of capturing how accurate an artificial intelligence model trained using a single musical detail is in <strong>identifing the pianist</strong> playing on a recording.<br><br>
+                    If a pianist has high <em>distinctiveness</em> for harmony, for instance, then they can be recognised using <strong>only their chord voicings!</strong> Vice versa, if a pianist has low <em>distinctiveness</em> for rhythm, then they are often confused for other pianists when considering their only their <strong>time feel</strong>.<br><br>
+                    <em>Overall distinctiveness</em> reflects how accurate our model is when considering <strong>all musical details</strong> (melody, harmony, rhythm, and dynamics).<br>
+                </span>
+            <h2>Similar Pianists</h2>
+            <span>
+                    <em>Similarity</em> is our way of capturing which pianists our model <strong>confuses for each other</strong> when considering particular musical details. You can change which musical detail is shown by clicking the tabs along the top of the plot.<br><br>
+                    So, if Keith Jarrett is often confused for Bill Evans when considering their use of harmony, we can say that they are <strong>similar to each other</strong> along this musical dimension.<br><br>
+                    For clarity, we only show the <strong>top-5 most similar pianists</strong> on these plots.
+                </span>
+            <h2>For nerds 🧠</h2>
+            <span>
+                    We created a novel neural network architecture that uses individual subnetworks to learn from four <strong>factorised input representations</strong> extracted from a single performance (<em>harmony, melody, rhythm, and dynamics</em>). We can then compute the distinctiveness of a performer's use of a single musical domain by masking the outputs of the other three subnetworks at inference time and computing the accuracy of the model's predictions.
+                </span>
+        </div>
+    </div>
+</div>
+<script src="../../assets/scripts/style_distinctiveness.js"></script>
+</body>
+</html>

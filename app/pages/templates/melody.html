@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abdullah Ibrahim – Melody</title>
+    <script charset="utf-8" src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/focus-visible@5,npm/html-midi-player@1.5.0"></script>
+    <link rel="stylesheet" type="text/css" href="../../assets/css/melody_features.css"/>
+</head>
+<body>
+<div class="page-title">Abdullah Ibrahim – Melody</div>
+<div class="grid-container">
+    <div class="concept-gallery">
+        <div><h2>Patterns</h2></div>
+        <div><strong>[11, -3, 3]</strong>
+            <button class="listen-button" onclick="playExampleMidi(0, 'Abdullah Ibrahim')">🔊</button>
+            <a href="#" alt="[11, -3, 3]" onclick="popSelect('[11, -3, 3]', 'Abdullah Ibrahim')"><img
+                    src="../../assets/images/melody_features/abdullah_ibrahim_000.png" alt="[11, -3, 3]"></a></div>
+        <div><strong>[5, 4, -4]</strong>
+            <button class="listen-button" onclick="playExampleMidi(1, 'Abdullah Ibrahim')">🔊</button>
+            <a href="#" alt="[5, 4, -4]" onclick="popSelect('[5, 4, -4]', 'Abdullah Ibrahim')"><img
+                    src="../../assets/images/melody_features/abdullah_ibrahim_001.png" alt="[5, 4, -4]"></a></div>
+        <div><strong>[-12, 11, -7]</strong>
+            <button class="listen-button" onclick="playExampleMidi(2, 'Abdullah Ibrahim')">🔊</button>
+            <a href="#" alt="[-12, 11, -7]" onclick="popSelect('[-12, 11, -7]', 'Abdullah Ibrahim')"><img
+                    src="../../assets/images/melody_features/abdullah_ibrahim_002.png" alt="[-12, 11, -7]"></a></div>
+        <div><strong>[-2, 12, -5]</strong>
+            <button class="listen-button" onclick="playExampleMidi(3, 'Abdullah Ibrahim')">🔊</button>
+            <a href="#" alt="[-2, 12, -5]" onclick="popSelect('[-2, 12, -5]', 'Abdullah Ibrahim')"><img
+                    src="../../assets/images/melody_features/abdullah_ibrahim_003.png" alt="[-2, 12, -5]"></a></div>
+        <div><strong>[5, 7, -7]</strong>
+            <button class="listen-button" onclick="playExampleMidi(4, 'Abdullah Ibrahim')">🔊</button>
+            <a href="#" alt="[5, 7, -7]" onclick="popSelect('[5, 7, -7]', 'Abdullah Ibrahim')"><img
+                    src="../../assets/images/melody_features/abdullah_ibrahim_004.png" alt="[5, 7, -7]"></a></div>
+    </div>
+    <div class="tab-container">
+        <div><h2 id="progressionName">Choose a Pattern</h2></div>
+        <div class="custom-dropdown">
+            <select id="dropdown-menu" onchange="setTrack(this.value)">
+                <option>Select a track...</option>
+            </select>
+        </div>
+        <midi-player id="mplayer" style="width:100%" class="mplayer"
+                     sound-font="https://storage.googleapis.com/magentadata/js/soundfonts/sgm_plus"></midi-player>
+        <midi-visualizer type="piano-roll" id="mvis"></midi-visualizer>
+    </div>
+    <button class="info-button" style="bottom: 2%; left: 97%" onclick="showInfoPopup()">i</button>
+    <button class="return-button" onclick="backToSelection()">Select another pianist...</button>
+</div>
+
+<div class="popup" id="popup">
+    <button class="closeButton" onclick="closeInfoPopup()">✖</button>
+    <h2 id="popupTitle">Pianist</h2>
+    <div class="popupContent">
+        <div class="popupText">
+            <h2>Patterns</h2>
+            <span>
+                    <em>Patterns</em> capture <strong>common jazz melodies and licks</strong>. Hover each image to zoom and click 🔊 to play the pattern. Click the image for a pattern to show examples of this pianist using it <strong>in an actual performance</strong>!
+                </span>
+            <h2>Examples</h2>
+            <span>
+                    Use the dropdown menu to show all available recordings. Click a performance to load audio and a special type of graph called a <strong>piano roll</strong>. The piano roll shows the notes played on the piano in the performance. You can use the playback bar to seek the audio.
+                </span>
+        </div>
+    </div>
+</div>
+<script src="../../assets/scripts/melody_features.js"></script>
+</body>
+</html>

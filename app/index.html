@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Understanding Jazz Style</title>
+    <script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/focus-visible@5,npm/html-midi-player@1.5.0"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Open Sans", verdana, arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #e4e4e4;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+
+        .title {
+            position: absolute;
+            top: 50%;
+            left: -5%;
+            transform: translate(-50%, -50%) rotate(-90deg);
+            font-size: 42px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            max-width: 900px;
+            padding: 20px;
+        }
+
+        .gallery a {
+            display: block;
+            position: relative;
+            overflow: hidden;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .gallery img {
+            width: 100%;
+            height: auto;
+            margin: 0 -20px -20px 0;
+            transition: transform 0.3s ease, filter 0.3s ease;
+        }
+
+        .gallery a:hover img {
+            transform: scale(1.2);
+            filter: blur(3px);
+        }
+
+        .gallery a::after {
+            content: attr(alt);
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 10px;
+            font-size: 18px;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .gallery a:hover::after {
+            opacity: 1;
+        }
+
+        .popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            display: none;
+            z-index: 1000;
+            text-align: center;
+            width: 50%;
+        }
+
+        .popup h2 {
+            margin-bottom: 15px;
+        }
+
+        .popupContent {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 10px;
+        }
+
+        .popupText {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .popupText div {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .popupText button {
+            margin: 0;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .popupText button:hover {
+            background-color: #ddd;
+        }
+
+        .popupText em {
+            margin: 0;
+            font-style: italic;
+        }
+
+        .closeButton {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            width: 32px;
+            height: 32px;
+            background-color: red;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+
+        .closeButton:hover {
+            background-color: darkred;
+        }
+
+        .buttons {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .popupText button {
+            margin: 5px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .popupText button:hover {
+            background-color: #ddd;
+        }
+
+        .popup img {
+            max-width: 150px;
+            height: auto;
+            margin-left: 50px;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            z-index: 999;
+        }
+
+        .blurred {
+            filter: blur(5px);
+        }
+
+        .info-button {
+            position: absolute;
+            bottom: 20px;
+            right: -30px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .info-button:hover {
+            background-color: #0056b3;
+        }
+
+        .mute-button {
+            position: absolute;
+            bottom: 70px;
+            right: -30px;
+            background-color: red;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .info-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            display: none;
+            z-index: 1000;
+            text-align: center;
+            width: 500px;
+        }
+
+        .info-popup h2 {
+            margin-bottom: 15px;
+        }
+
+    </style>
+</head>
+<body>
+<div class="overlay" id="overlay"></div>
+<div class="container" id="content">
+    <div class="title">Understanding Jazz Style</div>
+    <div class="gallery">
+        <a href="#" alt="Abdullah Ibrahim"
+           onclick="showPopup('Abdullah Ibrahim', 'assets/images/pianists/abdullah_ibrahim.png')"><img
+                src="assets/images/pianists/abdullah_ibrahim.png" alt="Abdullah Ibrahim"></a>
+        <a href="#" alt="Ahmad Jamal" onclick="showPopup('Ahmad Jamal', 'assets/images/pianists/ahmad_jamal.png')"><img
+                src="assets/images/pianists/ahmad_jamal.png" alt="Ahmad Jamal"></a>
+        <a href="#" alt="Bill Evans" onclick="showPopup('Bill Evans', 'assets/images/pianists/bill_evans.png')"><img
+                src="assets/images/pianists/bill_evans.png" alt="Bill Evans"></a>
+        <a href="#" alt="Brad Mehldau"
+           onclick="showPopup('Brad Mehldau', 'assets/images/pianists/brad_mehldau.png')"><img
+                src="assets/images/pianists/brad_mehldau.png" alt="Brad Mehldau"></a>
+        <a href="#" alt="Cedar Walton"
+           onclick="showPopup('Cedar Walton', 'assets/images/pianists/cedar_walton.png')"><img
+                src="assets/images/pianists/cedar_walton.png" alt="Cedar Walton"></a>
+        <a href="#" alt="Chick Corea" onclick="showPopup('Chick Corea', 'assets/images/pianists/chick_corea.png')"><img
+                src="assets/images/pianists/chick_corea.png" alt="Chick Corea"></a>
+        <a href="#" alt="Gene Harris" onclick="showPopup('Gene Harris', 'assets/images/pianists/gene_harris.png')"><img
+                src="assets/images/pianists/gene_harris.png" alt="Gene Harris"></a>
+        <a href="#" alt="Geri Allen" onclick="showPopup('Geri Allen', 'assets/images/pianists/geri_allen.png')"><img
+                src="assets/images/pianists/geri_allen.png" alt="Geri Allen"></a>
+        <a href="#" alt="Hank Jones" onclick="showPopup('Hank Jones', 'assets/images/pianists/hank_jones.png')"><img
+                src="assets/images/pianists/hank_jones.png" alt="Hank Jones"></a>
+        <a href="#" alt="John Hicks" onclick="showPopup('John Hicks', 'assets/images/pianists/john_hicks.png')"><img
+                src="assets/images/pianists/john_hicks.png" alt="John Hicks"></a>
+        <a href="#" alt="Junior Mance"
+           onclick="showPopup('Junior Mance', 'assets/images/pianists/junior_mance.png')"><img
+                src="assets/images/pianists/junior_mance.png" alt="Junior Mance"></a>
+        <a href="#" alt="Keith Jarrett"
+           onclick="showPopup('Keith Jarrett', 'assets/images/pianists/keith_jarrett.png')"><img
+                src="assets/images/pianists/keith_jarrett.png" alt="Keith Jarrett"></a>
+        <a href="#" alt="Kenny Barron"
+           onclick="showPopup('Kenny Barron', 'assets/images/pianists/kenny_barron.png')"><img
+                src="assets/images/pianists/kenny_barron.png" alt="Kenny Barron"></a>
+        <a href="#" alt="Kenny Drew" onclick="showPopup('Kenny Drew', 'assets/images/pianists/kenny_drew.png')"><img
+                src="assets/images/pianists/kenny_drew.png" alt="Kenny Drew"></a>
+        <a href="#" alt="McCoy Tyner" onclick="showPopup('McCoy Tyner', 'assets/images/pianists/mccoy_tyner.png')"><img
+                src="assets/images/pianists/mccoy_tyner.png" alt="McCoy Tyner"></a>
+        <a href="#" alt="Oscar Peterson"
+           onclick="showPopup('Oscar Peterson', 'assets/images/pianists/oscar_peterson.png')"><img
+                src="assets/images/pianists/oscar_peterson.png" alt="Oscar Peterson"></a>
+        <a href="#" alt="Stanley Cowell"
+           onclick="showPopup('Stanley Cowell', 'assets/images/pianists/stanley_cowell.png')"><img
+                src="assets/images/pianists/stanley_cowell.png" alt="Stanley Cowell"></a>
+        <a href="#" alt="Teddy Wilson"
+           onclick="showPopup('Teddy Wilson', 'assets/images/pianists/teddy_wilson.png')"><img
+                src="assets/images/pianists/teddy_wilson.png" alt="Teddy Wilson"></a>
+        <a href="#" alt="Thelonious Monk"
+           onclick="showPopup('Thelonious Monk', 'assets/images/pianists/thelonious_monk.png')"><img
+                src="assets/images/pianists/thelonious_monk.png" alt="Thelonious Monk"></a>
+        <a href="#" alt="Tommy Flanagan"
+           onclick="showPopup('Tommy Flanagan', 'assets/images/pianists/tommy_flanagan.png')"><img
+                src="assets/images/pianists/tommy_flanagan.png" alt="Tommy Flanagan"></a>
+        <button class="info-button" onclick="showInfoPopup()">i</button>
+        <button class="mute-button" id="mute-button">🔈</button>
+    </div>
+</div>
+
+<div class="popup" id="popup">
+    <button class="closeButton" onclick="closePopup()">✖</button>
+    <h2 id="popupTitle">Pianist</h2>
+    <div class="popupContent">
+        <div class="popupText">
+            <div>
+                <button id="popupStyle" onclick="navigate('style', 'Abdullah Ibrahim')">Style</button>
+                <em style="font-size: 16px">See what makes this pianist's style unique</em></div>
+            <div>
+                <button id="popupMelody" onclick="navigate('melody', 'Abdullah Ibrahim')">Melody</button>
+                <em style="font-size: 16px">Listen to their distinctive melodic phrases and licks</em></div>
+            <div>
+                <button id="popupHarmony" onclick="navigate('harmony', 'Abdullah Ibrahim')">Harmony</button>
+                <em style="font-size: 16px">Hear their use of different harmonic progressions</em></div>
+        </div>
+        <img id="popupImg" src="assets/images/pianists/abdullah_ibrahim.png" alt="Pianist"/>
+    </div>
+</div>
+<div style="display: none">
+    <midi-player id="mplayer" class="mplayer"
+                 sound-font="https://storage.googleapis.com/magentadata/js/soundfonts/sgm_plus"></midi-player>
+</div>
+
+<script>
+    function editPopupButtons(name) {
+        document.getElementById("popupStyle").onclick = function () {
+            navigate("style", name)
+        }
+        document.getElementById("popupMelody").onclick = function () {
+            navigate("melody", name)
+        }
+        document.getElementById("popupHarmony").onclick = function () {
+            navigate("harmony", name)
+        }
+        console.log(document.getElementById("popupStyle").onclick)
+    }
+
+    function showPopup(name, img) {
+        document.getElementById('popupTitle').innerText = name;
+        let imgPane = document.getElementById('popupImg')
+        imgPane.src = img
+        imgPane.alt = name
+        document.getElementById('popup').style.display = 'block';
+        document.getElementById('overlay').style.display = 'block';
+        document.getElementById('content').classList.add('blurred');
+        editPopupButtons(name)
+        playMidi(name)
+    }
+
+    function _playHandler() {
+        player.stop();
+        if (isMute === false) {
+            player.currentTime = 0.0;
+            player.start();
+        }
+    }
+
+    function playMidi(pianist) {
+        let pianistFmt = pianist.replace(' ', '_').toLowerCase();
+        player.src = `assets/midi/examples/${pianistFmt}.mid`;
+        player.addEventListener("load", _playHandler);
+    }
+
+    function closePopup() {
+        document.getElementById('popup').style.display = 'none';
+        document.getElementById('overlay').style.display = 'none';
+        document.getElementById('content').classList.remove('blurred');
+        stopMidi();
+    }
+
+    function showInfoPopup() {
+        const infoPopup = document.createElement('div');
+        infoPopup.classList.add('info-popup');
+        infoPopup.innerHTML = `
+                <h2>Understanding Jazz Style</h2>
+                <p>
+                    Click the image of each pianist to learn more about their style of improvisation.
+                    Toggle audio by clicking the 🔊/🔈 button.
+                </p>
+                <button class="closeButton" onclick="closeInfoPopup()">✖</button>
+            `;
+        document.body.appendChild(infoPopup);
+        infoPopup.style.display = 'block';
+        document.getElementById('overlay').style.display = 'block';
+        document.getElementById('content').classList.add('blurred');
+    }
+
+    function closeInfoPopup() {
+        const infoPopup = document.querySelector('.info-popup');
+        if (infoPopup) {
+            infoPopup.style.display = 'none';
+            document.body.removeChild(infoPopup);
+        }
+        document.getElementById('overlay').style.display = 'none';
+        document.getElementById('content').classList.remove('blurred');
+    }
+
+    function navigate(page, pianist) {
+        let pianistFmt = pianist.replace(' ', '_').toLowerCase()
+        let navPage = `pages/${page}/${pianistFmt}.html`
+        console.log(navPage)
+        window.location.href = navPage;
+    }
+
+    function stopMidi() {
+        try {
+            player.stop()
+        } catch (err) {
+            console.log("can't stop MIDI")
+        }
+    }
+
+    function setMute() {
+        if (isMute) {
+            document.getElementById('mute-button').innerText = "🔊"
+            document.getElementById('mute-button').style.background = "green"
+            isMute = false
+        } else {
+            document.getElementById('mute-button').innerText = "🔈"
+            document.getElementById('mute-button').style.background = "red"
+            isMute = true
+        }
+    }
+
+    player = document.getElementById("mplayer")
+    isMute = true
+    document.getElementById('mute-button').addEventListener('click', setMute)
+    showInfoPopup()
+
+</script>
+</body>
+</html>
