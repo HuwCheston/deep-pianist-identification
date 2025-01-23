@@ -9,6 +9,7 @@ import subprocess
 import numpy as np
 import partitura as pt
 from PIL import Image
+from loguru import logger
 from music21.chord import Chord
 from music21.clef import TrebleClef, BassClef
 from music21.converter import subConverters
@@ -182,7 +183,8 @@ def score_to_image_array(
         image = Image.open("tmp-1.png")
     except FileNotFoundError:
         os.remove("tmp.musicxml")
-        return np.zeros(png_dim)
+        logger.warning('... something went wrong when writing images from music21 (is musescore installed?)')
+        return np.zeros((300, 612, 4))  # return an empty image
     # Remove the temporary files we've created now everything is in memory
     os.remove("tmp-1.png")
     os.remove("tmp.musicxml")
