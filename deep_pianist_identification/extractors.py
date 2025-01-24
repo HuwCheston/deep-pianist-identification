@@ -19,7 +19,7 @@ QUANTIZE_RESOLUTION = (1 / FPS) * 10  # 100 ms, the duration of a triplet eighth
 
 __all__ = [
     "normalize_array", "get_piano_roll", "quantize", "augment_midi", "MelodyExtractor", "DynamicsExtractor",
-    "RhythmExtractor", "HarmonyExtractor", "ExtractorError", "RollExtractor",
+    "RhythmExtractor", "HarmonyExtractor", "ExtractorError", "RollExtractor", "note_list_to_midi"
 ]
 
 
@@ -220,6 +220,7 @@ class MelodyExtractor(RollExtractor):
         self.quantize_resolution = kwargs.get('quantize_resolution', 1 / FPS)  # Snap to nearest 10 ms
         # Special attribute that holds the results of skylining without adjusting duration
         self.skylined = None
+        self.accomp = None
         # Initialise the parent class and call all the overridden methods
         super().__init__(midi_obj, clip_start=clip_start)
 
@@ -238,10 +239,13 @@ class MelodyExtractor(RollExtractor):
                 note_velocity = MAX_VELOCITY  # 1 = note on, 0 = note off
                 quantized_notes.append((note_start, note_end, note_pitch, note_velocity))
         # Apply the skyline algorithm and adjust the duration of notes
-        skylined = list(self.apply_skyline(quantized_notes))
-        # Set the special attribute which contains original note durations with the skyline applied
-        self.skylined = note_list_to_midi(skylined, self.input_midi.resolution, self.input_midi.instruments[0].program)
-        return self.adjust_durations(skylined)
+        melody, accomp = self.apply_skyline(quantized_notes)
+        # Set these special attributes which contains original note durations with the skyline applied/not applied
+        #  we do this to make our life easier when creating the web application
+        self.skylined = note_list_to_midi(melody, self.input_midi.resolution, self.input_midi.instruments[0].program)
+        self.accomp = note_list_to_midi(accomp, self.input_midi.resolution, self.input_midi.instruments[0].program)
+        # Return the skyline melody with note durations adjusted
+        return self.adjust_durations(melody)
 
     @staticmethod
     def apply_skyline(quantized_notes: list):
@@ -249,9 +253,16 @@ class MelodyExtractor(RollExtractor):
         note_starts = itemgetter(0)
         # Group all the MIDI events by the (quantized) start time
         grouper = groupby(sorted(quantized_notes, key=note_starts), note_starts)
-        # Iterate through each group and keep only the note with the highest pitch
+        melody, accompaniment = [], []
+        # Iterate through each group
         for quantized_note_start, subiter in grouper:
-            yield max(subiter, key=itemgetter(2))
+            subiter = list(subiter)  # we need to refer to the list several times
+            # Get the note with the highest pitch in the group and append to our melody
+            max_pitch = max(subiter, key=itemgetter(2))
+            melody.append(max_pitch)
+            # Extend the accompaniment list with every other note
+            accompaniment.extend([i for i in subiter if i[2] != max_pitch[2]])
+        return melody, accompaniment
 
     @staticmethod
     def adjust_durations(skylined_notes: list):
