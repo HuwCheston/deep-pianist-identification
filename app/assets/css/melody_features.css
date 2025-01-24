@@ -364,3 +364,10 @@ midi-visualizer svg rect.note.active {
     stroke: #000;
     fill: #f44; /* Optionally highlight active notes differently */
 }
+
+.vl {
+    border-left: 6px solid green;
+    height: 509px;
+    position: absolute;
+    top: 30.1%;
+}

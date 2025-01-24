@@ -1,5 +1,6 @@
 let player = document.getElementById("mplayer");
 let vis = document.getElementById("mvis");
+let playbackLine = document.getElementById("playback-line")
 player.addEventListener("load", _playHandler);
 
 
@@ -65,8 +66,29 @@ function setTrack(assetPath) {
     let midPath = `../../assets/midi/melody_examples/${assetPath}`
     player.src = midPath
     vis.src = midPath
+    playbackLine.style.display = 'block'
+
+    setInterval(() => {
+        try {
+            var xPos = getCurrentX();
+            let rect = document.getElementById("mvis").getBoundingClientRect();
+            playbackLine.style.left = Number(xPos) + Number(rect.left) + 'px';
+            playbackLine.style.height = (Number(rect.height) - 5) + 'px';
+        } catch (err) {
+        }
+    }, 100);
 }
 
 function backToSelection() {
     window.location.href = '../../index.html';
+}
+
+function getCurrentX() {
+    let svgIndex = null
+    for (const [index, element] of vis.noteSequence.notes.entries()) {
+        if (element.startTime === player.currentTime) {
+            svgIndex = index
+        }
+    }
+    return vis.visualizer.svg.children[svgIndex].getAttribute('x')
 }
