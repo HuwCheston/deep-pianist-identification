@@ -6,10 +6,12 @@
 import os
 import unittest
 
+import numpy as np
 from pretty_midi import PrettyMIDI, Instrument, Note
 
 from deep_pianist_identification.extractors import (
-    ExtractorError, MelodyExtractor, HarmonyExtractor, DynamicsExtractor, RhythmExtractor, RollExtractor
+    ExtractorError, MelodyExtractor, HarmonyExtractor, DynamicsExtractor, RhythmExtractor, RollExtractor,
+    normalize_array, augment_midi, note_list_to_midi
 )
 from deep_pianist_identification.utils import (
     get_project_root, CLIP_LENGTH, PIANO_KEYS, MIDI_OFFSET, seed_everything
@@ -179,6 +181,88 @@ class ExtractorTest(unittest.TestCase):
         bm.instruments.append(badinst)
         # This clip should always raise an ExtractorError when extracting features, as there won't be any chords
         self.assertRaises(ExtractorError, lambda x: HarmonyExtractor(x), bm)
+
+    def test_skyline(self):
+        # Testing with both melody and accompaniment
+        inp = [
+            (0.1, 2.0, 60, 127),  # accompaniment
+            (0.1, 3.0, 65, 127),  # melody
+            (0.2, 3.0, 69, 127),  # melody
+            (0.3, 4.0, 55, 127),  # accompaniment
+            (0.3, 4.0, 70, 127),  # melody
+            (0.3, 4.5, 34, 127),  # accompaniment
+            (0.4, 6.0, 55, 127)  # melody
+        ]
+        expected_melody = [
+            (0.1, 3.0, 65, 127),  # melody
+            (0.2, 3.0, 69, 127),  # melody
+            (0.3, 4.0, 70, 127),  # melody
+            (0.4, 6.0, 55, 127),  # melody
+        ]
+        expected_accompaniment = [
+            (0.1, 2.0, 60, 127),  # accompaniment
+            (0.3, 4.0, 55, 127),  # accompaniment
+            (0.3, 4.5, 34, 127),  # accompaniment
+        ]
+        actual_melody, actual_accompaniment = MelodyExtractor.apply_skyline(inp)
+        self.assertTrue(all([a == b for a, b in zip(actual_melody, expected_melody)]))
+        self.assertTrue(all([a == b for a, b in zip(actual_accompaniment, expected_accompaniment)]))
+        # Testing only for melody with no accompaniment
+        inp2 = [
+            (0.1, 0.5, 60, 127),
+            (0.2, 0.6, 61, 127),
+            (0.3, 0.7, 62, 127)
+        ]
+        expected_melody, expected_accompaniment = inp2, []
+        actual_melody, actual_accompaniment = MelodyExtractor.apply_skyline(inp2)
+        self.assertTrue(all([a == b for a, b in zip(actual_melody, expected_melody)]))
+        self.assertTrue(len(expected_accompaniment) == 0)
+        # Testing adjust durations: function normally returns generator, so have to convert to list to get it to raise
+        self.assertRaises(ExtractorError, lambda x: list(MelodyExtractor.adjust_durations(x)), [])
+
+    def test_normalize_array(self):
+        inp = np.array([
+            [0, 60, 127, 80],
+            [0, 0, 0, 0],
+            [0, 127, 30, 0],
+            [0, 0, 0, 10],
+            [0, 0, 0, 0]
+        ])
+        expected_min, expected_max = 0., 1.
+        out = normalize_array(inp)
+        actual_min, actual_max = np.min(out), np.max(out)
+        self.assertEqual(expected_min, actual_min)
+        self.assertEqual(expected_max, actual_max)
+
+    def test_data_augmentation(self):
+        inp = [
+            (0.1, 2.0, 60, 127),
+            (0.1, 3.0, 65, 127),
+            (0.2, 3.0, 69, 127),
+            (0.3, 4.0, 55, 127),
+            (0.3, 4.0, 70, 127),
+            (0.3, 4.5, 34, 127),
+            (0.4, 6.0, 55, 127)
+        ]
+        inp_midi = note_list_to_midi(inp)
+        augmented_midi = augment_midi(inp_midi, transpose_limit=6, dilate_limit=0.2, balance_limit=10)
+        self.assertTrue(all(
+            non_augment.start != augment.start for non_augment, augment in
+            zip(inp_midi.instruments[0].notes, augmented_midi.instruments[0].notes))
+        )
+        self.assertTrue(all(
+            non_augment.end != augment.end for non_augment, augment in
+            zip(inp_midi.instruments[0].notes, augmented_midi.instruments[0].notes))
+        )
+        self.assertTrue(all(
+            non_augment.pitch != augment.pitch for non_augment, augment in
+            zip(inp_midi.instruments[0].notes, augmented_midi.instruments[0].notes))
+        )
+        # We apply velocity augmentation separately to each note, so some may still be matching
+        self.assertTrue(any(
+            non_augment.velocity != augment.velocity for non_augment, augment in
+            zip(inp_midi.instruments[0].notes, augmented_midi.instruments[0].notes))
+        )
 
 
 if __name__ == '__main__':
