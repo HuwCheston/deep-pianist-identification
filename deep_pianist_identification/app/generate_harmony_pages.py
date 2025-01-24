@@ -24,9 +24,8 @@ from deep_pianist_identification.extractors import ExtractorError
 CAV_NAME_TO_IDX = {m: n for n, m in enumerate(CAV_MAPPING, 1)}  # A mapping of CAV names to chapter numbers
 INPUT_DIR = os.path.join(utils.get_project_root(), 'reports/figures/ablated_representations/cav_plots')
 N_CONCEPTS_PER_PERFORMER = 5  # we'll only show the 5 most sensitive concepts for every performer
-N_CLIPS_PER_CONCEPT = 10  # we'll show up to this number of clips for each concept
-# TODO: we should probably just use whichever clip has the maximum value for the 1st experiment
-AGG_FUNC = np.mean  # used to aggregate the results from all experiments to a single value
+N_CLIPS_PER_CONCEPT = 2  # we'll show up to this number of clips for each concept
+USE_EXPERIMENT = 0  # We'll use the first experiment we conduct for each CAV
 HEATMAP_KERNEL = (24., 2.5)  # (semitones, seconds)
 HEATMAP_STRIDE = (2., 2.)  # (semitones, seconds)
 
@@ -191,12 +190,11 @@ def get_clip_paths(pianist_sensitive_concepts: dict, n_clips: int = N_CLIPS_PER_
             if i.split("/")[1].split('-')[0][:-1] == pian.split(' ')[1].lower()
         }
         # Sort the clip filepaths by aggregating the corresponding sensitivity scores
-        # TODO: we should probably just use whichever clip has the maximum value from the 1st experiment
         return {
-            k: AGG_FUNC(v) for k, v in
+            k: v[USE_EXPERIMENT] for k, v in
             sorted(
                 pianist_sensitivities_for_concept.items(),
-                key=lambda item: AGG_FUNC(item[1]),
+                key=lambda item: item[1][USE_EXPERIMENT],
                 reverse=True
             )[:n_clips]
         }
@@ -324,7 +322,7 @@ def create_html(pianist: str, metadata_dict: dict, tmp_pianist: str = "Abdullah 
     concepts = list(metadata_dict.keys())
     # Load in the template and get the concept gallery, the element we need to modify
     template = os.path.join(utils.get_project_root(), 'app/pages/templates/harmony.html')
-    soup = BeautifulSoup(open(template, 'r'))
+    soup = BeautifulSoup(open(template, 'r'), features="lxml")
     gallery = soup.find_all('div', {"class": "concept-gallery"})[0]
     # Iterating through each "row" in the concept gallery
     for tag, button, anchor, concept in zip(
