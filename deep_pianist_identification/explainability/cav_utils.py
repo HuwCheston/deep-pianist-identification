@@ -33,7 +33,7 @@ from deep_pianist_identification.extractors import get_piano_roll, HarmonyExtrac
 DEFAULT_MODEL = ("disentangle-resnet-channel/"
                  "disentangle-jtd+pijama-resnet18-mask30concept3-augment50-noattention-avgpool-onefc")
 # Array of names for all CAVs
-_mapping_loc = os.path.join(utils.get_project_root(), 'references/_unsupervised_resources/voicings/cav_mapping.csv')
+_mapping_loc = os.path.join(utils.get_project_root(), 'references/cav_resources/voicings/cav_mapping.csv')
 CAV_MAPPING = np.array([row.iloc[0] for i, row in pd.read_csv(_mapping_loc, index_col=1).iterrows()])
 # Array of pianist birth years (not sorted)
 BIRTH_YEARS = np.genfromtxt(
@@ -447,7 +447,7 @@ class RandomCAV(CAV):
 
 class VoicingLoaderReal(Dataset):
     """Loads voicing MIDIs from unsupervised_resources/voicings/midi_final"""
-    SPLIT_PATH = os.path.join(utils.get_project_root(), 'references/_unsupervised_resources/voicings/midi_final')
+    SPLIT_PATH = os.path.join(utils.get_project_root(), 'references/cav_resources/voicings/midi_final')
 
     def __init__(
             self,
