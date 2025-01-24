@@ -1,6 +1,7 @@
 # White-box classifiers
 
-These scripts reproduce the figures and results obtained from the "white-box" models described in section 3 of our
+These scripts reproduce the figures and results obtained from the "handcrafted feature" models described in section 3 of
+our
 paper.
 
 ## Fitting and optimizing models
@@ -48,7 +49,8 @@ We allow for several arguments to be passed in to the command line script.
 - `-d` / `--dataset`: the name of a folder containing data split folders inside `./references/data_split/`. Defaults to
   `20class_80min`, which are the splits used in the paper.
 - `-i` / `--n-iter`: number of iterations to use in optimizing the model and when bootstrapping parameter settings
-- `-l` / `--ngrams`: the _n_-gram settings to use. Defaults to `[2, 3]` as is reported in the paper.
+- `-l` / `--feature-sizes`: the "size" of the features to extract, *expressed in intervals*. Defaults to `[2, 3]` which
+  corresponds to chords and n-grams containing either three or four pitches.
 - `-s` / `--min-count`: the minimum number of tracks a feature must appear in to be used. Defaults to 10 as in the
   paper.
 - `-b` / `--max-count`: the maximum number of tracks a feature can appear in before it is dropped. Defaults to 1000 as
@@ -57,6 +59,9 @@ We allow for several arguments to be passed in to the command line script.
   regression, default), `svm` (support vector machine) are recognised. Note that not all outputs will be created for all
   model types.
 - `-z` / `--scale`: whether to scale data using z-transformation. Defaults to `True`.
+- `-k` / `--database-k-coefs`: number of features to use when computing correlation between different datasets, default
+  is `500`. Either `int` or `float` is accepted: `float` is interpreted as fraction of total features. `-1` is
+  interpreted as using all available features.
 
 Additional parameter settings can be changed by altering various constances (defined in CAPITAL_LETTERS) in scripts such
 as `wb_utils.py`, `features.py`. However, be warned that this may break things!
