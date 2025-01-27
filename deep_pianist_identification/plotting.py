@@ -600,7 +600,7 @@ class BarPlotWhiteboxDatabaseCoefficients(BasePlot):
     """Bar plot showing the performer correlations obtained from both source databases for a whitebox model"""
     BAR_KWS = dict(palette="tab10", edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, legend=False, zorder=10)
     ERROR_KWS = dict(lw=LINEWIDTH, color=BLACK, capsize=8, zorder=100, elinewidth=LINEWIDTH, ls='none')
-    X_PADDING = 0.01
+    X_PADDING = 0.05
 
     def __init__(self, coef_df):
         super().__init__()
@@ -629,7 +629,7 @@ class BarPlotWhiteboxDatabaseCoefficients(BasePlot):
             sns.barplot(data=sub, x='corr', y='pianist', hue='pianist', ax=ax, **self.BAR_KWS)
             for idx, row in sub.iterrows():
                 x = row['corr'] + self.X_PADDING if row['corr'] > 0 else row['corr'] - self.X_PADDING
-                ax.text(x, idx, row['sig'], ha='center')
+                ax.text(x, idx, row['sig'], ha='center', zorder=100000)
 
     def _format_ax(self):
         xmin = min([ax.get_xlim()[0] for ax in self.ax.flatten()]) - self.X_PADDING
@@ -1434,8 +1434,9 @@ class HeatmapMelodyExtraction(BasePlot):
 
 
 class LinePlotWhiteboxAccuracyN(BasePlot):
-    ROOT = os.path.join(utils.get_project_root(), 'references/whitebox/optimization_results_at_n')
+    ROOT = os.path.join(utils.get_project_root(), 'references/whitebox')
     VOCAB_SIZE = {
+        3: None,
         4: 8768,
         5: 18099,
         6: 21008,
