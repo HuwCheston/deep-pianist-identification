@@ -320,7 +320,7 @@ class _StripplotTopKFeatures(BasePlot):
             y: float,
             x: float = 1.025,
             zoom: float = 0.25,
-            right_crop: float = 0.7,
+            right_crop: float = 0.92,
             png_dim: tuple = (125, 350, 1000, 650),
             dpi: int = 300
     ) -> None:
@@ -359,7 +359,7 @@ class _StripplotTopKFeatures(BasePlot):
 
     def _format_fig(self):
         """Setting plot aeshetics on a figure-level basis"""
-        self.fig.subplots_adjust(left=0.14, top=0.95, bottom=0.11, right=0.85)
+        self.fig.subplots_adjust(left=0.14, top=0.95, bottom=0.11, right=0.8)
 
     def _save_fig(self, output_dir: str, concept_name: str):
         fp = os.path.join(
