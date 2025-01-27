@@ -438,7 +438,7 @@ class StripplotTopKMelodyFeatures(_StripplotTopKFeatures):
         self._add_performer_image()
         self.ax.tick_params(right=True)
         # self.ax.set_title(f'{self.pianist_name}, melody features')
-        self.ax.set(ylabel='Odds ratio', xlabel='Feature')
+        self.ax.set(xlabel='Odds ratio', ylabel='Feature')
         fmt_text = [str(m21_utils.intervals_to_pitches(yl.get_text())) for yl in self.ax.get_yticklabels()]
         self.ax.set_yticks(self.ax.get_yticks(), fmt_text)
         self.ax.grid(axis='x', zorder=0, **GRID_KWS)
@@ -527,7 +527,7 @@ class StripplotTopKHarmonyFeatures(_StripplotTopKFeatures):
         self._add_performer_image(x=0.125)
         self.ax.tick_params(top=True)
         # self.ax.set_title(f'{self.pianist_name}, harmony features', y=1.175)
-        self.ax.set(xlabel='Odds ratio', ylabel='Feature')
+        self.ax.set(ylabel='Odds ratio', xlabel='Feature')
         fmt_text = [str(self.format_feature(yl.get_text())) for yl in self.ax.get_xticklabels()]
         self.ax.set_xticks(self.ax.get_xticks(), fmt_text, rotation=90, va='top', ha='right')
         self.ax.grid(axis='y', zorder=0, **GRID_KWS)
