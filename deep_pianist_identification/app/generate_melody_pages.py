@@ -78,7 +78,7 @@ def generate_clip_metadata(clip_name: str, feature_count: int, asset_path: str) 
     """Generates a JSON of metadata for a pianist to be saved in ./app/assets/metadata/cav_sensitivity"""
     # Get the path for the original track metadata.json inside ./data/raw and make sure it exists
     metadata_path = os.path.join(
-        os.path.sep.join(clip_name.replace('clips', 'raw').split(os.path.sep)[:-1]),
+        os.path.sep.join(clip_name.replace(f'clips{os.path.sep}', f'raw{os.path.sep}').split(os.path.sep)[:-1]),
         'metadata.json'
     )
     assert os.path.exists(metadata_path)
@@ -202,7 +202,7 @@ def save_melody_feature_outputs(melody_feature: list[int], feature_rank: int, pi
     feature_m21 = convert_melody_feature_to_m21(melody_feature)
     # If we haven't already created the image, go ahead and do this
     if not os.path.isfile(img_path):
-        feature_image = m21_utils.score_to_image_array(feature_m21, dpi=800)
+        feature_image = m21_utils.score_to_image_array(feature_m21, dpi=800, right_crop=0.92)
         # Get the original dimensions
         height, width, _ = feature_image.shape
         # Convert image array to pillow and save in desired location
