@@ -79,7 +79,7 @@ def create_classifier(
     csvpath = os.path.join(
         utils.get_project_root(),
         'references/whitebox',
-        f'{dataset}_{classifier_type}_harmony+melody.csv'
+        f'{dataset}_{classifier_type}_harmony+melody_{"".join([str(i) for i in feature_sizes])}.csv'
     )
     # Scale the data if required (never for multinomial naive Bayes as this expects count data)
     if scale and classifier_type != "nb":

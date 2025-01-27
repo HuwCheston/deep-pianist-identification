@@ -18,7 +18,7 @@ from tqdm import tqdm
 from deep_pianist_identification import utils, plotting
 from deep_pianist_identification.whitebox.wb_utils import get_classifier_and_params, N_ITER, N_JOBS
 
-N_PERMUTATION_COEFS = 1000
+N_PERMUTATION_COEFS = 2000
 
 
 class WhiteBoxExplainer:
