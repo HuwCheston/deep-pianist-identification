@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 from sklearn.ensemble import RandomForestClassifier, HistGradientBoostingClassifier
+from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB, GaussianNB
 from sklearn.preprocessing import StandardScaler
@@ -193,17 +194,30 @@ def get_classifier_and_params(classifier_type: str) -> tuple:
 def scale_features(
         train_x: np.ndarray,
         test_x: np.ndarray,
-        valid_x: np.ndarray
+        valid_x: np.ndarray,
+        method: str = "tf-idf"
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Scale the data using Z-transformation"""
-    logger.info('... data will be scaled using z-transformation!')
-    # Create the scaler object
-    scaler = StandardScaler()
-    # Fit to the training data and use these values to transform others
-    train_x = scaler.fit_transform(train_x)
-    test_x = scaler.transform(test_x)
-    valid_x = scaler.transform(valid_x)
-    return train_x, test_x, valid_x
+    if method == "z-score":
+        logger.info('... data will be scaled using z-transformation!')
+        # Create the scaler object
+        scaler = StandardScaler()
+        # Fit to the training data and use these values to transform others
+        train_x = scaler.fit_transform(train_x)
+        test_x = scaler.transform(test_x)
+        valid_x = scaler.transform(valid_x)
+        return train_x, test_x, valid_x
+    elif method == "tf-idf":
+        logger.info('... data will be scaled using tf-idf!')
+        # Create the scaler object
+        scaler = TfidfTransformer(norm='l2')
+        # Fit to the training data and use these values to transform others
+        train_x = scaler.fit_transform(train_x).toarray()
+        test_x = scaler.transform(test_x).toarray()
+        valid_x = scaler.transform(valid_x).toarray()
+        return train_x, test_x, valid_x
+    else:
+        raise ValueError(f'method should be either `tf-idf` or `z-score`, but got {method}!')
 
 
 def get_all_clips(dataset: str, n_clips: int = None):
