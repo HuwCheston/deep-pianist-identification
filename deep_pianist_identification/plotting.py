@@ -1433,8 +1433,69 @@ class HeatmapMelodyExtraction(BasePlot):
         self.fig.savefig(out, **SAVE_KWS)
 
 
+class LinePlotWhiteboxAccuracyN(BasePlot):
+    ROOT = os.path.join(utils.get_project_root(), 'references/whitebox/optimization_results_at_n')
+    VOCAB_SIZE = {
+        4: 8768,
+        5: 18099,
+        6: 21008,
+        7: 21670,
+        8: 21809
+    }
+    BAR_KWS = dict(edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, zorder=10, color=BLUE)
+    LINE_KWS = dict(linewidth=LINEWIDTH, linestyle=LINESTYLE, color=BLUE)
+
+    def __init__(self, _=None):
+        super().__init__()
+        self.df = self._format_df(None)
+        self.fig, self.ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(WIDTH, WIDTH // 3))
+
+    def _format_df(self, _):
+        res = []
+        for f in os.listdir(self.ROOT):
+            if "lr" not in f:
+                continue
+            max_n = eval(f.split('_')[-1].replace('.csv', '')[-1]) + 1
+            df = pd.read_csv(os.path.join(self.ROOT, f))
+            try:
+                vocab_size = self.VOCAB_SIZE[max_n]
+            except KeyError:
+                vocab_size = None
+            res.append({
+                'max_n': max_n,
+                'acc': df['accuracy'].max(),
+                'vocab_size': vocab_size
+            })
+        res = pd.DataFrame(res).sort_values(by='max_n').reset_index(drop=True)
+        res['max_n'] = res['max_n'].astype(int)
+        return res
+
+    def _create_plot(self):
+        self.ax.plot(self.df['max_n'], self.df['acc'], **self.LINE_KWS)
+        # sns.barplot(data=self.df, ax=self.ax[1], x='max_n', y='vocab_size', **self.BAR_KWS)
+
+    def _format_ax(self):
+        self.ax.set(
+            xlabel='max($n$)', ylabel='Optimized validation accuracy', xticks=list(self.VOCAB_SIZE.keys()),
+            xticklabels=list(self.VOCAB_SIZE.keys())
+        )
+        plt.setp(self.ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
+        self.ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
+        self.ax.grid(axis='y', zorder=0, **GRID_KWS)
+
+    def _format_fig(self):
+        self.fig.tight_layout()
+
+    def save_fig(self):
+        out = os.path.join(utils.get_project_root(), 'reports/figures/whitebox/optimization_results_at_n.png')
+        self.fig.savefig(out, **SAVE_KWS)
+
+
 if __name__ == "__main__":
     # This just generates some plots that we can't easily create otherwise
+    blp = LinePlotWhiteboxAccuracyN()
+    blp.create_plot()
+    blp.save_fig()
     met = utils.get_track_metadata(utils.get_pianist_names())
     bp = BarPlotDatasetDurationCount(met)
     bp.create_plot()
