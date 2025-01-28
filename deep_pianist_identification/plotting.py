@@ -1341,7 +1341,7 @@ class BarPlotWhiteboxDomainImportance(BasePlot):
     PALETTE = [CONCEPT_COLOR_MAPPING[con] for con in ["Harmony", "Melody"]]
     BAR_KWS = dict(legend=True, zorder=10, palette=PALETTE, edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE)
     ERROR_KWS = dict(
-        x=[-0.2, 0.2, 0.75, 1.25, 1.8, 2.2], lw=LINEWIDTH, color=BLACK,
+        x=[-0.2, 0.2, 0.8, 1.2, 1.8, 2.2], lw=LINEWIDTH, color=BLACK,
         capsize=8, zorder=10000, elinewidth=LINEWIDTH, ls='none'
     )
 
@@ -1434,55 +1434,51 @@ class HeatmapMelodyExtraction(BasePlot):
 
 
 class LinePlotWhiteboxAccuracyN(BasePlot):
-    ROOT = os.path.join(utils.get_project_root(), 'references/whitebox')
-    VOCAB_SIZE = {
-        3: None,
-        4: 8768,
-        5: 18099,
-        6: 21008,
-        7: 21670,
-        8: 21809
-    }
-    BAR_KWS = dict(edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, zorder=10, color=BLUE)
-    LINE_KWS = dict(linewidth=LINEWIDTH, linestyle=LINESTYLE, color=BLUE)
+    ROOT = os.path.join(utils.get_project_root(), 'references/whitebox/optimization_results_at_n')
+    MAX_N_RESULTS = ['2', '23', '234', '2345', '23456', '234567']
+    MIN_N_RESULTS = ['234567', '34567', '4567', '567', '67', '7']
+    LINE_KWS = dict(linewidth=LINEWIDTH * 2, linestyle=LINESTYLE, color=BLACK)
 
     def __init__(self, _=None):
         super().__init__()
         self.df = self._format_df(None)
-        self.fig, self.ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(WIDTH, WIDTH // 3))
+        self.fig, self.ax = plt.subplots(1, 2, sharex=False, sharey=False, figsize=(WIDTH, WIDTH // 2))
 
     def _format_df(self, _):
+        def load_max_acc(ex):
+            path = os.path.join(self.ROOT, f'20class_80min_lr_harmony+melody_{ex}.csv')
+            assert os.path.exists(path)
+            return pd.read_csv(path)['accuracy'].max()
+
         res = []
-        for f in os.listdir(self.ROOT):
-            if "lr" not in f:
-                continue
-            max_n = eval(f.split('_')[-1].replace('.csv', '')[-1]) + 1
-            df = pd.read_csv(os.path.join(self.ROOT, f))
-            try:
-                vocab_size = self.VOCAB_SIZE[max_n]
-            except KeyError:
-                vocab_size = None
+        for ext in self.MAX_N_RESULTS:
             res.append({
-                'max_n': max_n,
-                'acc': df['accuracy'].max(),
-                'vocab_size': vocab_size
+                'n': '\n'.join([str(eval(i) + 1) for i in ext]),
+                'acc': load_max_acc(ext),
+                'experiment': 'max_n'
             })
-        res = pd.DataFrame(res).sort_values(by='max_n').reset_index(drop=True)
-        res['max_n'] = res['max_n'].astype(int)
+        for ext in self.MIN_N_RESULTS:
+            res.append({
+                'n': '\n'.join([str(eval(i) + 1) for i in ext]),
+                'acc': load_max_acc(ext),
+                'experiment': 'min_n'
+            })
+
+        res = pd.DataFrame(res).sort_values(by=['experiment', 'n']).reset_index(drop=True)
         return res
 
     def _create_plot(self):
-        self.ax.plot(self.df['max_n'], self.df['acc'], **self.LINE_KWS)
-        # sns.barplot(data=self.df, ax=self.ax[1], x='max_n', y='vocab_size', **self.BAR_KWS)
+        for ax, exp in zip(self.ax.flatten(), ['max_n', 'min_n']):
+            sub = self.df[self.df['experiment'] == exp].reset_index(drop=True)
+            ax.plot(sub['n'], sub['acc'], **self.LINE_KWS)
 
     def _format_ax(self):
-        self.ax.set(
-            xlabel='max($n$)', ylabel='Optimized validation accuracy', xticks=list(self.VOCAB_SIZE.keys()),
-            xticklabels=list(self.VOCAB_SIZE.keys())
-        )
-        plt.setp(self.ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
-        self.ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
-        self.ax.grid(axis='y', zorder=0, **GRID_KWS)
+        for ax, tit in zip(self.ax.flatten(), ['Increasing $max(n)$', 'Decreasing $min(n)$']):
+            ax.set(xlabel='$n\in\{x\}$', title=tit, ylabel='Optimized validation accuracy (LR)', )
+            # ax.set_xticks(ax.get_xticks(), labels=ax.get_xticklabels(), rotation=90)
+            plt.setp(ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
+            ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
+            ax.grid(axis='y', zorder=0, **GRID_KWS)
 
     def _format_fig(self):
         self.fig.tight_layout()
