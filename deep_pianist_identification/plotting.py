@@ -438,12 +438,12 @@ class StripplotTopKMelodyFeatures(_StripplotTopKFeatures):
         self._add_performer_image()
         self.ax.tick_params(right=True)
         # self.ax.set_title(f'{self.pianist_name}, melody features')
-        self.ax.set(xlabel='Odds ratio', ylabel='Feature', xscale='log')
+        self.ax.set(xlabel='Weights', ylabel='Feature')
         fmt_text = [str(m21_utils.intervals_to_pitches(yl.get_text())) for yl in self.ax.get_yticklabels()]
         self.ax.set_yticks(self.ax.get_yticks(), fmt_text)
         self.ax.grid(axis='x', zorder=0, **GRID_KWS)
         self.ax.axhline(4.5, 0, 1, linewidth=LINEWIDTH, color=BLACK, alpha=ALPHA, ls=DASHED)
-        self.ax.axvline(1, 0, 1, linewidth=LINEWIDTH, color=BLACK)
+        self.ax.axvline(0, 0, 1, linewidth=LINEWIDTH, color=BLACK)
         self.ax.legend(**LEGEND_KWS, loc='lower left')
         super()._format_ax()
 
@@ -527,12 +527,12 @@ class StripplotTopKHarmonyFeatures(_StripplotTopKFeatures):
         self._add_performer_image(x=0.125)
         self.ax.tick_params(top=True)
         # self.ax.set_title(f'{self.pianist_name}, harmony features', y=1.175)
-        self.ax.set(ylabel='Odds ratio', xlabel='Feature', yscale='log')
+        self.ax.set(ylabel='Weights', xlabel='Feature')
         fmt_text = [str(self.format_feature(yl.get_text())) for yl in self.ax.get_xticklabels()]
         self.ax.set_xticks(self.ax.get_xticks(), fmt_text, rotation=90, va='top', ha='right')
         self.ax.grid(axis='y', zorder=0, **GRID_KWS)
         self.ax.axvline(4.5, 0, 1, linewidth=LINEWIDTH, color=BLACK, alpha=ALPHA, ls=DASHED)
-        self.ax.axhline(1, 0, 1, linewidth=LINEWIDTH, color=BLACK)
+        self.ax.axhline(0, 0, 1, linewidth=LINEWIDTH, color=BLACK)
         self.ax.legend(**LEGEND_KWS, loc='lower right')
         super()._format_ax()
 
@@ -1473,8 +1473,8 @@ class LinePlotWhiteboxAccuracyN(BasePlot):
             ax.plot(sub['n'], sub['acc'], **self.LINE_KWS)
 
     def _format_ax(self):
-        for ax, tit in zip(self.ax.flatten(), ['Increasing $max(n)$', 'Decreasing $min(n)$']):
-            ax.set(xlabel='$n\in\{x\}$', title=tit, ylabel='Optimized validation accuracy (LR)', )
+        for ax in self.ax.flatten():
+            ax.set(xlabel='$n\in\{x\}$', ylabel='Optimized validation accuracy (LR)', )
             # ax.set_xticks(ax.get_xticks(), labels=ax.get_xticklabels(), rotation=90)
             plt.setp(ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
             ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
