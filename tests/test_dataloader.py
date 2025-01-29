@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from deep_pianist_identification.dataloader import (
     MIDILoader, MIDITripletLoader, remove_bad_clips_from_batch, MIDILoaderTargeted
 )
-from deep_pianist_identification.utils import seed_everything, PIANO_KEYS, CLIP_LENGTH, FPS
+from deep_pianist_identification.utils import seed_everything, PIANO_KEYS, CLIP_LENGTH, FPS, SEED
 
 
 class DataloaderTest(unittest.TestCase):
@@ -37,6 +37,30 @@ class DataloaderTest(unittest.TestCase):
         self.assertEqual((batch, 1, PIANO_KEYS, CLIP_LENGTH * FPS), roll.shape)
         # Array should contain values other than just zero
         self.assertTrue(roll.any())
+
+    def test_return_clip_number(self):
+        loader = DataLoader(
+            MIDILoader(
+                'train',
+                normalize_velocity=True,
+                multichannel=True,
+                data_split_dir="25class_0min",
+                return_clip_path=False
+            )
+        )
+        _, __, path = next(iter(loader))  # path will just be `track_name`
+        self.assertTrue('clip_' not in path[0])
+        loader = DataLoader(
+            MIDILoader(
+                'train',
+                normalize_velocity=True,
+                multichannel=True,
+                data_split_dir="25class_0min",
+                return_clip_path=True
+            )
+        )
+        _, __, path = next(iter(loader))
+        self.assertTrue('clip_' in path[0])  # path will be `track_name/clip_number`
 
     def test_multichannel_output(self):
         loader = DataLoader(
@@ -230,5 +254,5 @@ class TargetedLoaderTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    seed_everything(42)
+    seed_everything(SEED)
     unittest.main()

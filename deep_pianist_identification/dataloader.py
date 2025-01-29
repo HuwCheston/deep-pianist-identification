@@ -45,6 +45,7 @@ class MIDILoader(Dataset):
             use_concepts: str = None,
             extractor_cfg: dict = None,
             classify_dataset: bool = False,
+            return_clip_path: bool = False
     ):
         super().__init__()
         # Unpack provided arguments as attributes
@@ -70,6 +71,8 @@ class MIDILoader(Dataset):
         if not os.path.exists(full_csv_path):
             raise FileNotFoundError(f"Can't find {split}_split.csv inside {data_split_dir}: have you created splits?")
         self.clips = list(self.get_clips_for_split(full_csv_path))
+        # Little hack: if this is True, we'll return the "clip path" (track_name/clip_number), not just track_name
+        self.return_clip_path = return_clip_path
         # Truncate the number of clips if we've passed in this argument
         if n_clips is not None:
             self.clips = self.clips[:n_clips]
@@ -164,9 +167,15 @@ class MIDILoader(Dataset):
                          f'after retrying {MAX_RETRIES} times. Skipping this clip! '
                          f'Error message: {e}')
             return None
-        # Otherwise, return the roll, target class (or dataset) index, and the raw name of the track
+        # Otherwise, return the roll, target class (or dataset) index, and the track path
         else:
-            return piano_roll, target, track_path.split(os.path.sep)[-1]
+            # We can either return track_name/clip_number (useful when we want to do operations on individual clips)
+            if self.return_clip_path:
+                path_to_return = os.path.join(track_path.split(os.path.sep)[-1], f'clip_{str(clip_idx).zfill(3)}')
+            # Or just track_name (useful when we want to do operations on all clips from a track)
+            else:
+                path_to_return = track_path.split(os.path.sep)[-1]
+            return piano_roll, target, path_to_return
 
 
 class MIDILoaderTargeted(MIDILoader):
@@ -186,6 +195,7 @@ class MIDILoaderTargeted(MIDILoader):
             use_concepts: str = None,
             extractor_cfg: dict = None,
             classify_dataset: bool = False,
+            return_clip_path: bool = False
     ):
         # We could probably implement this fairly simply but needs testing
         if classify_dataset is True:
@@ -194,7 +204,7 @@ class MIDILoaderTargeted(MIDILoader):
         # Initialise the main dataloader with all passed argu
         super().__init__(
             split, data_split_dir, n_clips, data_augmentation, augmentation_probability, jitter_start,
-            normalize_velocity, multichannel, use_concepts, extractor_cfg, classify_dataset
+            normalize_velocity, multichannel, use_concepts, extractor_cfg, classify_dataset, return_clip_path
         )
 
     def get_clips_for_split(self, csv_path: str) -> tuple:
@@ -230,6 +240,7 @@ class MIDITripletLoader(MIDILoader):
             use_concepts: str = None,
             extractor_cfg: dict = None,
             classify_dataset: bool = False,
+            return_clip_path: bool = False
     ):
         # We could probably implement this fairly simply but needs testing
         if classify_dataset is True:
@@ -237,7 +248,7 @@ class MIDITripletLoader(MIDILoader):
         # Initialise the main dataloader with all passed argu
         super().__init__(
             split, data_split_dir, n_clips, data_augmentation, augmentation_probability, jitter_start,
-            normalize_velocity, multichannel, use_concepts, extractor_cfg, classify_dataset
+            normalize_velocity, multichannel, use_concepts, extractor_cfg, classify_dataset, return_clip_path
         )
 
     def get_positive_sample(self, anchor_class: int, anchor_idx: int):
