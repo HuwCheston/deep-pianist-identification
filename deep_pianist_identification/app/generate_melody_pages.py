@@ -74,7 +74,7 @@ def get_melody(clip_path: str) -> MelodyExtractor | None:
         return None
 
 
-def generate_clip_metadata(clip_name: str, feature_count: int, asset_path: str) -> dict:
+def generate_clip_metadata(clip_name: str, asset_path: str) -> dict:
     """Generates a JSON of metadata for a pianist to be saved in ./app/assets/metadata/cav_sensitivity"""
     # Get the path for the original track metadata.json inside ./data/raw and make sure it exists
     metadata_path = os.path.join(
@@ -87,7 +87,7 @@ def generate_clip_metadata(clip_name: str, feature_count: int, asset_path: str) 
         metadata_json = json.load(f)
     # Create the dictionary and append to the list for this concept
     return dict(
-        track_name=f'{feature_count + 1}. {metadata_json["track_name"]}',
+        track_name=metadata_json["track_name"],
         album_name=metadata_json["album_name"],
         recording_year=metadata_json["recording_year"],
         asset_path=asset_path
@@ -125,6 +125,16 @@ def combine_melody_accompaniment(
     return new_midi
 
 
+def sort_metadata_list_by_feature_appearances(metadata_list: list[dict]) -> list[dict]:
+    """Given a list of dictionaries, sort by the number of times a feature appears in a track and add track number"""
+    # Sort in descending order by the number of times a feature appears in a track
+    sorter = sorted(metadata_list, reverse=True, key=lambda x: x['n_appearances_in_track'])
+    for idx, track in enumerate(sorter, 1):
+        # Add on a track number before the track name
+        track['track_name'] = f'{idx}. {track["track_name"]} ({track["n_appearances_in_track"]} appearances)'
+        yield track
+
+
 def process_midi_and_generate_metadata(
         pianist_name: str,
         pianist_features: dict,
@@ -135,8 +145,8 @@ def process_midi_and_generate_metadata(
     new_dict = {}
     # Iterate over all features that this pianist is associated with
     for feature_idx, feature in enumerate(pianist_features):
-        count = 0  # used to track number of times we've seen this feature
-        new_dict[str(feature)] = []  # used to store metadata for appearances of this feature
+        feature_results_list = []
+        count = 0  # iterate every time a clip contains the feature
         # Iterate through all tracks by the pianist
         for track_fpath, n_clips, _ in tqdm(
                 pianist_tracks,
@@ -165,8 +175,12 @@ def process_midi_and_generate_metadata(
                 fpath = os.path.join(utils.get_project_root(), f'app/assets/midi/melody_examples/{fname}.mid')
                 fmtted_midi.write(fpath)
                 # Generate metadata for the current clip and append to the list associated with this feature
-                new_dict[str(feature)].append(generate_clip_metadata(clip_fpath, count, fname))
-                count += 1  # increment counter for number of times we've seen this feature in total
+                metadata = generate_clip_metadata(clip_fpath, fname)
+                metadata['n_appearances_in_track'] = len(melody_matches) // (len(feature) + 1)
+                # Update the dictionary associated with this feature
+                feature_results_list.append(metadata)
+                count += 1
+        new_dict[str(feature)] = list(sort_metadata_list_by_feature_appearances(feature_results_list))
     return new_dict
 
 
@@ -229,7 +243,10 @@ def generate_html(pianist_metadata, pianist_name, tmp_pianist: str = "Abdullah I
             features
     )):
         # Updating all the headings with the correct concept name
-        tag.string.replace_with(feat)
+        n_appearances = sum([i['n_appearances_in_track'] for i in pianist_metadata[feat]])
+        n_tracks = len(pianist_metadata[feat])
+        feat_pitches = m21_utils.intervals_to_pitches(feat)
+        tag.string.replace_with(f'{feat_pitches}: {n_appearances} appearances in {n_tracks} clips')
         # Updating all the buttons to use the correct argument
         button['onclick'] = f"playExampleMidi({feature_num}, '{pianist_name}')"
         # Updating all the anchor tags
