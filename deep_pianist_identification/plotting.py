@@ -1553,7 +1553,7 @@ class BigramplotPCAFeatureCount(BasePlot):
             texts = []
             for typ, n_to_plot, txt_func in zip(
                     ['performer', 'feature'],
-                    [self.N_PERFORMERS_PER_COMPONENT, self.N_FEATURES_PER_COMPONENT],
+                    [self.N_PERFORMERS_PER_SLICE, self.N_FEATURES_PER_SLICE],
                     [self.add_performer_text, self.add_feature_text]
             ):
                 comp1 = (
