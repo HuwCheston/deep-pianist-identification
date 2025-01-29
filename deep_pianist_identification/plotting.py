@@ -15,11 +15,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from adjustText import adjust_text
 from loguru import logger
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from pretty_midi import note_number_to_name
 from skimage import io
 from skimage.transform import resize
+from sklearn.preprocessing import MinMaxScaler
 
 from deep_pianist_identification import utils
 from deep_pianist_identification.preprocessing import m21_utils as m21_utils
@@ -1486,6 +1488,109 @@ class LinePlotWhiteboxAccuracyN(BasePlot):
     def save_fig(self):
         out = os.path.join(utils.get_project_root(), 'reports/figures/whitebox/optimization_results_at_n.png')
         self.fig.savefig(out, **SAVE_KWS)
+
+
+class BigramplotPCAFeatureCount(BasePlot):
+    TEXT_KWS = dict(ha='center', va='center')
+    CIRCLE_KWS = dict(color=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, fill=False, alpha=ALPHA)
+    LINE_KWS = dict(color=BLACK, linewidth=LINEWIDTH, linestyle=DOTTED, alpha=ALPHA)
+    N_SLICES = 8
+    N_FEATURES_PER_SLICE = 5
+    N_PERFORMERS_PER_SLICE = 1
+
+    def __init__(self, df: pd.DataFrame, n_components_to_plot: int = 4, **kwargs):
+        super().__init__(**kwargs)
+        self.n_components_to_plot = n_components_to_plot
+        self.df = self._format_df(df)
+        self.fig, self.ax = plt.subplots(
+            1, n_components_to_plot // 2, figsize=(WIDTH, WIDTH // 2), sharex=True, sharey=True
+        )
+
+    def _format_df(self, df: pd.DataFrame) -> pd.DataFrame:
+        return df[df['component'] < self.n_components_to_plot].reset_index(drop=True)
+
+    @staticmethod
+    def _scale_loading(loading: pd.Series) -> pd.Series:
+        mm = MinMaxScaler(feature_range=(-1., 1.))
+        return mm.fit_transform(loading.to_numpy().reshape(-1, 1)).flatten()
+
+    def get_region(self, x_coords, y_coords):
+        if isinstance(x_coords, pd.Series):
+            x_coords = x_coords.to_numpy()
+        if isinstance(y_coords, pd.Series):
+            y_coords = y_coords.to_numpy()
+        # get angle
+        angle = np.arctan2(x_coords, y_coords)
+        # normalize
+        angle = np.mod(angle, 2 * np.pi)
+        # express as a region
+        return (angle // (2 * np.pi / self.N_SLICES)).astype(int)
+
+    def get_topk_idxs(self, subset_df: pd.DataFrame, n_to_plot: int) -> list[int]:
+        subset_df['region'] = self.get_region(subset_df['loading_x'], subset_df['loading_y'])
+        subset_df['magnitude'] = subset_df['loading_x'].abs() + subset_df['loading_y'].abs()
+        all_idxs = []
+        for idx, sub in subset_df.groupby('region'):
+            all_idxs.extend(sub.sort_values(by='magnitude', ascending=False).index[:n_to_plot].tolist())
+        return all_idxs
+
+    def add_performer_text(self, row: pd.Series, ax: plt.Axes) -> plt.Text:
+        cls = row['label'].split(' ')[0][0] + row['label'].split(' ')[1][0]
+        return ax.text(row['loading_x'], row['loading_y'], cls, fontsize=FONTSIZE * 1.5, **self.TEXT_KWS)
+
+    def add_feature_text(self, row: pd.Series, ax: plt.Axes) -> plt.Text:
+        # We need to add some objects to the plot or else `adjust_text` doesn't seem to work
+        ax.arrow(0, 0, row['loading_x'], row['loading_y'], alpha=0.)
+        txt = m21_utils.intervals_to_pitches(row['label'])
+        return ax.text(row['loading_x'], row['loading_y'], txt, fontsize=FONTSIZE / 1.5, **self.TEXT_KWS)
+
+    def _create_plot(self):
+        for ax, comp1_idx, comp2_idx in zip(
+                self.ax.flatten(),
+                range(0, self.n_components_to_plot, 2),  # 0, 2, 4, 6, ...
+                range(1, self.n_components_to_plot + 1, 2)  # 1, 3, 5, 7, ...
+        ):
+            texts = []
+            for typ, n_to_plot, txt_func in zip(
+                    ['performer', 'feature'],
+                    [self.N_PERFORMERS_PER_COMPONENT, self.N_FEATURES_PER_COMPONENT],
+                    [self.add_performer_text, self.add_feature_text]
+            ):
+                comp1 = (
+                    self.df[(self.df['component'] == comp1_idx) & (self.df['type'] == typ)]
+                    .reset_index(drop=True)
+                    .sort_values(by='label')
+                )
+                comp2 = (
+                    self.df[(self.df['component'] == comp2_idx) & (self.df['type'] == typ)]
+                    .reset_index(drop=True)
+                    .sort_values(by='label')
+                )
+                comp1['loading_y'] = self._scale_loading(comp2['loading'])
+                comp1['loading_x'] = self._scale_loading(comp1['loading'])
+                to_plot = comp1[comp1.index.isin(self.get_topk_idxs(comp1, n_to_plot))]
+                for idx, row in to_plot.iterrows():
+                    txt = txt_func(row, ax)
+                    texts.append(txt)
+            adjust_text(texts, ax=ax, expand=(1.3, 1.3), arrowprops=dict(arrowstyle='->', color=RED))
+
+    def _format_ax(self):
+        for num, ax in zip(range(1, self.n_components_to_plot, 2), self.ax.flatten()):
+            # We're plotting even-numbered PCAs on x-axis, odd-numbered on y
+            ax.set(xlim=(-1.1, 1.1), ylim=(-1.1, 1.1), xlabel=f'PCA {num}', ylabel=f'PCA {num + 1}')
+            plt.setp(ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
+            ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
+            # ax.grid(axis='both', zorder=0, **GRID_KWS)
+            circle1 = plt.Circle((0, 0), 1., **self.CIRCLE_KWS)
+            ax.add_patch(circle1)
+            ax.axhline(0, 0, 1, **self.LINE_KWS)
+            ax.axvline(0, 0, 1, **self.LINE_KWS)
+
+    def _format_fig(self):
+        self.fig.tight_layout()
+
+    def save_fig(self, out_path: str):
+        self.fig.savefig(out_path, **SAVE_KWS)
 
 
 if __name__ == "__main__":

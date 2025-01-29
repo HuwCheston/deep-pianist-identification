@@ -12,7 +12,7 @@ from deep_pianist_identification import utils, plotting
 from deep_pianist_identification.whitebox import wb_utils
 from deep_pianist_identification.whitebox.classifiers import fit_classifier
 from deep_pianist_identification.whitebox.explainers import (
-    LRWeightExplainer, DomainExplainer, DatabasePermutationExplainer
+    LRWeightExplainer, DomainExplainer, DatabasePermutationExplainer, PCAFeatureCountsExplainer
 )
 from deep_pianist_identification.whitebox.features import (
     get_harmony_features, get_melody_features, drop_invalid_features
@@ -123,6 +123,30 @@ def create_classifier(
     all_ys = np.hstack([train_y_mel, test_y_mel, valid_y_mel])
     feature_names = np.array(['M_' + f for f in mel_features] + ['H_' + f for f in har_features])
     dataset_idxs: np.array = wb_utils.get_database_mapping(train_clips, test_clips, validation_clips)
+    # Decompose feature counts using PCA
+    logger.info('---EXPLAINING: DECOMPOSING FEATURE COUNTS---')
+    pc = PCAFeatureCountsExplainer(
+        feature_counts=all_xs[:, :len(mel_features)],  # first decomposing melody features
+        targets=all_ys,
+        feature_names=mel_features,
+        class_mapping=class_mapping,
+        feature_size=3,  # plotting 4-grams
+        n_components=4,
+        feature_type='melody'
+    )
+    pc.explain()
+    pc.create_outputs()
+    pc = PCAFeatureCountsExplainer(
+        feature_counts=all_xs[:, len(mel_features):],  # second decomposing harmony features
+        targets=all_ys,
+        feature_names=har_features,
+        class_mapping=class_mapping,
+        feature_size=3,  # plotting 4-grams
+        n_components=4,
+        feature_type='harmony'
+    )
+    pc.explain()
+    pc.create_outputs()
     # Correlation between top-k coefficients from the full model for individual database models
     logger.info('---EXPLAINING: DATASET FEATURE CORRELATIONS---')
     logger.info(f'...  k: {database_k_coefs}, x_shape: {all_xs.shape}, y_shape: {all_ys.shape},')
@@ -155,7 +179,7 @@ def create_classifier(
         class_mapping=class_mapping,
         classifier_type=classifier_type,
         classifier_params=best_params,
-        use_odds_ratios=True,
+        use_odds_ratios=False,
         n_iter=n_iter,
     )
     lr_exp.explain()
@@ -181,3 +205,116 @@ if __name__ == "__main__":
         database_k_coefs=args["database_k_coefs"]
     )
     logger.info('Done!')
+
+# from sklearn.decomposition import PCA
+# import matplotlib.pyplot as plt
+# from deep_pianist_identification.preprocessing.m21_utils import intervals_to_pitches
+# from math import isclose
+#
+# fig, axs = plt.subplots(1, 2, figsize=(plotting.WIDTH, plotting.WIDTH // 2), sharex=True, sharey=True)
+# plt.rcParams.update({'font.size': 18})
+#
+# train_x_arr_norm, test_x_arr_norm, valid_x_arr_norm = wb_utils.scale_features(train_x_arr, test_x_arr, valid_x_arr)
+# all_features = np.vstack([train_x_arr, test_x_arr, valid_x_arr])
+# all_targets = np.concatenate([train_y_mel, test_y_mel, valid_y_mel])
+#
+# all_features.shape
+# gram4_idxs = [n for n, i in enumerate(mel_features) if len(eval(i)) == 3]
+# all_gram4 = all_features[:, gram4_idxs]
+# pca = PCA(n_components=32, random_state=utils.SEED)
+# x_new = pca.fit_transform(all_gram4)
+#
+# for ax, pca1_idx, pca2_idx in zip(axs.flatten(), [0, 2, 4, 6], [2, 4, 6, 8]):
+#
+
+# class BigramplotPCAFeatureCount(plotting.BasePlot):
+#     def __init__(self, df: pd.DataFrame, n_components_to_plot: int = 4, **kwargs):
+#         super().__init__(**kwargs)
+#         self.n_components_to_plot = n_components_to_plot
+#         self.df = self._format_df(df)
+#         self.fig, self.ax = plt.subplots(2, n_components_to_plot // 2, figsize=(plotting.WIDTH, plotting.WIDTH),
+#                                          sharex=True, sharey=True)
+#
+#     def _format_df(self, df: pd.DataFrame) -> pd.DataFrame:
+#         return df[df['n_component'] < self.n_components_to_plot].reset_index(drop=True)
+#
+#     @staticmethod
+#     def _scale_loading(loading: pd.Series) -> pd.Series:
+#         mm = MinMaxScaler(feature_range=(-1, 1))
+#         return pd.Series(mm.fit_transform(loading.to_numpy().reshape(-1, 1)).flatten())
+#
+#     def _create_plot(self):
+#         comps = sorted(self.df['n_component'].unique().tolist())
+#
+#         for ax, comp1, comp2 in zip(self.ax, comps, comps[1:]):
+#             sub = self.df[self.df['n_component'].isin([comp1, comp2])]
+#             sub['loading'] = self._scale_loading(sub['loading'])
+#             perf_xy = np.column_stack([
+#                 sub[(sub['n_component'] == comp1) & (sub['type'] == 'performer')]['loading'].to_numpy(),
+#                 sub[(sub['n_component'] == comp2) & (sub['type'] == 'performer')]['loading'].to_numpy()
+#             ])
+#
+#             break
+
+#     print(pca1_idx, pca2_idx)
+#     data = np.column_stack([x_new[:, pca1_idx:pca2_idx], all_targets])
+#     # Extract the unique groups from column 3
+#     unique_groups = np.unique(data[:, 2])
+#
+#     # Calculate the average for each group
+#     result = []
+#     for group in unique_groups:
+#         group_data = data[data[:, 2] == group]  # Filter rows for this group
+#         group_mean = group_data.mean(axis=0)  # Average across rows
+#         result.append(group_mean)
+#
+#     result = np.array(result)
+#     coeff = np.transpose(pca.components_[pca1_idx:pca2_idx, :])
+#     labels = np.array(mel_features)[gram4_idxs]
+#
+#     xs = result[:, 0]
+#     ys = result[:, 1]
+#     n = coeff.shape[0]
+#     scalex = 1.0 / (xs.max() - xs.min())
+#     scaley = 1.0 / (ys.max() - ys.min())
+#
+#     xs *= scalex
+#     ys *= scaley
+#
+#     loads_x = np.argsort(np.abs(xs))[::-1][:3]
+#     loads_y = np.argsort(np.abs(ys))[::-1][:3]
+#     loads_total = np.concatenate([loads_x, loads_y])
+#     for load_idx in loads_total:
+#         perf = class_mapping[load_idx]
+#         mark = f'${perf.split(" ")[0][0]}. {perf.split(" ")[1][:5]}$'
+#         ax.annotate(mark, (xs[load_idx], ys[load_idx]), label=class_mapping[load_idx])
+#
+#     loads_x = np.argsort(np.abs(coeff[:, 0]))[::-1][:3]
+#     loads_y = np.argsort(np.abs(coeff[:, 1]))[::-1][:3]
+#     loads_total = np.concatenate([loads_x, loads_y])
+#
+#     seen_x, seen_y = [], []
+#     for load_idx in loads_total:
+#         x, y = coeff[load_idx, 0], coeff[load_idx, 1]
+#         ax.arrow(0, 0, x, y, color='r', alpha=0.5)
+#         iscl = all([[isclose(x, x_) for x_ in seen_x], [isclose(y, y_) for y_ in seen_y]])
+#         if iscl:
+#             for i in range(5):
+#                 x *= 1.05
+#                 y *= 1.05
+#                 if not all([[isclose(x, x_) for x_ in seen_x], [isclose(y, y_) for y_ in seen_y]]):
+#                     break
+#
+#         ax.text(x, y, intervals_to_pitches(labels[load_idx]), color='g', ha='center', va='center')
+#         seen_y.append(y)
+#         seen_x.append(x)
+#
+#     ax.set_xlim(-1, 1)
+#     ax.set_ylim(-1, 1)
+#     ax.set_xlabel("PC{}".format(pca1_idx + 1))
+#     ax.set_ylabel("PC{}".format(pca2_idx))
+#     circle1 = plt.Circle((0, 0), 1., color='black', fill=False)
+#     ax.add_patch(circle1)
+#     ax.grid()
+# fig.tight_layout()
+# plt.show()
