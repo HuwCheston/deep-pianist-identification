@@ -3,6 +3,7 @@
 
 """Validation module. Accepts the same YAML configurations as in `training.py`"""
 
+import json
 import os
 import warnings
 from copy import deepcopy
@@ -58,6 +59,7 @@ class ValidateModule:
                     'validation',
                     classify_dataset=self.classify_dataset,
                     data_split_dir=self.data_split_dir,
+                    return_clip_path=True,
                     # We can just use the test dataset configuration here
                     **self.test_dataset_cfg
                 ),
@@ -183,8 +185,33 @@ class ValidateModule:
         # Compute the accuracy function
         return self.acc_fn(most_common_targets, actual_targets).item()
 
+    def get_most_predictive_tracks_with_masks(self, proba_dict: dict) -> dict:
+        """Format dict with structure {perf: {track: {mask: logit}}} to {perf: {mask: max(logit)}} and dump"""
+        # Get the masks we've stored in the dictionary: these are the keys of level 3 of the dictionary
+        applied_masks = set()
+        for level2 in proba_dict.values():
+            for level3 in level2.values():
+                applied_masks.update(level3.keys())
+
+        new_dict = {p: {} for p in self.class_mapping.values()}
+        # Iterate over performer and inner
+        for perf, inner in proba_dict.items():
+            for mask in applied_masks:
+                # Subset for this mask
+                sub = {k: i[mask] for k, i in inner.items()}
+                # Get the maximum logit for this mask and performer combination
+                max_logit_for_mask = max(sub.values())
+                # Get the name of the track and update the dictionary
+                best_track = [k for k in sub.keys() if sub[k] == max_logit_for_mask][0]
+                new_dict[perf][mask] = (best_track, max_logit_for_mask)
+        return new_dict
+
     def validate_multichannel(self) -> list[dict]:
         """Validation for multichannel models: compute accuracy for all combinations of masked concepts"""
+        # We'll store results in these dictionaries and lists
+        mask_clip_target_probs = {p: {} for p in self.class_mapping.values()}
+        combo_accuracies = {}
+        track_names, track_targets = [], []
 
         def apply_masks(embedding_list: list[torch.tensor], idx_to_mask: list[int]) -> torch.tensor:
             """For a given list of tensors, mask those contained in `idx_to_mask` with zeros"""
@@ -194,49 +221,71 @@ class ValidateModule:
                     embed *= torch.zeros_like(embed)
                 yield embed
 
-        combo_accuracies = {}
-        track_names, track_targets = [], []
+        def thru_model(masked_embeddings: list[torch.tensor]) -> torch.tensor:
+            """Runs a tensor of masked embeddings through the model and returns class logits"""
+            # Stack into a single tensor
+            x = torch.cat(masked_embeddings, dim=1)
+            # Self-attention across channels if required
+            if self.model.use_attention:
+                x, _ = self.model.self_attention(x, x, x)
+            # Permute to (batch, features, channels)
+            x = x.permute(0, 2, 1)
+            # Pool across channels
+            x = self.model.pooling(x)
+            # Remove singleton dimension
+            x = x.squeeze(2)
+            # Pass through linear layers
+            x = self.model.fc1(x)
+            logs = self.model.fc2(x)
+            # Softmax the class logits
+            return torch.nn.functional.softmax(logs, dim=1)
+
+        def get_proba_given_mask(targs: torch.tensor, softm: torch.tensor, names: tuple[str], current_masks: str):
+            """Gets logits for target class for every track given current masks"""
+            # Iterate over 1) target idx for current clip, 2) probabilities for current clip, 3) name of clip
+            for target_idx, cls_probs, clip_name in zip(targs, softm, names):
+                # Get the logits associated with the target class
+                proba = cls_probs[target_idx].item()
+                # Get the name of the target class
+                perf = self.class_mapping[target_idx.item()]
+                # Add into the dictionary if required
+                if clip_name not in mask_clip_target_probs[perf].keys():
+                    mask_clip_target_probs[perf][clip_name] = {}
+                # Update the dictionary: ordering goes performer name -> clip name -> mask name
+                mask_clip_target_probs[perf][clip_name][current_masks] = proba
+
         with torch.no_grad():
             for roll, targets, tracks in tqdm(self.validation_dataloader, desc=f"Multi-channel Prediction: "):
                 # Set devices correctly for all tensors
                 roll = roll.to(DEVICE)
                 targets = targets.to(DEVICE)
                 # Append the track names and targets to the list
-                track_names.extend(tracks)
+                track_names.extend((t.split(os.path.sep)[0] for t in tracks))
                 track_targets.append(targets)
                 # Compute the individual embeddings
-                # TODO: the DisentangleNet api has changed since this was written. Check to make sure this still works!
                 embeddings = self.model.extract_concepts(roll)
                 # Iterate through all indexes to mask: i.e., [0, 1, 2, 3], [0, 1, 2], [1, 2, 3]...
                 for mask_idxs in MASK_COMBINATIONS:
                     # Mask the required embeddings for this combination
                     new_embeddings = list(apply_masks(deepcopy(embeddings), mask_idxs))
-                    # Stack into a tensor, calculate logits, and softmax
-                    x = torch.cat(new_embeddings, dim=1)
-                    # Self-attention across channels
-                    if self.model.use_attention:
-                        x, _ = self.model.self_attention(x, x, x)
-                    # Permute to (batch, features, channels)
-                    x = x.permute(0, 2, 1)
-                    # Pool across channels
-                    x = self.model.pooling(x)
-                    # Remove singleton dimension
-                    x = x.squeeze(2)
-                    # Pass through linear layers
-                    x = self.model.fc1(x)
-                    logits = self.model.fc2(x)
-                    softmaxed = torch.nn.functional.softmax(logits, dim=1)
+                    # Pass the masked embeddings through the model to get softmaxed logits
+                    softmaxed = thru_model(new_embeddings)
                     # Get clip level accuracy
                     combo_preds = torch.argmax(softmaxed, dim=1)
                     combo_accuracy = self.acc_fn(combo_preds, targets).item()
                     # Get the names of the concepts that ARE NOT masked this iteration
                     cmasks = '+'.join(mask for i, mask in enumerate(MASKS) if i not in mask_idxs)
+                    if len(mask_idxs) == 3:
+                        get_proba_given_mask(targets, softmaxed, tracks, cmasks)
                     if cmasks not in combo_accuracies.keys():
                         combo_accuracies[cmasks] = {"clip_accuracy": [], "track_predictions": []}
                     # Append clip accuracy and predictions to the dictionary for this combination of masks
                     combo_accuracies[cmasks]["clip_accuracy"].append(combo_accuracy)
                     combo_accuracies[cmasks]["track_predictions"].append(softmaxed)
 
+        # Save a JSON of the tracks with the highest logit for each mask and performer
+        self.save_json(self.get_most_predictive_tracks_with_masks(mask_clip_target_probs), 'max_logit_per_mask.json')
+        # Get the zero-rate of the accuracy as our baseline
         self.baseline_accuracy = self.get_zero_rate_accuracy(track_targets, track_names)
         global_accuracies, perclass_accuracies = [], []
         # Iterate through all individual combinations of masks
@@ -278,6 +327,19 @@ class ValidateModule:
         bp.create_plot()
         bp.save_fig()
         return global_accuracies
+
+    @staticmethod
+    def save_json(js, name: str):
+        # Create the folder if it doesn't exist
+        fold = os.path.join(get_project_root(), "reports/figures/ablated_representations")
+        if not os.path.isdir(fold):
+            os.makedirs(fold)
+        # Add on the extension if required
+        if not name.endswith('.json'):
+            name += '.json'
+        # Dump the JSON
+        with open(os.path.join(fold, name), 'w') as outpath:
+            json.dump(js, outpath, indent=4, ensure_ascii=False)
 
     @staticmethod
     def save_csv(df: pd.DataFrame, name: str):
