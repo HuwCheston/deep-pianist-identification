@@ -98,7 +98,8 @@ file. The folder structure of the `.zip` is identical to this repository, so if 
 To run all the tests, follow the steps above to [download the data](#setup). Then, you can run:
 
 ```
-coverage run -m unittest discover && coverage xml -i coverage.xml && genbadge coverage -i coverage.xml
+pip install coverage genbadge
+coverage run -m unittest discover && coverage xml -i && genbadge coverage -i coverage.xml
 ```
 
 ## License
