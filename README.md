@@ -9,6 +9,12 @@ This repo accompanies our paper "Understanding Jazz Improvisation Style with Exp
 Models". For more information, see [our preprint](TODO) or check out
 the [interactive web application.](https://huwcheston.github.io/ImprovID-app/index.html)
 
+The code in this repository was developed using the following configuration:
+
+- Ubuntu 22.04.1
+- Python 3.10.12
+- CUDA 12.2
+
 ## Contents:
 
 - [Setup](#setup)
@@ -28,7 +34,8 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Then, you can download the data, model checkpoints, and additional resources from [our Zenodo archive](TODO) as a `.zip`
+Then, you can download the data, model checkpoints, and additional resources
+from [our Zenodo archive](https://zenodo.org/records/14774191) as a `.zip`
 file. The folder structure of the `.zip` is identical to this repository, so if you unzip it to the root directory (
 `deep-pianist-identification`), you should end up with something like the following:
 
@@ -73,12 +80,6 @@ file. The folder structure of the `.zip` is identical to this repository, so if 
 ```
 
 </details>
-
-The code in this repository was developed using the following setup:
-
-- Ubuntu 22.04.1
-- Python 3.10.12
-- CUDA 12.2
 
 ## Reproducing results and figures
 
