@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <a target="_blank" href="https://huwcheston.github.io/ImprovID-app/index.html">
 <img src="https://img.shields.io/badge/Check%20out%20our%20webapp!-8A2BE2" alt="Check out our webapp!"/>
-</a>
+</a> ![coverage](coverage-badge.svg)
 
 This repo accompanies our paper "Understanding Jazz Improvisation Style with Explainable Music Performer Identification
 Models". For more information, see [our preprint](TODO) or check out
@@ -11,6 +11,8 @@ the [interactive web application.](https://huwcheston.github.io/ImprovID-app/ind
 ## Contents:
 
 - [Setup](#setup)
+- [Reproducing results and figures](#reproducing-results-and-figures)
+- [Tests](#tests)
 - [License](#license)
 - [Citation](#citation)
 
@@ -89,13 +91,17 @@ The code in this repository was developed using the following setup:
   rebuild [our web application](https://huwcheston.github.io/ImprovID-app/index.html), you can check
   out [this README](deep_pianist_identification/app/README.md)
 
+## Tests
+
+To run all the tests, follow the steps above to [download the data](#setup). Then, you can run:
+
+```
+coverage run -m unittest discover && coverage xml -i coverage.xml && genbadge coverage -i coverage.xml
+```
+
 ## License
 
 This code is licensed under the [MIT license](LICENSE.md).
-
-## Tests
-
-TODO
 
 ## Citation
 

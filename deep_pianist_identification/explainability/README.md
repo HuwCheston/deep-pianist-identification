@@ -56,3 +56,6 @@ After running the command, you'll find several `.json`, `.csv`, and `.png` files
 By default, the CLI will generate heatmaps for the clip at
 `"pijama/tynerm-tivoli-unaccompanied-xxxx-zzs1xka8/clip_008.mid"`, which is shown in Figure 12 of our paper. You can
 create additional heatmaps by passing further paths in to the `-s` flag.
+
+Note that there can be slight variations in the final results compared with our paper due to randomness in the process
+of creating CAVs -- this is not ideal at all, and shows some of the limitations of this approach. 
