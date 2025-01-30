@@ -15,13 +15,29 @@ OUT_PATH = os.path.join(utils.get_project_root(), 'zenodo.zip')
 
 
 def get_checkpoints() -> str:
-    return os.path.join(
-        utils.get_project_root(),
-        'checkpoints',
-        "disentangle-resnet-channel",
-        "disentangle-jtd+pijama-resnet18-mask30concept3-augment50-noattention-avgpool-onefc",
-        "checkpoint_099.pth"
-    )
+    return [
+        os.path.join(
+            utils.get_project_root(),
+            'checkpoints',
+            "disentangle-resnet-channel",
+            "disentangle-jtd+pijama-resnet18-mask30concept3-augment50-noattention-avgpool-onefc",
+            "checkpoint_099.pth"
+        ),
+        os.path.join(
+            utils.get_project_root(),
+            'checkpoints',
+            "baselines",
+            "resnet50-jtd+pijama-augment",
+            "checkpoint_099.pth"
+        ),
+        os.path.join(
+            utils.get_project_root(),
+            'checkpoints',
+            "baselines",
+            "crnn-jtd+pijama-augment",
+            "checkpoint_099.pth"
+        ),
+    ]
 
 
 def get_data_files(skip_extensions: tuple[str] = ('.npy', '.gitkeep')) -> str:
@@ -61,7 +77,8 @@ def zip_everything(files_to_zip: list[str]):
 
 def main():
     logger.info('Zipping files for Zenodo upload...')
-    tozip = [get_checkpoints()]
+    tozip = []
+    tozip.extend(get_checkpoints())
     tozip.extend(get_data_files())
     tozip.extend(get_cav_files())
     tozip.extend(get_figures())
