@@ -1,8 +1,9 @@
 # Code from: Understanding Jazz Improvisation Style with Explainable Music Performer Identification Models 🤔💭🎹
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <a target="_blank" href="https://huwcheston.github.io/ImprovID-app/index.html">
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) ![coverage](coverage-badge.svg)
+<a target="_blank" href="https://huwcheston.github.io/ImprovID-app/index.html">
 <img src="https://img.shields.io/badge/Check%20out%20our%20webapp!-8A2BE2" alt="Check out our webapp!"/>
-</a> ![coverage](coverage-badge.svg)
+</a>
 
 This repo accompanies our paper "Understanding Jazz Improvisation Style with Explainable Music Performer Identification
 Models". For more information, see [our preprint](TODO) or check out
