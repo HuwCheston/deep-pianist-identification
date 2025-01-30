@@ -103,7 +103,7 @@ coverage run -m unittest discover && coverage xml -i coverage.xml && genbadge co
 
 ## License
 
-This code is licensed under the [MIT license](LICENSE.md).
+This code is licensed under the [MIT license](LICENSE).
 
 ## Citation
 
