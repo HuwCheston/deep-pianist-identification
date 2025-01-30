@@ -3,12 +3,7 @@
 
 """Utility functions and variables for white-box models"""
 
-import csv
-import json
 import os
-from ast import literal_eval
-from pathlib import Path
-from tempfile import NamedTemporaryFile
 
 import numpy as np
 import pandas as pd
@@ -19,7 +14,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB, GaussianNB
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
-from tenacity import retry, retry_if_exception_type, wait_random_exponential, stop_after_attempt
 
 from deep_pianist_identification import utils
 from deep_pianist_identification.whitebox.features import FEATURE_MIN_TRACKS, FEATURE_MAX_TRACKS, DEFAULT_FEATURE_SIZES
@@ -84,76 +78,6 @@ GNB_OPTIMIZE_PARAMS = dict(
 N_ITER = 10000  # default number of iterations for optimization process
 N_JOBS = -1  # number of parallel processing cpu cores. -1 means use all cores.
 N_BOOT_FEATURES = 2000  # number of features to sample when bootstrapping permutation importance scores
-
-
-@retry(
-    retry=retry_if_exception_type(json.JSONDecodeError),
-    wait=wait_random_exponential(multiplier=1, max=60),
-    stop=stop_after_attempt(20)
-)
-def threadsafe_load_csv(csv_path: str) -> list[dict]:
-    """Simple wrapper around `csv.load` that catches errors when working on the same file in multiple threads"""
-
-    def eval_(i):
-        try:
-            return literal_eval(i)
-        except (ValueError, SyntaxError) as _:
-            return str(i)
-
-    with open(csv_path, "r+") as in_file:
-        return [{k: eval_(v) for k, v in dict(row).items()} for row in csv.DictReader(in_file, skipinitialspace=True)]
-
-
-def threadsafe_save_csv(obje: list | dict, filepath: str) -> None:
-    """Simple wrapper around csv.DictWriter with protections to assist in multithreaded access"""
-    @retry(
-        retry=retry_if_exception_type(PermissionError),
-        wait=wait_random_exponential(multiplier=1, max=60),
-        stop=stop_after_attempt(20)
-    )
-    def replacer(obj: list | dict, fpath: str):
-        # Get the base directory and filename from the provided path
-        _path = Path(fpath)
-        fdir, fpath = str(_path.parent), str(_path.name)
-        # If we have an existing file with the same name, load it in and extend it with our new data
-        try:
-            existing_file: list = threadsafe_load_csv(os.path.join(fdir, fpath))
-        except FileNotFoundError:
-            pass
-        else:
-            if isinstance(obj, dict):
-                obj = [obj]
-            obj: list = existing_file + obj
-
-        # Create a new temporary file, in append mode
-        temp_file = NamedTemporaryFile(mode='a', newline='', dir=fdir, delete=False, suffix='.csv')
-        # Get our CSV header from the keys of the first dictionary, if we've passed in a list of dictionaries
-        if isinstance(obj, list):
-            keys = obj[0].keys()
-        # Otherwise, if we've just passed in a dictionary, get the keys from it directly
-        else:
-            keys = obj.keys()
-        # Open the temporary file and create a new dictionary writer with our given columns
-        with temp_file as out_file:
-            dict_writer = csv.DictWriter(out_file, keys)
-            dict_writer.writeheader()
-            # Write all the rows, if we've passed in a list
-            if isinstance(obj, list):
-                dict_writer.writerows(obj)
-            # Alternatively, write a single row, if we've passed in a dictionary
-            else:
-                dict_writer.writerow(obj)
-        # Try to replace the master file with the temporary file
-        try:
-            os.replace(temp_file.name, os.path.join(fdir, fpath))
-        # If another file is already editing the master file
-        except PermissionError as e:
-            # Remove the temporary file
-            os.remove(temp_file.name)
-            # Reraise the exception, which tenacity will catch and retry saving with exponential backoff
-            raise e
-
-    replacer(obje, filepath)
 
 
 def get_split_clips(split_name: str, dataset: str = "20class_80min") -> tuple[str, int, str]:
