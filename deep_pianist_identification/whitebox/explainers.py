@@ -512,7 +512,7 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
         # Create the barplot
         bp = plotting.BarPlotWhiteboxDatabaseCoefficients(self.df)
         bp.create_plot()
-        bp.save_fig(os.path.join(self.output_dir, f'barplot_database_correlations_k{self.k}.png'))
+        bp.save_fig(os.path.join(self.output_dir, f'barplot_database_correlations_k{self.k}'))
         # Create the histplot
         hp = plotting.HistPlotDatabaseNullDistributionCoefficients(
             self.mel_null_dists, self.har_null_dists,
@@ -521,7 +521,7 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
             self.class_mapping
         )
         hp.create_plot()
-        hp.save_fig(os.path.join(self.output_dir, f'histplot_nulldistribution_coefficients_k{self.k}.png'))
+        hp.save_fig(os.path.join(self.output_dir, f'histplot_nulldistribution_coefficients_k{self.k}'))
         # Dump self to a pickle file
         with open(os.path.join(self.output_dir, f'database_correlations_k{self.k}.p'), 'wb') as out:
             pickle.dump(self, out)
@@ -644,4 +644,4 @@ class PCAFeatureCountsExplainer(WhiteBoxExplainer):
         # Create the barplot
         bp = plotting.BigramplotPCAFeatureCount(self.df)
         bp.create_plot()
-        bp.save_fig(os.path.join(self.output_dir, f'bigrams_{self.feature_type}_pca_k{self.feature_size}.png'))
+        bp.save_fig(os.path.join(self.output_dir, f'bigrams_{self.feature_type}_pca_k{self.feature_size}'))

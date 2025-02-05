@@ -54,7 +54,8 @@ DASHED = 'dashed'
 # Remote URL where images of all pianists are stored
 IMG_LOC = "https://raw.githubusercontent.com/HuwCheston/Jazz-Trio-Database/refs/heads/main/references/images/musicians"
 # Used for saving PNG images with the correct background
-SAVE_KWS = dict(format='png', facecolor=WHITE)
+SAVE_KWS = dict(facecolor=WHITE, dpi=300)
+SAVE_EXTS = ['svg', 'png', 'pdf']
 # Keyword arguments to use when applying a grid to a plot
 GRID_KWS = dict(color=BLACK, alpha=ALPHA, lw=LINEWIDTH / 2, ls=LINESTYLE)
 # Used when adding a legend to an axis
@@ -66,14 +67,35 @@ PLOT_AFTER_N_EPOCHS = 5
 
 
 def fmt_heatmap_axis(heatmap_ax: plt.Axes):
+    """Applies consistent formatting to a heatmap plot"""
+    # Iterating through both the heatmap and any attached axis (colourbars, e.g.)
     for a in [heatmap_ax, *heatmap_ax.figure.axes]:
+        # Setting aesthetics for each individual spine (t, b, l, r)
         for spine in a.spines.values():
             spine.set_visible(True)
             spine.set_color(BLACK)
             spine.set_linewidth(LINEWIDTH)
+        # Setting aesthetics for ticks
         plt.setp(a.spines.values(), linewidth=LINEWIDTH, color=BLACK)
         a.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
+    # Flip the y-axis of the whole plot
     heatmap_ax.invert_yaxis()
+
+
+def save_fig_all_exts(fpath: str, fig: plt.Figure) -> None:
+    """Saves a figure `fig` with filepath `fpath` using all extensions in `SAVE_EXTS`"""
+    # Check that the directory we want to save the figure in exists
+    root_dir = os.path.dirname(fpath)
+    if not os.path.exists(root_dir):
+        raise FileNotFoundError(f'path {root_dir} does not exist')
+    # For backwards compatibility: if we've added the extension in already, remove it
+    if fpath.endswith(".png"):
+        fpath = fpath.replace(".png", "")
+    # Iterate through all the filetypes we want to use and save the plot
+    for ext in SAVE_EXTS:
+        fig.savefig(fpath + f'.{ext}', format=ext, **SAVE_KWS)
+    # Close all figures at the end
+    plt.close('all')
 
 
 class BasePlot:
@@ -161,7 +183,8 @@ class HeatmapConfusionMatrix(BasePlot):
         fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations/confusion_matrices")
         if not os.path.isdir(fold):
             os.makedirs(fold)
-        self.fig.savefig(os.path.join(fold, f"heatmap_confusion_matrix_{self.title}.png"), **SAVE_KWS)
+        outpath = os.path.join(fold, f"heatmap_confusion_matrix_{self.title}")
+        save_fig_all_exts(outpath, self.fig)
 
 
 class BarPlotMaskedConceptsAccuracy(BasePlot):
@@ -219,8 +242,7 @@ class BarPlotMaskedConceptsAccuracy(BasePlot):
         fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations")
         if not os.path.isdir(fold):
             os.makedirs(fold)
-        fp = os.path.join(fold, f"{title}_{self.xvar}.png")
-        self.fig.savefig(fp, **SAVE_KWS)
+        save_fig_all_exts(os.path.join(fold, f"{title}_{self.xvar}"), self.fig)
 
 
 class BarPlotSingleMaskAccuracy(BarPlotMaskedConceptsAccuracy):
@@ -366,10 +388,9 @@ class _StripplotTopKFeatures(BasePlot):
     def _save_fig(self, output_dir: str, concept_name: str):
         fp = os.path.join(
             output_dir,
-            f'topk_stripplot_{self.pianist_name.lower().replace(" ", "_")}_{concept_name}.png'
+            f'topk_stripplot_{self.pianist_name.lower().replace(" ", "_")}_{concept_name}'
         )
-        self.fig.savefig(fp, **SAVE_KWS, dpi=300)
-        plt.close('all')
+        save_fig_all_exts(fp, self.fig)
 
 
 class StripplotTopKMelodyFeatures(_StripplotTopKFeatures):
@@ -594,8 +615,7 @@ class HeatmapWhiteboxFeaturePianoRoll(BasePlot):
         self.fig.tight_layout()
 
     def save_fig(self, output_loc):
-        self.fig.savefig(output_loc, **SAVE_KWS)
-        plt.close('all')
+        save_fig_all_exts(output_loc, self.fig)
 
 
 class BarPlotWhiteboxDatabaseCoefficients(BasePlot):
@@ -652,7 +672,7 @@ class BarPlotWhiteboxDatabaseCoefficients(BasePlot):
         self.fig.tight_layout()
 
     def save_fig(self, outpath: str):
-        self.fig.savefig(outpath, **SAVE_KWS)
+        save_fig_all_exts(outpath, self.fig)
 
 
 # Create heatmap with significance asterisks
@@ -718,8 +738,8 @@ class HeatmapCAVSensitivity(BasePlot):
         fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations")
         if not os.path.isdir(fold):
             os.makedirs(fold)
-        fp = os.path.join(fold, f"cav_plots/{self.sensitivity_type.replace(' ', '_').lower()}_heatmap.png")
-        self.fig.savefig(fp, **SAVE_KWS)
+        fp = os.path.join(fold, f"cav_plots/{self.sensitivity_type.replace(' ', '_').lower()}_heatmap")
+        save_fig_all_exts(fp, self.fig)
         # Dump the csv file as well
         fp = os.path.join(fold, f"cav_plots/{self.sensitivity_type.replace(' ', '_').lower()}.csv")
         self.df.to_csv(fp)
@@ -754,8 +774,8 @@ class HeatmapCAVPairwiseCorrelation(BasePlot):
         fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations")
         if not os.path.isdir(fold):
             os.makedirs(fold)
-        fp = os.path.join(fold, f"cav_plots/cav_sensitivity_pairwise_correlation_heatmap.png")
-        self.fig.savefig(fp, **SAVE_KWS)
+        fp = os.path.join(fold, f"cav_plots/cav_sensitivity_pairwise_correlation_heatmap")
+        save_fig_all_exts(fp, self.fig)
         # Dump the csv file as well
         fp = os.path.join(fold, f"cav_plots/cav_sensitivity_pairwise_correlation.csv")
         self.df.to_csv(fp)
@@ -885,8 +905,8 @@ class BarPlotDatasetDurationCount(BasePlot):
         fold = os.path.join(utils.get_project_root(), "reports/figures/dataset_figures")
         if not os.path.isdir(fold):
             os.makedirs(fold)
-        fp = os.path.join(fold, f"dataset_recording_durations_count.png")
-        self.fig.savefig(fp, **SAVE_KWS)
+        fp = os.path.join(fold, f"dataset_recording_durations_count")
+        save_fig_all_exts(fp, self.fig)
 
 
 class HeatmapConfusionMatrices(BasePlot):
@@ -951,8 +971,8 @@ class HeatmapConfusionMatrices(BasePlot):
         fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations")
         if not os.path.isdir(fold):
             os.makedirs(fold)
-        fp = os.path.join(fold, f"heatmap_single_concept_prediction_accuracy.png")
-        self.fig.savefig(fp, **SAVE_KWS)
+        fp = os.path.join(fold, f"heatmap_single_concept_prediction_accuracy")
+        save_fig_all_exts(fp, self.fig)
 
 
 class HeatmapCAVKernelSensitivity(BasePlot):
@@ -1059,11 +1079,9 @@ class HeatmapCAVKernelSensitivity(BasePlot):
             os.makedirs(di)
         # Format track and cav name
         tn = self.clip_name.lower().replace(os.path.sep, '_').replace('.mid', '')
-        fp = os.path.join(di, f'{tn}_{cn}.png')
+        fp = os.path.join(di, f'{tn}_{cn}')
         # Save the figure
-        self.fig.savefig(fp, **SAVE_KWS)
-        # Close the figure
-        plt.close(self.fig)
+        save_fig_all_exts(fp, self.fig)
 
 
 class LollipopPlotMaskedConceptsAccuracy(BarPlotMaskedConceptsAccuracy):
@@ -1115,8 +1133,8 @@ class LollipopPlotMaskedConceptsAccuracy(BarPlotMaskedConceptsAccuracy):
         fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations")
         if not os.path.isdir(fold):
             os.makedirs(fold)
-        fp = os.path.join(fold, f"lollipop_masked_concept_{self.xvar}.png")
-        self.fig.savefig(fp, **SAVE_KWS)
+        fp = os.path.join(fold, f"lollipop_masked_concept_{self.xvar}")
+        save_fig_all_exts(fp, self.fig)
 
 
 class HistPlotDatabaseNullDistributionCoefficients(BasePlot):
@@ -1191,7 +1209,7 @@ class HistPlotDatabaseNullDistributionCoefficients(BasePlot):
         self.fig.subplots_adjust(hspace=0.05)
 
     def save_fig(self, outpath: str):
-        self.fig.savefig(outpath, **SAVE_KWS)
+        save_fig_all_exts(outpath, self.fig)
 
 
 class BarPlotWhiteboxFeatureCounts(BasePlot):
@@ -1283,11 +1301,9 @@ class BarPlotWhiteboxFeatureCounts(BasePlot):
         )
         if not os.path.isdir(di):
             os.makedirs(di)
-        fp = os.path.join(di, f'barplot_feature_counts.png')
+        fp = os.path.join(di, f'barplot_feature_counts')
         # Save the figure
-        self.fig.savefig(fp, **SAVE_KWS)
-        # Close the figure
-        plt.close(self.fig)
+        save_fig_all_exts(fp, self.fig)
 
 
 class BarPlotConceptClassAccuracy(BasePlot):
@@ -1334,8 +1350,8 @@ class BarPlotConceptClassAccuracy(BasePlot):
         fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations")
         if not os.path.isdir(fold):
             os.makedirs(fold)
-        fp = os.path.join(fold, f"barplot_concept_class_accuracy.png")
-        self.fig.savefig(fp, **SAVE_KWS)
+        fp = os.path.join(fold, f"barplot_concept_class_accuracy")
+        save_fig_all_exts(fp, self.fig)
 
 
 class BarPlotWhiteboxDomainImportance(BasePlot):
@@ -1392,8 +1408,8 @@ class BarPlotWhiteboxDomainImportance(BasePlot):
         self.fig.tight_layout()
 
     def save_fig(self):
-        fp = os.path.join(self.RESULTS_LOC, 'barplot_domain_importance.png')
-        self.fig.savefig(fp, **SAVE_KWS)
+        fp = os.path.join(self.RESULTS_LOC, 'barplot_domain_importance')
+        save_fig_all_exts(fp, self.fig)
 
 
 class HeatmapMelodyExtraction(BasePlot):
@@ -1431,8 +1447,8 @@ class HeatmapMelodyExtraction(BasePlot):
         self.fig.tight_layout()
 
     def save_fig(self):
-        out = os.path.join(utils.get_project_root(), 'reports/figures/melody_extraction_demo.png')
-        self.fig.savefig(out, **SAVE_KWS)
+        out = os.path.join(utils.get_project_root(), 'reports/figures/melody_extraction_demo')
+        save_fig_all_exts(out, self.fig)
 
 
 class LinePlotWhiteboxAccuracyN(BasePlot):
@@ -1486,8 +1502,8 @@ class LinePlotWhiteboxAccuracyN(BasePlot):
         self.fig.tight_layout()
 
     def save_fig(self):
-        out = os.path.join(utils.get_project_root(), 'reports/figures/whitebox/optimization_results_at_n.png')
-        self.fig.savefig(out, **SAVE_KWS)
+        out = os.path.join(utils.get_project_root(), 'reports/figures/whitebox/optimization_results_at_n')
+        save_fig_all_exts(out, self.fig)
 
 
 class BigramplotPCAFeatureCount(BasePlot):
@@ -1590,7 +1606,7 @@ class BigramplotPCAFeatureCount(BasePlot):
         self.fig.tight_layout()
 
     def save_fig(self, out_path: str):
-        self.fig.savefig(out_path, **SAVE_KWS)
+        save_fig_all_exts(out_path, self.fig)
 
 
 if __name__ == "__main__":
