@@ -1,12 +1,11 @@
-# Code from: Understanding Jazz Improvisation Style with Explainable Music Performer Identification Models 🤔💭🎹
+# Code from: What Can Music Performer Identification Models Teach Us About Music? 🤔💭🎹
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) ![coverage](coverage-badge.svg)
 <a target="_blank" href="https://huwcheston.github.io/ImprovID-app/index.html">
 <img src="https://img.shields.io/badge/Check%20out%20our%20webapp!-8A2BE2" alt="Check out our webapp!"/>
 </a>
 
-This repo accompanies our paper "Understanding Jazz Improvisation Style with Explainable Music Performer Identification
-Models". For more information, see [our preprint](TODO) or check out
+This repo accompanies our paper "What Can Music Performer Identification Models Teach Us About Music?". For more information, see [our preprint](TODO) or check out
 the [interactive web application.](https://huwcheston.github.io/ImprovID-app/index.html)
 
 The code in this repository was developed using the following configuration:
@@ -115,7 +114,7 @@ If you refer to any aspect of this work, please cite the following preprint:
 
 ```
 @article{cheston2025jazz,
-  title = {Understanding Jazz Improvisation Style with Explainable Music Performer Identification Models},
+  title = {What Can Music Performer Identification Models Teach Us About Music?},
   author = {Huw Cheston and Reuben Bance and Peter Harrison},
   journal = {arXiv},
   year = {2025},
