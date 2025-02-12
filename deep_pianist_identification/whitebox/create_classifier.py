@@ -104,7 +104,7 @@ def create_classifier(
             n_components=4,
             feature_type=feat_type
         )
-        logger.info(f'... shape of features into PCA: {pc.counts}, n_components: {pc.n_components}')
+        logger.info(f'... shape of features into PCA: {pc.counts.shape}, n_components: {pc.n_components}')
         pc.explain()
         pc.create_outputs()
     # Optimize the classifier

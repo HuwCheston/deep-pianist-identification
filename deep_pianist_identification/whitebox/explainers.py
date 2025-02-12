@@ -14,11 +14,10 @@ import pandas as pd
 from joblib import Parallel, delayed
 from sklearn.decomposition import PCA
 from sklearn.metrics import accuracy_score
-from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 
 from deep_pianist_identification import utils, plotting
-from deep_pianist_identification.whitebox.wb_utils import get_classifier_and_params, N_ITER, N_JOBS
+from deep_pianist_identification.whitebox.wb_utils import get_classifier_and_params, N_ITER, N_JOBS, scale_for_pca
 
 N_PERMUTATION_COEFS = 2000
 
@@ -548,16 +547,11 @@ class PCAFeatureCountsExplainer(WhiteBoxExplainer):
             feature_names = np.array(feature_names)
         self.labels = feature_names[self.feature_idxs]
         self.n_components = n_components
-        self.counts = self.scale_features(feature_counts[:, self.feature_idxs])
+        self.counts = scale_for_pca(feature_counts[:, self.feature_idxs])  # tf-idf -> z-score -> scale
         self.variance_target = variance_target
         self.pca = None
         self.explained_variance = None
         self.class_mapping = class_mapping
-
-    @staticmethod
-    def scale_features(features):
-        ss = StandardScaler()
-        return ss.fit_transform(features)
 
     def fit_pca(self, n_components: int):
         pca = PCA(n_components=n_components, random_state=utils.SEED)

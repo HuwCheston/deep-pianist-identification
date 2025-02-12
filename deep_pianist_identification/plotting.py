@@ -1395,7 +1395,7 @@ class BarPlotWhiteboxDomainImportance(BasePlot):
             a.errorbar(y=subset['mean'], yerr=subset['std'], **self.ERROR_KWS)
 
     def _format_ax(self):
-        for ax, tit in zip(self.ax.flatten(), ['All features', "Bootstrapped samples of 1,000 features"]):
+        for ax, tit in zip(self.ax.flatten(), ['All features', "Bootstrapped samples of features"]):
             ax.set(
                 ylabel='Mean feature importance', xlabel='Model type', title=tit, ylim=(0, ax.get_ylim()[1] * 1.5)
             )
@@ -1512,7 +1512,7 @@ class BigramplotPCAFeatureCount(BasePlot):
     LINE_KWS = dict(color=BLACK, linewidth=LINEWIDTH, linestyle=DOTTED, alpha=ALPHA)
     N_SLICES = 8
     N_FEATURES_PER_SLICE = 5
-    N_PERFORMERS_PER_SLICE = 1
+    N_PERFORMERS_PER_SLICE = 20
 
     def __init__(self, df: pd.DataFrame, n_components_to_plot: int = 4, **kwargs):
         super().__init__(**kwargs)

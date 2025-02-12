@@ -12,7 +12,8 @@ from sklearn.ensemble import RandomForestClassifier, HistGradientBoostingClassif
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB, GaussianNB
-from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.svm import SVC
 
 from deep_pianist_identification import utils
@@ -80,6 +81,21 @@ N_JOBS = -1  # number of parallel processing cpu cores. -1 means use all cores.
 N_BOOT_FEATURES = 2000  # number of features to sample when bootstrapping permutation importance scores
 
 
+class TfidfFixed(TfidfTransformer):
+    """Wrapper around TfidfTransformer that implements a proper .transform method allowing use in a pipeline"""
+
+    def __init__(self, *, norm="l2", use_idf=True, smooth_idf=True, sublinear_tf=False):
+        super().__init__(norm=norm, use_idf=use_idf, smooth_idf=smooth_idf, sublinear_tf=sublinear_tf)
+
+    def fit_transform(self, X, y=None, copy=True):
+        self.fit(X, y)
+        return self.transform(X, copy)
+
+    def transform(self, X, copy=True):
+        # This is the change, otherwise we get a sparse matrix
+        return super().transform(X, copy).toarray()
+
+
 def get_split_clips(split_name: str, dataset: str = "20class_80min") -> tuple[str, int, str]:
     """For a given CSV and dataset, yields tuples of track path, N track clips, track target"""
     # Quick check to make sure the split name is valid
@@ -113,6 +129,17 @@ def get_classifier_and_params(classifier_type: str) -> tuple:
         return HistGradientBoostingClassifier, XGB_OPTIMIZE_PARAMS
     elif classifier_type == "gnb":
         return GaussianNB, GNB_OPTIMIZE_PARAMS
+
+
+def scale_for_pca(
+        feature_counts: np.ndarray
+) -> np.ndarray:
+    pipe = Pipeline([
+        ('tfidf', TfidfFixed(norm='l2')),
+        ('zscore', StandardScaler()),
+        ('scale', MinMaxScaler()),
+    ])
+    return pipe.fit_transform(feature_counts)
 
 
 def scale_features(
