@@ -620,9 +620,11 @@ class HeatmapWhiteboxFeaturePianoRoll(BasePlot):
 
 class BarPlotWhiteboxDatabaseCoefficients(BasePlot):
     """Bar plot showing the performer correlations obtained from both source databases for a whitebox model"""
-    BAR_KWS = dict(palette="tab10", edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, legend=False, zorder=10)
+    BAR_KWS = dict(edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, legend=False, zorder=10)
     ERROR_KWS = dict(lw=LINEWIDTH, color=BLACK, capsize=8, zorder=100, elinewidth=LINEWIDTH, ls='none')
-    X_PADDING = 0.05
+    ASTERISK_KWS = dict(ha='center', va='center', zorder=100000)
+    X_PADDING = 0.025
+    Y_PADDING = 0.1
 
     def __init__(self, coef_df):
         super().__init__()
@@ -648,10 +650,11 @@ class BarPlotWhiteboxDatabaseCoefficients(BasePlot):
     def _create_plot(self):
         for concept, ax in zip(['Melody', 'Harmony'], self.ax.flatten()):
             sub = self.df[self.df['feature'] == concept].reset_index(drop=True)
-            sns.barplot(data=sub, x='corr', y='pianist', hue='pianist', ax=ax, **self.BAR_KWS)
-            for idx, row in sub.iterrows():
+            sns.barplot(data=sub, x='corr', y='pianist', color=CONCEPT_COLOR_MAPPING[concept], ax=ax, **self.BAR_KWS)
+            for y, row in sub.iterrows():
                 x = row['corr'] + self.X_PADDING if row['corr'] > 0 else row['corr'] - self.X_PADDING
-                ax.text(x, idx, row['sig'], ha='center', zorder=100000)
+                y += self.Y_PADDING
+                ax.text(x, y, row['sig'], **self.ASTERISK_KWS)
 
     def _format_ax(self):
         xmin = min([ax.get_xlim()[0] for ax in self.ax.flatten()]) - self.X_PADDING
