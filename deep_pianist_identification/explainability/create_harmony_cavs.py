@@ -139,6 +139,7 @@ def create_or_load_cavs(
 ) -> tuple[list[cav_utils.CAV], cav_utils.CAV]:
     """Load CAVs from disk at `save_loc` or create them from scratch with given arguments"""
     logger.info('Creating CAVs...')
+    cav_list = []
     try:
         # Try unpickling all objects at provided location
         cav_list = pickle.load(open(os.path.join(OUTPUT_DIR, 'cavs.p'), 'rb'))
@@ -171,13 +172,14 @@ def create_or_load_cavs(
         with open(os.path.join(OUTPUT_DIR, 'random_cav.p'), 'wb') as f:
             pickle.dump(random_cav, f)
             logger.info(f'... dumped random CAV class to {OUTPUT_DIR}/random_cav.p!')
+    else:
+        logger.info(f'... loaded {len(cav_list)} concept CAVs from {OUTPUT_DIR}!')
+        logger.info(f'... loaded random CAV from {OUTPUT_DIR}!')
+    finally:
         # Dump clip sensitivities for all concepts to a single JSON within our output dictionary
         with open(os.path.join(OUTPUT_DIR, 'clip_sensitivities.json'), 'w') as f:
             json.dump({cav.cav_name: cav.clip_sensitivity_dict for cav in cav_list}, f, ensure_ascii=False, indent=4)
             logger.info(f'... dumped clip sensitivity JSON to {OUTPUT_DIR}/clip_sensitivities.json!')
-    else:
-        logger.info(f'... loaded {len(cav_list)} concept CAVs from {OUTPUT_DIR}!')
-        logger.info(f'... loaded random CAV from {OUTPUT_DIR}!')
     return cav_list, random_cav
 
 
@@ -254,29 +256,31 @@ def main(
     )
     # Shape (n_cavs, n_performers, n_experiments)
     all_sign_counts = np.stack([cav.sign_counts for cav in cav_list])
-    # Shape (n_performers, n_cavs)
-    mean_sign_counts = all_sign_counts.mean(axis=2).T
-    # Shape (n_performers, n_cavs)
-    ast_sign_counts = cav_utils.get_sign_count_significance(all_sign_counts, random_cav.sign_counts).T
-    # Create heatmap with significance asterisks
-    hm = plotting.HeatmapCAVSensitivity(
-        sensitivity_matrix=mean_sign_counts,
-        class_mapping=tm.class_mapping,
-        cav_names=cav_utils.CAV_MAPPING,
-        performer_birth_years=cav_utils.BIRTH_YEARS,
-        significance_asterisks=ast_sign_counts
-    )
-    hm.create_plot()
-    hm.save_fig()
     # Create correlation heatmap between sign-count values for different concepts
-    # Flatten to (n_performers * n_experiments, n_cavs)
-    flat_sign_counts = all_sign_counts.reshape(all_sign_counts.shape[0], -1).T
     hmpc = plotting.HeatmapCAVPairwiseCorrelation(
-        cav_matrix=flat_sign_counts,
-        cav_mapping=cav_utils.CAV_MAPPING
+        matrix=all_sign_counts.reshape(all_sign_counts.shape[0], -1).T,
+        columns=cav_utils.CAV_MAPPING,
+        ax_label="Harmonic Concept"
     )
     hmpc.create_plot()
     hmpc.save_fig()
+    # Create correlation heatmap between sign-count values for different performers
+    hmpc = plotting.HeatmapCAVPairwiseCorrelation(
+        matrix=np.swapaxes(all_sign_counts, 0, 1).reshape(all_sign_counts.shape[1], -1).T,
+        columns=list(tm.class_mapping.values()),
+        ax_label="Pianist"
+    )
+    hmpc.create_plot()
+    hmpc.save_fig()
+    # Create heatmap with significance asterisks
+    hm = plotting.HeatmapCAVSensitivity(
+        sign_counts=all_sign_counts,
+        random_sign_counts=random_cav.sign_counts,
+        class_names=list(tm.class_mapping.values()),
+        cav_names=cav_utils.CAV_MAPPING
+    )
+    hm.create_plot()
+    hm.save_fig()
     # Create plots for individual tracks
     create_static_sensitivity_heatmap(sensitivity_heatmap_clips, cav_list, tm.class_mapping)
 

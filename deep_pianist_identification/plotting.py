@@ -17,13 +17,18 @@ import pandas as pd
 import seaborn as sns
 from adjustText import adjust_text
 from loguru import logger
+from matplotlib.gridspec import GridSpec
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from pretty_midi import note_number_to_name
+from scipy.cluster.hierarchy import dendrogram
 from skimage import io
 from skimage.transform import resize
 from sklearn.preprocessing import MinMaxScaler
 
 from deep_pianist_identification import utils
+from deep_pianist_identification.explainability.cav_utils import (
+    create_linkage_matrix, correlation_based_clustering, get_sign_count_significance
+)
 from deep_pianist_identification.preprocessing import m21_utils as m21_utils
 
 # Define constants
@@ -678,47 +683,81 @@ class BarPlotWhiteboxDatabaseCoefficients(BasePlot):
         save_fig_all_exts(outpath, self.fig)
 
 
-# Create heatmap with significance asterisks
 class HeatmapCAVSensitivity(BasePlot):
     HEATMAP_KWS = dict(
         square=True, center=0.5, linecolor=WHITE, linewidth=LINEWIDTH // 2, cmap=cmc.bam, vmin=0, vmax=1, alpha=0.7
     )
+    CLUSTER_KWS = dict(n_clusters=None, distance_threshold=0, metric='precomputed', linkage='average')
+    DENDRO_KWS = dict(truncate_mode=None, no_labels=False, color_threshold=0, above_threshold_color=BLACK)
 
     def __init__(
             self,
-            sensitivity_matrix: np.array,
-            class_mapping: dict,
+            sign_counts: np.array,
+            random_sign_counts: np.array,
+            class_names: np.array,
             cav_names: np.array,
-            performer_birth_years: np.array,
-            significance_asterisks: np.array,
-            sensitivity_type: str = 'TCAV Sign Count',
     ):
         super().__init__()
-        self.class_mapping = class_mapping
-        self.sensitivity_type = sensitivity_type
+        self.class_names = class_names
+        self.sensitivity_type = "Mean Sign Count"
         self.cav_names = cav_names
-        self.performer_birth_years = performer_birth_years
-        self.sorters = np.argsort(self.performer_birth_years)[::-1]
-        # TODO: check that this is sorting significance asterisks properly
-        self.significance_asterisks = significance_asterisks[self.sorters, :]
-        self.df = self._format_df(sensitivity_matrix)
-        self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH))
+        self.fig = plt.figure(figsize=(WIDTH, WIDTH))
+        gs0 = GridSpec(3, 3, width_ratios=[20, 4, 1], height_ratios=[1, 4, 20])
+        self.ax = self.fig.add_subplot(gs0[6])
+        self.dax1 = self.fig.add_subplot(gs0[3])
+        self.dax2 = self.fig.add_subplot(gs0[7])
+        self.cax = self.fig.add_subplot(gs0[8])
+        # Create arrays
+        self.mean_sign_counts = sign_counts.mean(axis=2).T  # (n_performers, n_cavs)
+        self.ast_sign_counts = get_sign_count_significance(sign_counts, random_sign_counts).T  # (n_performers, n_cavs)
+        # Flatten to (n_performers * n_experiments, n_cavs)
+        self.flat_cav_scs = sign_counts.reshape(sign_counts.shape[0], -1).T
+        # Flatten to (n_cavs * n_experiments, n_cavs)
+        self.flat_perf_scs = np.swapaxes(sign_counts, 0, 1).reshape(sign_counts.shape[1], -1).T
+        # Convert the mean sign count matrix to a dataframe for easier plotting
+        self.df = self._format_df(self.mean_sign_counts)
+        self.ast_df = self._format_df(self.ast_sign_counts)
 
-    def _format_df(self, sensitivity_matrix: np.array):
-        # Allow for passing in a sensitivity matrix with fewer columns than CAVs
-        cols = self.cav_names
-        if sensitivity_matrix.shape[1] < len(cols):
-            cols = cols[:sensitivity_matrix.shape[1]]
-        # Create the dataframe
-        res_df = pd.DataFrame(sensitivity_matrix, columns=cols)
-        # Add performer birth year into the column
-        res_df['performer'] = [f'{p}, ({b})' for p, b in zip(self.class_mapping.values(), self.performer_birth_years)]
-        # Sort by birth year and set performer to index
-        return res_df.reindex(self.sorters).set_index('performer')
+    def _format_df(self, df: pd.DataFrame) -> pd.DataFrame:
+        res_df = pd.DataFrame(df, columns=self.cav_names)
+        res_df['performer'] = self.class_names
+        return res_df.set_index('performer')
 
     def _create_plot(self):
+        self._create_dendrogram()
+        self._create_heatmap()
+
+    def _create_dendrogram(self):
+        for dax, data, orientation in zip(
+                [self.dax1, self.dax2],
+                [self.flat_cav_scs, self.flat_perf_scs],
+                ['top', 'right']
+        ):
+            aggc = correlation_based_clustering(data, **self.CLUSTER_KWS)
+            linkage = create_linkage_matrix(aggc)
+            # Plot the corresponding dendrogram
+            with plt.rc_context({'lines.linewidth': LINEWIDTH, 'lines.linestyle': LINESTYLE}):
+                dendrogram(linkage, ax=dax, orientation=orientation, **self.DENDRO_KWS)
+
+    def _sort_df_by_dendrogram(self, df):
+        # Get the indices of our concepts in the order used by the dendrogram
+        xticks = [eval(x.get_text()) for x in self.dax1.get_xticklabels()]
+        # Create the mapping for indices and CAVs
+        xtick_map = {i: k for i, k in enumerate(self.cav_names)}
+        # Map the indices onto the name of the CAV
+        xtick_labels = [xtick_map[x] for x in xticks]
+        # Do the same for our performer names
+        yticks = [eval(y.get_text()) for y in self.dax2.get_yticklabels()]
+        ytick_map = {i: k for i, k in enumerate(self.class_names)}
+        ytick_labels = [ytick_map[y] for y in yticks]
+        # Reindex the dataframe
+        return df[xtick_labels].reindex(ytick_labels)
+
+    def _create_heatmap(self):
+        self.df = self._sort_df_by_dendrogram(self.df)
+        self.ast_df = self._sort_df_by_dendrogram(self.ast_df)
         _ = sns.heatmap(
-            self.df, ax=self.ax, annot=self.significance_asterisks, fmt="", **self.HEATMAP_KWS,
+            self.df, ax=self.ax, fmt="", **self.HEATMAP_KWS, cbar_ax=self.cax, annot=self.ast_df,
             cbar_kws=dict(
                 label=self.sensitivity_type, shrink=0.75, ticks=[0., 0.25, 0.5, 0.75, 1.], location="right",
             )
@@ -729,10 +768,22 @@ class HeatmapCAVSensitivity(BasePlot):
         # Set axis and tick thickness
         # There seems to occasionally be an encoding issue with the arrows here
         self.ax.set(
-            xlabel="Harmony CAV (→→→ $increasing$ $complexity$ →→→)",
-            ylabel="Pianist (→→→ $increasing$ $birth$ $year$ →→→)"
+            xlabel="Harmonic Concept",
+            ylabel="Pianist"
         )
         self.ax.invert_yaxis()
+        # Format TOP dendrogram
+        plt.setp(self.dax1.spines.values(), linewidth=LINEWIDTH, color=BLACK)
+        self.dax1.set(xticklabels=[], yticks=[])
+        self.dax1.tick_params(axis='x', width=TICKWIDTH, color=BLACK, bottom="on", )
+        for sp in ["left", "top", "right"]:
+            self.dax1.spines[sp].set_visible(False)
+        # Format RIGHT dendrogram
+        plt.setp(self.dax2.spines.values(), linewidth=LINEWIDTH, color=BLACK)
+        self.dax2.set(xticks=[], yticklabels=[])
+        self.dax2.tick_params(axis='y', width=TICKWIDTH, color=BLACK, left='on')
+        for sp in ["bottom", "top", "right"]:
+            self.dax2.spines[sp].set_visible(False)
 
     def _format_fig(self):
         self.fig.tight_layout()
@@ -757,11 +808,13 @@ class HeatmapCAVPairwiseCorrelation(BasePlot):
 
     def __init__(
             self,
-            cav_matrix: pd.DataFrame,
-            cav_mapping: list
+            matrix: np.array,
+            columns: list[str],
+            ax_label: str = "Harmonic Concept"
     ):
         super().__init__()
-        self.df = pd.DataFrame(cav_matrix, columns=cav_mapping).corr()
+        self.df = pd.DataFrame(matrix, columns=columns).corr()
+        self.ax_label = ax_label
         self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH))
 
     def _create_plot(self):
@@ -769,6 +822,7 @@ class HeatmapCAVPairwiseCorrelation(BasePlot):
 
     def _format_ax(self):
         fmt_heatmap_axis(self.ax)
+        self.ax.set(xlabel=self.ax_label, ylabel=self.ax_label)
 
     def _format_fig(self):
         self.fig.tight_layout()
@@ -777,10 +831,11 @@ class HeatmapCAVPairwiseCorrelation(BasePlot):
         fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations")
         if not os.path.isdir(fold):
             os.makedirs(fold)
-        fp = os.path.join(fold, f"cav_plots/cav_sensitivity_pairwise_correlation_heatmap")
+        fname = self.ax_label.lower().replace(' ', '_')
+        fp = os.path.join(fold, f"cav_plots/{fname}_pairwise_correlation_heatmap")
         save_fig_all_exts(fp, self.fig)
         # Dump the csv file as well
-        fp = os.path.join(fold, f"cav_plots/cav_sensitivity_pairwise_correlation.csv")
+        fp = os.path.join(fold, f"cav_plots/{fname}_pairwise_correlation.csv")
         self.df.to_csv(fp)
 
 
@@ -1036,8 +1091,8 @@ class HeatmapCAVKernelSensitivity(BasePlot):
             background,
             ax=self.ax,
             alpha=0.7,
-            cmap="mako",
-            cbar_kws={'label': 'Sensitivity (1 = original)', 'pad': -0.07}
+            cmap="mako_r",
+            cbar_kws={'label': 'Change in Score\n(1 = original)', 'pad': -0.07}
         )
         # Plot the original piano roll
         self.clip_roll[self.clip_roll == 0] = np.nan  # set 0 values to NaN to make transparent

@@ -18,6 +18,7 @@ from captum.attr import LayerIntegratedGradients, LayerGradientXActivation
 from joblib import Parallel, delayed
 from loguru import logger
 from pretty_midi import PrettyMIDI
+from sklearn.cluster import AgglomerativeClustering
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
@@ -137,6 +138,31 @@ def get_sign_count_significance(
                 if p <= thresh:
                     ast[cav_idx, performer_idx] = asterisk
     return ast
+
+
+def create_linkage_matrix(md) -> np.ndarray:
+    """Creates a linkage matrix that can be used to plot a dendrogram"""
+    counts = np.zeros(md.children_.shape[0])
+    n_samples = len(md.labels_)
+    for i, merge in enumerate(md.children_):
+        current_count = 0
+        for child_idx in merge:
+            if child_idx < n_samples:
+                current_count += 1  # leaf node
+            else:
+                current_count += counts[child_idx - n_samples]
+        counts[i] = current_count
+    return np.column_stack(
+        [md.children_, md.distances_, counts]
+    ).astype(float)
+
+
+def correlation_based_clustering(matrix, **kwargs):
+    matrix = pd.DataFrame(matrix)
+    distance_matrix = (1 - matrix.corr()).to_numpy()
+    aggc = AgglomerativeClustering(**kwargs)
+    aggc.fit(distance_matrix)
+    return aggc
 
 
 class CAV:

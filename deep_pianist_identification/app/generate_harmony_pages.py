@@ -71,7 +71,7 @@ class HeatmapCAVKernelSensitivityInteractive(plotting.HeatmapCAVKernelSensitivit
             hoverinfo='text',
             text=self.get_hovertext(),
             colorscale=self.create_plotly_colorscale_from_seaborn("rocket"),
-            colorbar=dict(title='Velocity', x=1.05),
+            colorbar=dict(title='Dynamics', x=1.05),
             zmin=0,
             zmax=utils.MAX_VELOCITY
         )
@@ -80,8 +80,8 @@ class HeatmapCAVKernelSensitivityInteractive(plotting.HeatmapCAVKernelSensitivit
             showscale=True,
             hoverinfo='skip',
             opacity=1.0,
-            colorscale=self.create_plotly_colorscale_from_seaborn("mako"),
-            colorbar=dict(title='Sensitivity', x=1.15),
+            colorscale=self.create_plotly_colorscale_from_seaborn("mako_r"),
+            colorbar=dict(title='Score', x=1.15),
             reversescale=False
         )
         self.fig = go.Figure(data=[f2, f1])
@@ -125,9 +125,8 @@ class HeatmapCAVKernelSensitivityInteractive(plotting.HeatmapCAVKernelSensitivit
 
     def save_fig(self):
         def _saver(filepath: str, obj) -> None:
-            if not os.path.isfile(filepath):
-                with open(filepath, 'w') as f:
-                    f.write(obj.to_json() + '\n')
+            with open(filepath, 'w') as f:
+                f.write(obj.to_json() + '\n')
 
         fname = "_".join(self.clip_path.split(os.path.sep)[-3:]).replace('.mid', '')
         fp = os.path.join(utils.get_project_root(), "app/assets/plots/cav_sensitivity")
@@ -170,7 +169,7 @@ def parse_input(input_fpath: str, extension: str = None) -> str:
 
 def get_most_sensitive_concepts(n_concepts: int = N_CONCEPTS_PER_PERFORMER) -> dict:
     """Get the name of the N concepts that each pianist is most sensitive to"""
-    sign_counts = pd.read_csv(parse_input("tcav_sign_count.csv", ), index_col=0)
+    sign_counts = pd.read_csv(parse_input("mean_sign_count.csv", ), index_col=0)
     # Remove the birth years from our index
     sign_counts.index = sign_counts.index.str.split(',').str[0]
     # This creates a dictionary of Pianist: [Concept1, Concept2...] mappings
@@ -285,7 +284,7 @@ def heatmap_exists(clip_path: str, cav_name: str) -> bool:
     return all([os.path.isfile(fp) for fp in fpaths])
 
 
-def generate_clip_heatmap(clip_path: str, cav_object: CAV, force: bool = False) -> None:
+def generate_clip_heatmap(clip_path: str, cav_object: CAV, force: bool = True) -> None:
     """Generates interactive heatmap for this clip and CAV"""
     full_clip_path = os.path.join(utils.get_project_root(), 'data/clips', clip_path)
     # Skip creating the heatmap from scratch if it already exists on the local file structure
