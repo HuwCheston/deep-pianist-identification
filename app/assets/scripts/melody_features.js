@@ -24,8 +24,7 @@ function parseJSON(jsName) {
 function playExampleMidi(concept, pianist) {
     let conceptPadded = String(concept).padStart(3, '0')
     let pianistFmt = formatPianistName(pianist)
-    let midPath = `../../assets/midi/melody_features/${pianistFmt}_${conceptPadded}.mid`
-    player.src = midPath
+    player.src = `../../assets/midi/melody_features/${pianistFmt}_${conceptPadded}.mid`
 }
 
 function showInfoPopup() {
@@ -49,7 +48,7 @@ function popSelect(concept, pianist) {
     let dropper = document.getElementById("dropdown-menu")
     dropper.innerHTML = "";
 
-    document.getElementById("progressionName").innerHTML = concept;
+    document.getElementById("progressionName").innerHTML = "Pattern: " + intervalsToPitches(concept);
 
     for (var i in conceptData) {
         let trackData = conceptData[i];
@@ -60,6 +59,18 @@ function popSelect(concept, pianist) {
     }
     dropper.value = conceptData[0]["asset_path"] + '.mid'
     dropper.onchange(dropper.value)
+}
+
+function intervalsToPitches(intervals) {
+    let feature_arr = JSON.parse(intervals)
+    let pitch_set = [0]
+    let current_pitch = 0
+    for (let interval_idx in feature_arr) {
+        let current_interval = feature_arr[interval_idx]
+        current_pitch = current_pitch + current_interval
+        pitch_set.push(current_pitch)
+    }
+    return "(" + pitch_set.join(", ") + ")"
 }
 
 function setTrack(assetPath) {
