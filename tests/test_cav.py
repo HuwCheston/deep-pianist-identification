@@ -140,7 +140,7 @@ class VoicingLoaderTest(unittest.TestCase):
         # This is simply the notes C - C - E - G - B (major 7)
         tester = os.path.join(
             utils.get_project_root(),
-            'references/_unsupervised_resources/voicings/midi_final/'
+            'references/cav_resources/voicings/midi_final/'
             '1_cav/1.mid'
         )
         created = r._create_midi(tester)

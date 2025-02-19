@@ -1,5 +1,6 @@
 let player = document.getElementById("mplayer");
 let vis = document.getElementById("mvis");
+let playbackLine = document.getElementById("playback-line")
 player.addEventListener("load", _playHandler);
 
 
@@ -23,8 +24,7 @@ function parseJSON(jsName) {
 function playExampleMidi(concept, pianist) {
     let conceptPadded = String(concept).padStart(3, '0')
     let pianistFmt = formatPianistName(pianist)
-    let midPath = `../../assets/midi/melody_features/${pianistFmt}_${conceptPadded}.mid`
-    player.src = midPath
+    player.src = `../../assets/midi/melody_features/${pianistFmt}_${conceptPadded}.mid`
 }
 
 function showInfoPopup() {
@@ -48,7 +48,7 @@ function popSelect(concept, pianist) {
     let dropper = document.getElementById("dropdown-menu")
     dropper.innerHTML = "";
 
-    document.getElementById("progressionName").innerHTML = concept;
+    document.getElementById("progressionName").innerHTML = "Pattern: " + intervalsToPitches(concept);
 
     for (var i in conceptData) {
         let trackData = conceptData[i];
@@ -61,12 +61,45 @@ function popSelect(concept, pianist) {
     dropper.onchange(dropper.value)
 }
 
+function intervalsToPitches(intervals) {
+    let feature_arr = JSON.parse(intervals)
+    let pitch_set = [0]
+    let current_pitch = 0
+    for (let interval_idx in feature_arr) {
+        let current_interval = feature_arr[interval_idx]
+        current_pitch = current_pitch + current_interval
+        pitch_set.push(current_pitch)
+    }
+    return "(" + pitch_set.join(", ") + ")"
+}
+
 function setTrack(assetPath) {
     let midPath = `../../assets/midi/melody_examples/${assetPath}`
     player.src = midPath
     vis.src = midPath
+    playbackLine.style.display = 'block'
+
+    setInterval(() => {
+        try {
+            var xPos = getCurrentX();
+            let rect = document.getElementById("mvis").getBoundingClientRect();
+            playbackLine.style.left = Number(xPos) + Number(rect.left) + 'px';
+            playbackLine.style.height = (Number(rect.height) - 5) + 'px';
+        } catch (err) {
+        }
+    }, 100);
 }
 
 function backToSelection() {
     window.location.href = '../../index.html';
+}
+
+function getCurrentX() {
+    let svgIndex = null
+    for (const [index, element] of vis.noteSequence.notes.entries()) {
+        if (element.startTime === player.currentTime) {
+            svgIndex = index
+        }
+    }
+    return vis.visualizer.svg.children[svgIndex].getAttribute('x')
 }

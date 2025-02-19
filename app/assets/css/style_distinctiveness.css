@@ -53,7 +53,7 @@ body {
     display: flex;
     flex-direction: column;
     height: 100%;
-    width: 300%;
+    width: 320%;
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -95,6 +95,7 @@ body {
     height: 100%;
     overflow: hidden;
     display: none;
+    margin-top: 0;
 }
 
 .barplot.active {
@@ -142,6 +143,7 @@ body {
     z-index: 1000;
     text-align: center;
     width: 60%;
+    height: 50%;
 }
 
 .popup h2 {
@@ -156,15 +158,18 @@ body {
 }
 
 .popupText {
-    display: flex;
-    flex-direction: column;
+    /*display: flex;*/
+    /*flex-direction: column;*/
     gap: 10px;
+    height: 100%;
+    overflow-y: scroll;
 }
 
 .popupText div {
-    display: flex;
     align-items: center;
     gap: 10px;
+    height: 10px;
+    overflow-y: scroll;
 }
 
 .popupText button {
@@ -225,4 +230,22 @@ body {
 .return-button:hover {
     transform: scale(1.05);
     background-color: #555;
+}
+
+.listen-button {
+    background-color: lightblue;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 25px;
+    height: 25px;
+    font-size: 16px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.listen-button:hover {
+    transform: scale(1.1);
 }

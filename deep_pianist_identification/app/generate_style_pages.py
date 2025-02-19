@@ -3,11 +3,14 @@
 
 """Create plots and HTML for overall pianist style distinctiveness"""
 
+import json
 import os
 
 import pandas as pd
 import plotly.graph_objects as go
 from PIL import Image
+from bs4 import BeautifulSoup
+from pretty_midi import PrettyMIDI
 
 from deep_pianist_identification import utils, plotting
 
@@ -31,6 +34,19 @@ def load_csv(csv_name: str = "class_accuracy.csv") -> pd.DataFrame:
     return pd.read_csv(path)
 
 
+def load_json(json_name: str = "max_logit_per_mask.json"):
+    """Loads a .json file created when validating the factorized model"""
+    if not json_name.endswith('.json'):
+        json_name += '.json'
+    path = os.path.join(FACTORIZED_MODEL_RESULTS, json_name)
+    if not os.path.isfile(path):
+        raise FileNotFoundError(
+            f"Could not find {json_name} inside {FACTORIZED_MODEL_RESULTS}. Have you run `validation.py`?"
+        )
+    with open(path, 'r') as f:
+        return json.load(f)
+
+
 def load_confusion_matrix(concept_name: str) -> pd.DataFrame:
     loaded = load_csv(f'confusion_matrices/confusion_matrix_{concept_name}.csv')
     if set(loaded.columns.tolist()) != set(loaded.index.tolist()):
@@ -38,20 +54,38 @@ def load_confusion_matrix(concept_name: str) -> pd.DataFrame:
     return loaded
 
 
-def create_html(pianist: str, template: str = os.path.join(utils.get_project_root(), 'app/pages/templates/style.html')):
+def create_html(
+        pianist: str,
+        predictive_tracks: dict,
+        template: str = os.path.join(utils.get_project_root(), 'app/pages/templates/style.html'),
+        placeholder_pianist: str = 'Abdullah Ibrahim'
+) -> None:
+    """Creates HTML for the current pianist based on the template file"""
     if not os.path.exists(template):
         raise FileNotFoundError(
             f'Could not find template at location {template}'
         )
+    # Load the HTML as a string
     with open(template, 'r') as f:
+        # Replace all mentions to the placeholder pianist with the actual pianist
         txt = (
             f.read()
-            .replace('Abdullah Ibrahim', pianist)
-            .replace('abdullah_ibrahim', pianist.lower().replace(' ', '_'))
+            .replace(placeholder_pianist, pianist)
+            .replace(placeholder_pianist.lower().replace(' ', '_'), pianist.lower().replace(' ', '_'))
         )
+    # Read the modified string into BeautifulSoup
+    soup = BeautifulSoup(txt, features='lxml')
+    # Iterate over all the tabs in the HTML
+    for num, elem in enumerate(soup.find_all("div", {"class": "tab"})):
+        # Get the accuracy of predictions for this track and mask
+        acc_at_track = predictive_tracks[elem.text.lower()][1]
+        acc_at_track_fmt = round(acc_at_track * 100, 1)
+        # Update the function call for click this tab to use the required arguments
+        elem['onclick'] = f"updateConcept({num}, '{pianist}', {acc_at_track_fmt})"
+    # Write out the HTML file into the correct location
     out_path = os.path.join(utils.get_project_root(), f'app/pages/style/{pianist.replace(" ", "_").lower()}.html')
     with open(out_path, 'w') as f:
-        f.write(txt)
+        f.write(str(soup))
 
 
 class RadarPlotOverallStyle(plotting.BasePlot):
@@ -178,7 +212,6 @@ class BarPlotSimilarPianists(plotting.BasePlot):
     def _add_pianist_images(self):
         for x_val, (pianist, y_val) in enumerate(zip(self.x, self.y)):
             pianist = pianist.lower().replace(' ', '_')
-            # TODO: probably won't work when hosting online
             img = Image.open(os.path.join(utils.get_project_root(), f"app/assets/images/pianists/{pianist}.png"))
             self.fig.add_layout_image(
                 dict(
@@ -259,11 +292,31 @@ class BarPlotSimilarPianists(plotting.BasePlot):
         )
 
 
+def copy_midi_files(pianist_dict: dict, pianist_name: str) -> None:
+    """Copies required MIDI files into app/assets/midi/style_examples"""
+    for mask, (track, acc) in pianist_dict.items():
+        for db in ['pijama', 'jtd']:
+            oldpath = os.path.join(utils.get_project_root(), 'data/clips', db, track + '.mid')
+            if os.path.isfile(oldpath):
+                newroot = os.path.join(utils.get_project_root(), 'app/assets/midi/style_examples')
+                newfname = f'{pianist_name.lower().replace(" ", "_")}_{mask}.mid'
+                newpath = os.path.join(newroot, newfname)
+                # Open the MIDI in pretty MIDI and truncate any notes that are outside the region of the clip
+                pm = PrettyMIDI(oldpath)
+                pm.instruments[0].notes = [i for i in pm.instruments[0].notes if i.end <= utils.CLIP_LENGTH]
+                # Write the MIDI into the correct place
+                pm.write(newpath)
+
+
 def main():
     # Load in the dataframe of class accuracy scores
     class_acc_df = load_csv(csv_name="class_accuracy.csv")
+    # Load in the JSON of most predictive tracks for every performer per mask
+    most_predictive_tracks = load_json(json_name='max_logit_per_mask.json')
     # Iterate over all pianists and their respective data
     for pianist_name, pianist_data in class_acc_df.groupby('pianist'):
+        # Copy over the MIDI files to the assets/midi/style_examples directory
+        copy_midi_files(most_predictive_tracks[pianist_name], pianist_name)
         # Create the radar plot
         rp = RadarPlotOverallStyle(pianist_data, pianist_name)
         rp.create_plot()
@@ -276,8 +329,8 @@ def main():
             bp = BarPlotSimilarPianists(confusion_matrix, pianist_name, concept)
             bp.create_plot()
             bp.save_fig()
-        # Create the HTML by copying the template and updating all of the file paths correctly
-        create_html(pianist_name)
+        # Create the HTML by copying the template and updating all the file paths correctly
+        create_html(pianist_name, most_predictive_tracks[pianist_name])
 
 
 if __name__ == "__main__":

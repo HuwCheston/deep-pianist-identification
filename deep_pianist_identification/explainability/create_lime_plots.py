@@ -190,11 +190,7 @@ class HeatmapLIMEPianoRoll(plotting.BasePlot):
         )
         if not os.path.isdir(dirpath):
             os.makedirs(dirpath)
-        self.fig.savefig(
-            os.path.join(dirpath, f'{outpath.split("/")[1]}.png'),
-            **plotting.SAVE_KWS
-        )
-        plt.close('all')
+        plotting.save_fig_all_exts(os.path.join(dirpath, outpath.split("/")[1]), self.fig)
 
 
 def get_cfg():

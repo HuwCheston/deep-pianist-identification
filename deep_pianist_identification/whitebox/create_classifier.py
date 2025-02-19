@@ -4,6 +4,7 @@
 """Create whitebox classifiers with command line interface"""
 
 import os
+from copy import deepcopy
 
 import numpy as np
 from loguru import logger
@@ -12,7 +13,7 @@ from deep_pianist_identification import utils, plotting
 from deep_pianist_identification.whitebox import wb_utils
 from deep_pianist_identification.whitebox.classifiers import fit_classifier
 from deep_pianist_identification.whitebox.explainers import (
-    LRWeightExplainer, DomainExplainer, DatabasePermutationExplainer
+    LRWeightExplainer, DomainExplainer, DatabasePermutationExplainer, PCAFeatureCountsExplainer
 )
 from deep_pianist_identification.whitebox.features import (
     get_harmony_features, get_melody_features, drop_invalid_features
@@ -79,11 +80,33 @@ def create_classifier(
     csvpath = os.path.join(
         utils.get_project_root(),
         'references/whitebox',
-        f'{dataset}_{classifier_type}_harmony+melody.csv'
+        f'{dataset}_{classifier_type}_harmony+melody_{"".join([str(i) for i in feature_sizes])}.csv'
     )
     # Scale the data if required (never for multinomial naive Bayes as this expects count data)
+    train_x_raw, test_x_raw, valid_x_raw = deepcopy(train_x_arr), deepcopy(test_x_arr), deepcopy(valid_x_arr)
     if scale and classifier_type != "nb":
         train_x_arr, test_x_arr, valid_x_arr = wb_utils.scale_features(train_x_arr, test_x_arr, valid_x_arr)
+    # Decompose feature counts using PCA: first melody, then harmony
+    logger.info('---EXPLAINING: DECOMPOSING FEATURE COUNTS---')
+    all_xs_raw = np.vstack([train_x_raw, test_x_raw, valid_x_raw])
+    all_ys_raw = np.hstack([train_y_mel, test_y_mel, valid_y_mel])
+    for feat_type, feat_names, xs in zip(
+            ['melody', 'harmony'],
+            [mel_features, har_features],
+            [all_xs_raw[:, :len(mel_features)], all_xs_raw[:, len(mel_features):]]
+    ):
+        pc = PCAFeatureCountsExplainer(
+            feature_counts=xs,  # these will be z-transformed as part of the class
+            targets=all_ys_raw,
+            feature_names=feat_names,
+            class_mapping=class_mapping,
+            feature_size=3,  # plotting 4-grams
+            n_components=4,
+            feature_type=feat_type
+        )
+        logger.info(f'... shape of features into PCA: {pc.counts.shape}, n_components: {pc.n_components}')
+        pc.explain()
+        pc.create_outputs()
     # Optimize the classifier
     clf_opt, valid_acc, best_params = fit_classifier(
         train_x_arr,
@@ -155,7 +178,7 @@ def create_classifier(
         class_mapping=class_mapping,
         classifier_type=classifier_type,
         classifier_params=best_params,
-        use_odds_ratios=True,
+        use_odds_ratios=False,
         n_iter=n_iter,
     )
     lr_exp.explain()

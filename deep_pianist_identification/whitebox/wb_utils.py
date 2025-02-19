@@ -3,22 +3,18 @@
 
 """Utility functions and variables for white-box models"""
 
-import csv
-import json
 import os
-from ast import literal_eval
-from pathlib import Path
-from tempfile import NamedTemporaryFile
 
 import numpy as np
 import pandas as pd
 from loguru import logger
 from sklearn.ensemble import RandomForestClassifier, HistGradientBoostingClassifier
+from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB, GaussianNB
-from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.svm import SVC
-from tenacity import retry, retry_if_exception_type, wait_random_exponential, stop_after_attempt
 
 from deep_pianist_identification import utils
 from deep_pianist_identification.whitebox.features import FEATURE_MIN_TRACKS, FEATURE_MAX_TRACKS, DEFAULT_FEATURE_SIZES
@@ -85,74 +81,19 @@ N_JOBS = -1  # number of parallel processing cpu cores. -1 means use all cores.
 N_BOOT_FEATURES = 2000  # number of features to sample when bootstrapping permutation importance scores
 
 
-@retry(
-    retry=retry_if_exception_type(json.JSONDecodeError),
-    wait=wait_random_exponential(multiplier=1, max=60),
-    stop=stop_after_attempt(20)
-)
-def threadsafe_load_csv(csv_path: str) -> list[dict]:
-    """Simple wrapper around `csv.load` that catches errors when working on the same file in multiple threads"""
+class TfidfFixed(TfidfTransformer):
+    """Wrapper around TfidfTransformer that implements a proper .transform method allowing use in a pipeline"""
 
-    def eval_(i):
-        try:
-            return literal_eval(i)
-        except (ValueError, SyntaxError) as _:
-            return str(i)
+    def __init__(self, *, norm="l2", use_idf=True, smooth_idf=True, sublinear_tf=False):
+        super().__init__(norm=norm, use_idf=use_idf, smooth_idf=smooth_idf, sublinear_tf=sublinear_tf)
 
-    with open(csv_path, "r+") as in_file:
-        return [{k: eval_(v) for k, v in dict(row).items()} for row in csv.DictReader(in_file, skipinitialspace=True)]
+    def fit_transform(self, X, y=None, copy=True):
+        self.fit(X, y)
+        return self.transform(X, copy)
 
-
-def threadsafe_save_csv(obje: list | dict, filepath: str) -> None:
-    """Simple wrapper around csv.DictWriter with protections to assist in multithreaded access"""
-    @retry(
-        retry=retry_if_exception_type(PermissionError),
-        wait=wait_random_exponential(multiplier=1, max=60),
-        stop=stop_after_attempt(20)
-    )
-    def replacer(obj: list | dict, fpath: str):
-        # Get the base directory and filename from the provided path
-        _path = Path(fpath)
-        fdir, fpath = str(_path.parent), str(_path.name)
-        # If we have an existing file with the same name, load it in and extend it with our new data
-        try:
-            existing_file: list = threadsafe_load_csv(os.path.join(fdir, fpath))
-        except FileNotFoundError:
-            pass
-        else:
-            if isinstance(obj, dict):
-                obj = [obj]
-            obj: list = existing_file + obj
-
-        # Create a new temporary file, in append mode
-        temp_file = NamedTemporaryFile(mode='a', newline='', dir=fdir, delete=False, suffix='.csv')
-        # Get our CSV header from the keys of the first dictionary, if we've passed in a list of dictionaries
-        if isinstance(obj, list):
-            keys = obj[0].keys()
-        # Otherwise, if we've just passed in a dictionary, get the keys from it directly
-        else:
-            keys = obj.keys()
-        # Open the temporary file and create a new dictionary writer with our given columns
-        with temp_file as out_file:
-            dict_writer = csv.DictWriter(out_file, keys)
-            dict_writer.writeheader()
-            # Write all the rows, if we've passed in a list
-            if isinstance(obj, list):
-                dict_writer.writerows(obj)
-            # Alternatively, write a single row, if we've passed in a dictionary
-            else:
-                dict_writer.writerow(obj)
-        # Try to replace the master file with the temporary file
-        try:
-            os.replace(temp_file.name, os.path.join(fdir, fpath))
-        # If another file is already editing the master file
-        except PermissionError as e:
-            # Remove the temporary file
-            os.remove(temp_file.name)
-            # Reraise the exception, which tenacity will catch and retry saving with exponential backoff
-            raise e
-
-    replacer(obje, filepath)
+    def transform(self, X, copy=True):
+        # This is the change, otherwise we get a sparse matrix
+        return super().transform(X, copy).toarray()
 
 
 def get_split_clips(split_name: str, dataset: str = "20class_80min") -> tuple[str, int, str]:
@@ -190,20 +131,44 @@ def get_classifier_and_params(classifier_type: str) -> tuple:
         return GaussianNB, GNB_OPTIMIZE_PARAMS
 
 
+def scale_for_pca(
+        feature_counts: np.ndarray
+) -> np.ndarray:
+    pipe = Pipeline([
+        ('tfidf', TfidfFixed(norm='l2')),
+        ('zscore', StandardScaler()),
+        ('scale', MinMaxScaler()),
+    ])
+    return pipe.fit_transform(feature_counts)
+
+
 def scale_features(
         train_x: np.ndarray,
         test_x: np.ndarray,
-        valid_x: np.ndarray
+        valid_x: np.ndarray,
+        method: str = "tf-idf"
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Scale the data using Z-transformation"""
-    logger.info('... data will be scaled using z-transformation!')
-    # Create the scaler object
-    scaler = StandardScaler()
-    # Fit to the training data and use these values to transform others
-    train_x = scaler.fit_transform(train_x)
-    test_x = scaler.transform(test_x)
-    valid_x = scaler.transform(valid_x)
-    return train_x, test_x, valid_x
+    if method == "z-score":
+        logger.info('... data will be scaled using z-transformation!')
+        # Create the scaler object
+        scaler = StandardScaler()
+        # Fit to the training data and use these values to transform others
+        train_x = scaler.fit_transform(train_x)
+        test_x = scaler.transform(test_x)
+        valid_x = scaler.transform(valid_x)
+        return train_x, test_x, valid_x
+    elif method == "tf-idf":
+        logger.info('... data will be scaled using tf-idf!')
+        # Create the scaler object
+        scaler = TfidfTransformer(norm='l2')
+        # Fit to the training data and use these values to transform others
+        train_x = scaler.fit_transform(train_x).toarray()
+        test_x = scaler.transform(test_x).toarray()
+        valid_x = scaler.transform(valid_x).toarray()
+        return train_x, test_x, valid_x
+    else:
+        raise ValueError(f'method should be either `tf-idf` or `z-score`, but got {method}!')
 
 
 def get_all_clips(dataset: str, n_clips: int = None):

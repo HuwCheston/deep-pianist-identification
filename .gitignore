@@ -112,6 +112,7 @@ target/
 *.pt
 *.html
 *.pdf
+*.svg
 
 # Ignore model files used by MVSEP
 *.th

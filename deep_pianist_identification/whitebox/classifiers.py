@@ -68,7 +68,7 @@ def fit_classifier(
     clf_opt = classifier(**optimized_params)
     clf_opt.fit(train_x, train_y)
     # Dump the classifier
-    save_classifier(csvpath.replace("csv", "p"), clf_opt)
+    # save_classifier(csvpath.replace("csv", "p"), clf_opt)
     # Get the optimized test accuracy
     test_y_pred = clf_opt.predict(test_x)
     test_acc = accuracy_score(test_y, test_y_pred)

@@ -44,6 +44,7 @@
         <midi-player id="mplayer" style="width:100%" class="mplayer"
                      sound-font="https://storage.googleapis.com/magentadata/js/soundfonts/sgm_plus"></midi-player>
         <midi-visualizer type="piano-roll" id="mvis"></midi-visualizer>
+        <div class="vl" id="playback-line" style="display: none"></div>
     </div>
     <button class="info-button" style="bottom: 2%; left: 97%" onclick="showInfoPopup()">i</button>
     <button class="return-button" onclick="backToSelection()">Select another pianist...</button>
@@ -60,7 +61,7 @@
                 </span>
             <h2>Examples</h2>
             <span>
-                    Use the dropdown menu to show all available recordings. Click a performance to load audio and a special type of graph called a <strong>piano roll</strong>. The piano roll shows the notes played on the piano in the performance. You can use the playback bar to seek the audio.
+                    Use the dropdown menu to show all available recordings. Click a performance to load audio and a special type of graph called a <strong>piano roll</strong>. The piano roll shows the notes played on the piano in the performance. You can use the playback bar to seek the audio.<br><br>Notes contained in the pattern are shown in <strong>red</strong> on the piano roll; all other notes are shown in <strong>grey</strong>.
                 </span>
         </div>
     </div>

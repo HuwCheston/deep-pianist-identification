@@ -15,11 +15,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from adjustText import adjust_text
 from loguru import logger
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from pretty_midi import note_number_to_name
 from skimage import io
 from skimage.transform import resize
+from sklearn.preprocessing import MinMaxScaler
 
 from deep_pianist_identification import utils
 from deep_pianist_identification.preprocessing import m21_utils as m21_utils
@@ -52,7 +54,8 @@ DASHED = 'dashed'
 # Remote URL where images of all pianists are stored
 IMG_LOC = "https://raw.githubusercontent.com/HuwCheston/Jazz-Trio-Database/refs/heads/main/references/images/musicians"
 # Used for saving PNG images with the correct background
-SAVE_KWS = dict(format='png', facecolor=WHITE)
+SAVE_KWS = dict(facecolor=WHITE, dpi=300)
+SAVE_EXTS = ['svg', 'png', 'pdf']
 # Keyword arguments to use when applying a grid to a plot
 GRID_KWS = dict(color=BLACK, alpha=ALPHA, lw=LINEWIDTH / 2, ls=LINESTYLE)
 # Used when adding a legend to an axis
@@ -64,14 +67,35 @@ PLOT_AFTER_N_EPOCHS = 5
 
 
 def fmt_heatmap_axis(heatmap_ax: plt.Axes):
+    """Applies consistent formatting to a heatmap plot"""
+    # Iterating through both the heatmap and any attached axis (colourbars, e.g.)
     for a in [heatmap_ax, *heatmap_ax.figure.axes]:
+        # Setting aesthetics for each individual spine (t, b, l, r)
         for spine in a.spines.values():
             spine.set_visible(True)
             spine.set_color(BLACK)
             spine.set_linewidth(LINEWIDTH)
+        # Setting aesthetics for ticks
         plt.setp(a.spines.values(), linewidth=LINEWIDTH, color=BLACK)
         a.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
+    # Flip the y-axis of the whole plot
     heatmap_ax.invert_yaxis()
+
+
+def save_fig_all_exts(fpath: str, fig: plt.Figure) -> None:
+    """Saves a figure `fig` with filepath `fpath` using all extensions in `SAVE_EXTS`"""
+    # Check that the directory we want to save the figure in exists
+    root_dir = os.path.dirname(fpath)
+    if not os.path.exists(root_dir):
+        raise FileNotFoundError(f'path {root_dir} does not exist')
+    # For backwards compatibility: if we've added the extension in already, remove it
+    if fpath.endswith(".png"):
+        fpath = fpath.replace(".png", "")
+    # Iterate through all the filetypes we want to use and save the plot
+    for ext in SAVE_EXTS:
+        fig.savefig(fpath + f'.{ext}', format=ext, **SAVE_KWS)
+    # Close all figures at the end
+    plt.close('all')
 
 
 class BasePlot:
@@ -159,7 +183,8 @@ class HeatmapConfusionMatrix(BasePlot):
         fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations/confusion_matrices")
         if not os.path.isdir(fold):
             os.makedirs(fold)
-        self.fig.savefig(os.path.join(fold, f"heatmap_confusion_matrix_{self.title}.png"), **SAVE_KWS)
+        outpath = os.path.join(fold, f"heatmap_confusion_matrix_{self.title}")
+        save_fig_all_exts(outpath, self.fig)
 
 
 class BarPlotMaskedConceptsAccuracy(BasePlot):
@@ -217,8 +242,7 @@ class BarPlotMaskedConceptsAccuracy(BasePlot):
         fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations")
         if not os.path.isdir(fold):
             os.makedirs(fold)
-        fp = os.path.join(fold, f"{title}_{self.xvar}.png")
-        self.fig.savefig(fp, **SAVE_KWS)
+        save_fig_all_exts(os.path.join(fold, f"{title}_{self.xvar}"), self.fig)
 
 
 class BarPlotSingleMaskAccuracy(BarPlotMaskedConceptsAccuracy):
@@ -320,7 +344,7 @@ class _StripplotTopKFeatures(BasePlot):
             y: float,
             x: float = 1.025,
             zoom: float = 0.25,
-            right_crop: float = 0.7,
+            right_crop: float = 0.92,
             png_dim: tuple = (125, 350, 1000, 650),
             dpi: int = 300
     ) -> None:
@@ -359,15 +383,14 @@ class _StripplotTopKFeatures(BasePlot):
 
     def _format_fig(self):
         """Setting plot aeshetics on a figure-level basis"""
-        self.fig.subplots_adjust(left=0.14, top=0.95, bottom=0.11, right=0.85)
+        self.fig.subplots_adjust(left=0.14, top=0.95, bottom=0.11, right=0.8)
 
     def _save_fig(self, output_dir: str, concept_name: str):
         fp = os.path.join(
             output_dir,
-            f'topk_stripplot_{self.pianist_name.lower().replace(" ", "_")}_{concept_name}.png'
+            f'topk_stripplot_{self.pianist_name.lower().replace(" ", "_")}_{concept_name}'
         )
-        self.fig.savefig(fp, **SAVE_KWS, dpi=300)
-        plt.close('all')
+        save_fig_all_exts(fp, self.fig)
 
 
 class StripplotTopKMelodyFeatures(_StripplotTopKFeatures):
@@ -438,12 +461,12 @@ class StripplotTopKMelodyFeatures(_StripplotTopKFeatures):
         self._add_performer_image()
         self.ax.tick_params(right=True)
         # self.ax.set_title(f'{self.pianist_name}, melody features')
-        self.ax.set(ylabel='Odds ratio', xlabel='Feature')
+        self.ax.set(xlabel='Weights', ylabel='Feature')
         fmt_text = [str(m21_utils.intervals_to_pitches(yl.get_text())) for yl in self.ax.get_yticklabels()]
         self.ax.set_yticks(self.ax.get_yticks(), fmt_text)
         self.ax.grid(axis='x', zorder=0, **GRID_KWS)
         self.ax.axhline(4.5, 0, 1, linewidth=LINEWIDTH, color=BLACK, alpha=ALPHA, ls=DASHED)
-        self.ax.axvline(1, 0, 1, linewidth=LINEWIDTH, color=BLACK)
+        self.ax.axvline(0, 0, 1, linewidth=LINEWIDTH, color=BLACK)
         self.ax.legend(**LEGEND_KWS, loc='lower left')
         super()._format_ax()
 
@@ -527,12 +550,12 @@ class StripplotTopKHarmonyFeatures(_StripplotTopKFeatures):
         self._add_performer_image(x=0.125)
         self.ax.tick_params(top=True)
         # self.ax.set_title(f'{self.pianist_name}, harmony features', y=1.175)
-        self.ax.set(xlabel='Odds ratio', ylabel='Feature')
+        self.ax.set(ylabel='Weights', xlabel='Feature')
         fmt_text = [str(self.format_feature(yl.get_text())) for yl in self.ax.get_xticklabels()]
         self.ax.set_xticks(self.ax.get_xticks(), fmt_text, rotation=90, va='top', ha='right')
         self.ax.grid(axis='y', zorder=0, **GRID_KWS)
         self.ax.axvline(4.5, 0, 1, linewidth=LINEWIDTH, color=BLACK, alpha=ALPHA, ls=DASHED)
-        self.ax.axhline(1, 0, 1, linewidth=LINEWIDTH, color=BLACK)
+        self.ax.axhline(0, 0, 1, linewidth=LINEWIDTH, color=BLACK)
         self.ax.legend(**LEGEND_KWS, loc='lower right')
         super()._format_ax()
 
@@ -592,15 +615,14 @@ class HeatmapWhiteboxFeaturePianoRoll(BasePlot):
         self.fig.tight_layout()
 
     def save_fig(self, output_loc):
-        self.fig.savefig(output_loc, **SAVE_KWS)
-        plt.close('all')
+        save_fig_all_exts(output_loc, self.fig)
 
 
 class BarPlotWhiteboxDatabaseCoefficients(BasePlot):
     """Bar plot showing the performer correlations obtained from both source databases for a whitebox model"""
     BAR_KWS = dict(palette="tab10", edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, legend=False, zorder=10)
     ERROR_KWS = dict(lw=LINEWIDTH, color=BLACK, capsize=8, zorder=100, elinewidth=LINEWIDTH, ls='none')
-    X_PADDING = 0.01
+    X_PADDING = 0.05
 
     def __init__(self, coef_df):
         super().__init__()
@@ -629,7 +651,7 @@ class BarPlotWhiteboxDatabaseCoefficients(BasePlot):
             sns.barplot(data=sub, x='corr', y='pianist', hue='pianist', ax=ax, **self.BAR_KWS)
             for idx, row in sub.iterrows():
                 x = row['corr'] + self.X_PADDING if row['corr'] > 0 else row['corr'] - self.X_PADDING
-                ax.text(x, idx, row['sig'], ha='center')
+                ax.text(x, idx, row['sig'], ha='center', zorder=100000)
 
     def _format_ax(self):
         xmin = min([ax.get_xlim()[0] for ax in self.ax.flatten()]) - self.X_PADDING
@@ -650,7 +672,7 @@ class BarPlotWhiteboxDatabaseCoefficients(BasePlot):
         self.fig.tight_layout()
 
     def save_fig(self, outpath: str):
-        self.fig.savefig(outpath, **SAVE_KWS)
+        save_fig_all_exts(outpath, self.fig)
 
 
 # Create heatmap with significance asterisks
@@ -716,8 +738,8 @@ class HeatmapCAVSensitivity(BasePlot):
         fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations")
         if not os.path.isdir(fold):
             os.makedirs(fold)
-        fp = os.path.join(fold, f"cav_plots/{self.sensitivity_type.replace(' ', '_').lower()}_heatmap.png")
-        self.fig.savefig(fp, **SAVE_KWS)
+        fp = os.path.join(fold, f"cav_plots/{self.sensitivity_type.replace(' ', '_').lower()}_heatmap")
+        save_fig_all_exts(fp, self.fig)
         # Dump the csv file as well
         fp = os.path.join(fold, f"cav_plots/{self.sensitivity_type.replace(' ', '_').lower()}.csv")
         self.df.to_csv(fp)
@@ -752,8 +774,8 @@ class HeatmapCAVPairwiseCorrelation(BasePlot):
         fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations")
         if not os.path.isdir(fold):
             os.makedirs(fold)
-        fp = os.path.join(fold, f"cav_plots/cav_sensitivity_pairwise_correlation_heatmap.png")
-        self.fig.savefig(fp, **SAVE_KWS)
+        fp = os.path.join(fold, f"cav_plots/cav_sensitivity_pairwise_correlation_heatmap")
+        save_fig_all_exts(fp, self.fig)
         # Dump the csv file as well
         fp = os.path.join(fold, f"cav_plots/cav_sensitivity_pairwise_correlation.csv")
         self.df.to_csv(fp)
@@ -883,8 +905,8 @@ class BarPlotDatasetDurationCount(BasePlot):
         fold = os.path.join(utils.get_project_root(), "reports/figures/dataset_figures")
         if not os.path.isdir(fold):
             os.makedirs(fold)
-        fp = os.path.join(fold, f"dataset_recording_durations_count.png")
-        self.fig.savefig(fp, **SAVE_KWS)
+        fp = os.path.join(fold, f"dataset_recording_durations_count")
+        save_fig_all_exts(fp, self.fig)
 
 
 class HeatmapConfusionMatrices(BasePlot):
@@ -949,8 +971,8 @@ class HeatmapConfusionMatrices(BasePlot):
         fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations")
         if not os.path.isdir(fold):
             os.makedirs(fold)
-        fp = os.path.join(fold, f"heatmap_single_concept_prediction_accuracy.png")
-        self.fig.savefig(fp, **SAVE_KWS)
+        fp = os.path.join(fold, f"heatmap_single_concept_prediction_accuracy")
+        save_fig_all_exts(fp, self.fig)
 
 
 class HeatmapCAVKernelSensitivity(BasePlot):
@@ -1057,11 +1079,9 @@ class HeatmapCAVKernelSensitivity(BasePlot):
             os.makedirs(di)
         # Format track and cav name
         tn = self.clip_name.lower().replace(os.path.sep, '_').replace('.mid', '')
-        fp = os.path.join(di, f'{tn}_{cn}.png')
+        fp = os.path.join(di, f'{tn}_{cn}')
         # Save the figure
-        self.fig.savefig(fp, **SAVE_KWS)
-        # Close the figure
-        plt.close(self.fig)
+        save_fig_all_exts(fp, self.fig)
 
 
 class LollipopPlotMaskedConceptsAccuracy(BarPlotMaskedConceptsAccuracy):
@@ -1113,8 +1133,8 @@ class LollipopPlotMaskedConceptsAccuracy(BarPlotMaskedConceptsAccuracy):
         fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations")
         if not os.path.isdir(fold):
             os.makedirs(fold)
-        fp = os.path.join(fold, f"lollipop_masked_concept_{self.xvar}.png")
-        self.fig.savefig(fp, **SAVE_KWS)
+        fp = os.path.join(fold, f"lollipop_masked_concept_{self.xvar}")
+        save_fig_all_exts(fp, self.fig)
 
 
 class HistPlotDatabaseNullDistributionCoefficients(BasePlot):
@@ -1189,7 +1209,7 @@ class HistPlotDatabaseNullDistributionCoefficients(BasePlot):
         self.fig.subplots_adjust(hspace=0.05)
 
     def save_fig(self, outpath: str):
-        self.fig.savefig(outpath, **SAVE_KWS)
+        save_fig_all_exts(outpath, self.fig)
 
 
 class BarPlotWhiteboxFeatureCounts(BasePlot):
@@ -1281,11 +1301,9 @@ class BarPlotWhiteboxFeatureCounts(BasePlot):
         )
         if not os.path.isdir(di):
             os.makedirs(di)
-        fp = os.path.join(di, f'barplot_feature_counts.png')
+        fp = os.path.join(di, f'barplot_feature_counts')
         # Save the figure
-        self.fig.savefig(fp, **SAVE_KWS)
-        # Close the figure
-        plt.close(self.fig)
+        save_fig_all_exts(fp, self.fig)
 
 
 class BarPlotConceptClassAccuracy(BasePlot):
@@ -1332,8 +1350,8 @@ class BarPlotConceptClassAccuracy(BasePlot):
         fold = os.path.join(utils.get_project_root(), "reports/figures/ablated_representations")
         if not os.path.isdir(fold):
             os.makedirs(fold)
-        fp = os.path.join(fold, f"barplot_concept_class_accuracy.png")
-        self.fig.savefig(fp, **SAVE_KWS)
+        fp = os.path.join(fold, f"barplot_concept_class_accuracy")
+        save_fig_all_exts(fp, self.fig)
 
 
 class BarPlotWhiteboxDomainImportance(BasePlot):
@@ -1341,7 +1359,7 @@ class BarPlotWhiteboxDomainImportance(BasePlot):
     PALETTE = [CONCEPT_COLOR_MAPPING[con] for con in ["Harmony", "Melody"]]
     BAR_KWS = dict(legend=True, zorder=10, palette=PALETTE, edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE)
     ERROR_KWS = dict(
-        x=[-0.2, 0.2, 0.75, 1.25, 1.8, 2.2], lw=LINEWIDTH, color=BLACK,
+        x=[-0.2, 0.2, 0.8, 1.2, 1.8, 2.2], lw=LINEWIDTH, color=BLACK,
         capsize=8, zorder=10000, elinewidth=LINEWIDTH, ls='none'
     )
 
@@ -1377,7 +1395,7 @@ class BarPlotWhiteboxDomainImportance(BasePlot):
             a.errorbar(y=subset['mean'], yerr=subset['std'], **self.ERROR_KWS)
 
     def _format_ax(self):
-        for ax, tit in zip(self.ax.flatten(), ['All features', "Bootstrapped samples of 1,000 features"]):
+        for ax, tit in zip(self.ax.flatten(), ['All features', "Bootstrapped samples of features"]):
             ax.set(
                 ylabel='Mean feature importance', xlabel='Model type', title=tit, ylim=(0, ax.get_ylim()[1] * 1.5)
             )
@@ -1390,8 +1408,8 @@ class BarPlotWhiteboxDomainImportance(BasePlot):
         self.fig.tight_layout()
 
     def save_fig(self):
-        fp = os.path.join(self.RESULTS_LOC, 'barplot_domain_importance.png')
-        self.fig.savefig(fp, **SAVE_KWS)
+        fp = os.path.join(self.RESULTS_LOC, 'barplot_domain_importance')
+        save_fig_all_exts(fp, self.fig)
 
 
 class HeatmapMelodyExtraction(BasePlot):
@@ -1429,12 +1447,173 @@ class HeatmapMelodyExtraction(BasePlot):
         self.fig.tight_layout()
 
     def save_fig(self):
-        out = os.path.join(utils.get_project_root(), 'reports/figures/melody_extraction_demo.png')
-        self.fig.savefig(out, **SAVE_KWS)
+        out = os.path.join(utils.get_project_root(), 'reports/figures/melody_extraction_demo')
+        save_fig_all_exts(out, self.fig)
+
+
+class LinePlotWhiteboxAccuracyN(BasePlot):
+    ROOT = os.path.join(utils.get_project_root(), 'references/whitebox/optimization_results_at_n')
+    MAX_N_RESULTS = ['2', '23', '234', '2345', '23456', '234567']
+    MIN_N_RESULTS = ['234567', '34567', '4567', '567', '67', '7']
+    LINE_KWS = dict(linewidth=LINEWIDTH * 2, linestyle=LINESTYLE, color=BLACK)
+
+    def __init__(self, _=None):
+        super().__init__()
+        self.df = self._format_df(None)
+        self.fig, self.ax = plt.subplots(1, 2, sharex=False, sharey=False, figsize=(WIDTH, WIDTH // 2))
+
+    def _format_df(self, _):
+        def load_max_acc(ex):
+            path = os.path.join(self.ROOT, f'20class_80min_lr_harmony+melody_{ex}.csv')
+            assert os.path.exists(path)
+            return pd.read_csv(path)['accuracy'].max()
+
+        res = []
+        for ext in self.MAX_N_RESULTS:
+            res.append({
+                'n': '\n'.join([str(eval(i) + 1) for i in ext]),
+                'acc': load_max_acc(ext),
+                'experiment': 'max_n'
+            })
+        for ext in self.MIN_N_RESULTS:
+            res.append({
+                'n': '\n'.join([str(eval(i) + 1) for i in ext]),
+                'acc': load_max_acc(ext),
+                'experiment': 'min_n'
+            })
+
+        res = pd.DataFrame(res).sort_values(by=['experiment', 'n']).reset_index(drop=True)
+        return res
+
+    def _create_plot(self):
+        for ax, exp in zip(self.ax.flatten(), ['max_n', 'min_n']):
+            sub = self.df[self.df['experiment'] == exp].reset_index(drop=True)
+            ax.plot(sub['n'], sub['acc'], **self.LINE_KWS)
+
+    def _format_ax(self):
+        for ax in self.ax.flatten():
+            ax.set(xlabel='$n\in\{x\}$', ylabel='Optimized validation accuracy (LR)', )
+            # ax.set_xticks(ax.get_xticks(), labels=ax.get_xticklabels(), rotation=90)
+            plt.setp(ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
+            ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
+            ax.grid(axis='y', zorder=0, **GRID_KWS)
+
+    def _format_fig(self):
+        self.fig.tight_layout()
+
+    def save_fig(self):
+        out = os.path.join(utils.get_project_root(), 'reports/figures/whitebox/optimization_results_at_n')
+        save_fig_all_exts(out, self.fig)
+
+
+class BigramplotPCAFeatureCount(BasePlot):
+    TEXT_KWS = dict(ha='center', va='center')
+    CIRCLE_KWS = dict(color=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, fill=False, alpha=ALPHA)
+    LINE_KWS = dict(color=BLACK, linewidth=LINEWIDTH, linestyle=DOTTED, alpha=ALPHA)
+    N_SLICES = 8
+    N_FEATURES_PER_SLICE = 5
+    N_PERFORMERS_PER_SLICE = 20
+
+    def __init__(self, df: pd.DataFrame, n_components_to_plot: int = 4, **kwargs):
+        super().__init__(**kwargs)
+        self.n_components_to_plot = n_components_to_plot
+        self.df = self._format_df(df)
+        self.fig, self.ax = plt.subplots(
+            1, n_components_to_plot // 2, figsize=(WIDTH, WIDTH // 2), sharex=True, sharey=True
+        )
+
+    def _format_df(self, df: pd.DataFrame) -> pd.DataFrame:
+        return df[df['component'] < self.n_components_to_plot].reset_index(drop=True)
+
+    @staticmethod
+    def _scale_loading(loading: pd.Series) -> pd.Series:
+        mm = MinMaxScaler(feature_range=(-1., 1.))
+        return mm.fit_transform(loading.to_numpy().reshape(-1, 1)).flatten()
+
+    def get_region(self, x_coords, y_coords):
+        if isinstance(x_coords, pd.Series):
+            x_coords = x_coords.to_numpy()
+        if isinstance(y_coords, pd.Series):
+            y_coords = y_coords.to_numpy()
+        # get angle
+        angle = np.arctan2(x_coords, y_coords)
+        # normalize
+        angle = np.mod(angle, 2 * np.pi)
+        # express as a region
+        return (angle // (2 * np.pi / self.N_SLICES)).astype(int)
+
+    def get_topk_idxs(self, subset_df: pd.DataFrame, n_to_plot: int) -> list[int]:
+        subset_df['region'] = self.get_region(subset_df['loading_x'], subset_df['loading_y'])
+        subset_df['magnitude'] = subset_df['loading_x'].abs() + subset_df['loading_y'].abs()
+        all_idxs = []
+        for idx, sub in subset_df.groupby('region'):
+            all_idxs.extend(sub.sort_values(by='magnitude', ascending=False).index[:n_to_plot].tolist())
+        return all_idxs
+
+    def add_performer_text(self, row: pd.Series, ax: plt.Axes) -> plt.Text:
+        cls = row['label'].split(' ')[0][0] + row['label'].split(' ')[1][0]
+        return ax.text(row['loading_x'], row['loading_y'], cls, fontsize=FONTSIZE * 1.5, **self.TEXT_KWS)
+
+    def add_feature_text(self, row: pd.Series, ax: plt.Axes) -> plt.Text:
+        # We need to add some objects to the plot or else `adjust_text` doesn't seem to work
+        ax.arrow(0, 0, row['loading_x'], row['loading_y'], alpha=0.)
+        txt = m21_utils.intervals_to_pitches(row['label'])
+        return ax.text(row['loading_x'], row['loading_y'], txt, fontsize=FONTSIZE / 1.5, **self.TEXT_KWS)
+
+    def _create_plot(self):
+        for ax, comp1_idx, comp2_idx in zip(
+                self.ax.flatten(),
+                range(0, self.n_components_to_plot, 2),  # 0, 2, 4, 6, ...
+                range(1, self.n_components_to_plot + 1, 2)  # 1, 3, 5, 7, ...
+        ):
+            texts = []
+            for typ, n_to_plot, txt_func in zip(
+                    ['performer', 'feature'],
+                    [self.N_PERFORMERS_PER_SLICE, self.N_FEATURES_PER_SLICE],
+                    [self.add_performer_text, self.add_feature_text]
+            ):
+                comp1 = (
+                    self.df[(self.df['component'] == comp1_idx) & (self.df['type'] == typ)]
+                    .reset_index(drop=True)
+                    .sort_values(by='label')
+                )
+                comp2 = (
+                    self.df[(self.df['component'] == comp2_idx) & (self.df['type'] == typ)]
+                    .reset_index(drop=True)
+                    .sort_values(by='label')
+                )
+                comp1['loading_y'] = self._scale_loading(comp2['loading'])
+                comp1['loading_x'] = self._scale_loading(comp1['loading'])
+                to_plot = comp1[comp1.index.isin(self.get_topk_idxs(comp1, n_to_plot))]
+                for idx, row in to_plot.iterrows():
+                    txt = txt_func(row, ax)
+                    texts.append(txt)
+            adjust_text(texts, ax=ax, expand=(1.3, 1.3), arrowprops=dict(arrowstyle='->', color=RED))
+
+    def _format_ax(self):
+        for num, ax in zip(range(1, self.n_components_to_plot, 2), self.ax.flatten()):
+            # We're plotting even-numbered PCAs on x-axis, odd-numbered on y
+            ax.set(xlim=(-1.1, 1.1), ylim=(-1.1, 1.1), xlabel=f'PCA {num}', ylabel=f'PCA {num + 1}')
+            plt.setp(ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
+            ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
+            # ax.grid(axis='both', zorder=0, **GRID_KWS)
+            circle1 = plt.Circle((0, 0), 1., **self.CIRCLE_KWS)
+            ax.add_patch(circle1)
+            ax.axhline(0, 0, 1, **self.LINE_KWS)
+            ax.axvline(0, 0, 1, **self.LINE_KWS)
+
+    def _format_fig(self):
+        self.fig.tight_layout()
+
+    def save_fig(self, out_path: str):
+        save_fig_all_exts(out_path, self.fig)
 
 
 if __name__ == "__main__":
     # This just generates some plots that we can't easily create otherwise
+    blp = LinePlotWhiteboxAccuracyN()
+    blp.create_plot()
+    blp.save_fig()
     met = utils.get_track_metadata(utils.get_pianist_names())
     bp = BarPlotDatasetDurationCount(met)
     bp.create_plot()

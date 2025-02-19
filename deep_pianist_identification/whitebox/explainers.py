@@ -12,13 +12,14 @@ from typing import Any, Callable
 import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
+from sklearn.decomposition import PCA
 from sklearn.metrics import accuracy_score
 from tqdm import tqdm
 
 from deep_pianist_identification import utils, plotting
-from deep_pianist_identification.whitebox.wb_utils import get_classifier_and_params, N_ITER, N_JOBS
+from deep_pianist_identification.whitebox.wb_utils import get_classifier_and_params, N_ITER, N_JOBS, scale_for_pca
 
-N_PERMUTATION_COEFS = 1000
+N_PERMUTATION_COEFS = 2000
 
 
 class WhiteBoxExplainer:
@@ -510,7 +511,7 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
         # Create the barplot
         bp = plotting.BarPlotWhiteboxDatabaseCoefficients(self.df)
         bp.create_plot()
-        bp.save_fig(os.path.join(self.output_dir, f'barplot_database_correlations_k{self.k}.png'))
+        bp.save_fig(os.path.join(self.output_dir, f'barplot_database_correlations_k{self.k}'))
         # Create the histplot
         hp = plotting.HistPlotDatabaseNullDistributionCoefficients(
             self.mel_null_dists, self.har_null_dists,
@@ -519,7 +520,122 @@ class DatabasePermutationExplainer(WhiteBoxExplainer):
             self.class_mapping
         )
         hp.create_plot()
-        hp.save_fig(os.path.join(self.output_dir, f'histplot_nulldistribution_coefficients_k{self.k}.png'))
+        hp.save_fig(os.path.join(self.output_dir, f'histplot_nulldistribution_coefficients_k{self.k}'))
         # Dump self to a pickle file
         with open(os.path.join(self.output_dir, f'database_correlations_k{self.k}.p'), 'wb') as out:
             pickle.dump(self, out)
+
+
+class PCAFeatureCountsExplainer(WhiteBoxExplainer):
+    def __init__(
+            self,
+            feature_counts,
+            targets,
+            feature_names,
+            class_mapping: dict,
+            feature_type: str,
+            feature_size: int = 4,
+            variance_target: float = 0.75,
+            n_components: int = None,
+    ):
+        super().__init__(output_dir="pca_feature_counts")
+        self.targets = targets
+        self.feature_size = feature_size
+        self.feature_type = feature_type
+        self.feature_idxs = [n for n, i in enumerate(feature_names) if len(eval(i)) == self.feature_size]
+        if not isinstance(feature_names, np.ndarray):
+            feature_names = np.array(feature_names)
+        self.labels = feature_names[self.feature_idxs]
+        self.n_components = n_components
+        self.counts = scale_for_pca(feature_counts[:, self.feature_idxs])  # tf-idf -> z-score -> scale
+        self.variance_target = variance_target
+        self.pca = None
+        self.explained_variance = None
+        self.class_mapping = class_mapping
+
+    def fit_pca(self, n_components: int):
+        pca = PCA(n_components=n_components, random_state=utils.SEED)
+        return pca.fit(self.counts)
+
+    @staticmethod
+    def get_explained_variance(pca) -> float:
+        return np.cumsum(pca.explained_variance_ratio_)[-1]
+
+    def get_n_components(self, raise_when_exceeding: int = 512) -> int:
+        if self.n_components is not None:
+            return self.n_components
+
+        for n_components in range(1, raise_when_exceeding + 1):
+            pca = self.fit_pca(n_components)
+            ev = self.get_explained_variance(pca)
+            # Once we've explained the target amount of variance, return the number of components
+            if ev > self.variance_target:
+                return n_components
+        raise ValueError(f'`n_components` exceeded maximum {raise_when_exceeding} with '
+                         f'target of {round(self.variance_target, 3)} explained variance')
+
+    def average_counts(self, counts: np.ndarray) -> np.ndarray:
+        """Average the counts for each performer across all of their tracks"""
+        # Stack the counts and targets: shape (tracks, features + 1)
+        data = np.column_stack([counts, self.targets])
+        # Get the unique performer indices: shape (performers)
+        unique_groups = np.unique(data[:, -1])
+        result = []
+        # Iterate over all of our groups
+        for group in unique_groups:
+            # Filter rows for this group
+            group_data = data[data[:, -1] == group]
+            # Average across rows
+            group_mean = group_data.mean(axis=0)
+            result.append(group_mean)
+        # Stack into an array: shape (performers, features)
+        return np.array(result)[:, :-1]
+
+    def get_performer_loadings(self) -> np.ndarray:
+        class_means = self.average_counts(self.counts)
+        class_loadings = np.dot(class_means, self.pca.components_.T)
+        return class_loadings
+
+    def get_feature_loadings(self) -> np.ndarray:
+        # Get the loadings of each feature onto every component: shape (features, components)
+        return self.pca.components_.T * np.sqrt(self.pca.explained_variance_)
+
+    @staticmethod
+    def format_loadings(
+            loadings: np.ndarray,
+            mapping: dict | np.ndarray,
+            loading_type: str
+    ) -> dict:
+        """Formats loadings, one dictionary for every performer/feature loading onto each component"""
+        for idx, class_loadings in enumerate(loadings):
+            cls = mapping[idx]
+            for comp_idx, comp_load in enumerate(class_loadings):
+                yield dict(
+                    label=cls,
+                    type=loading_type,
+                    component=comp_idx,
+                    loading=comp_load
+                )
+
+    def explain(self) -> pd.DataFrame:
+        # Fitting the PCA
+        self.n_components = self.get_n_components()
+        self.pca = self.fit_pca(self.n_components)
+        self.explained_variance = self.get_explained_variance(self.pca)
+        # Get loadings for all components: shape (n_performers | n_features, n_components)
+        perf_loading = self.get_performer_loadings()
+        feat_loading = self.get_feature_loadings()
+        # Format everything into a dataframe: rows (n_performers | n_features * n_components)
+        perf_df = pd.DataFrame(self.format_loadings(perf_loading, self.class_mapping, 'performer'))
+        feat_df = pd.DataFrame(self.format_loadings(feat_loading, self.labels, 'feature'))
+        # Concatenate the dataframe: rows ((n_performers * n_components) + (n_features * n_components))
+        self.df = pd.concat([perf_df, feat_df], axis=0).reset_index(drop=True)
+        return self.df
+
+    def create_outputs(self):
+        # Save the dataframe
+        self.df.to_csv(os.path.join(self.output_dir, f'pca_{self.feature_type}_k{self.feature_size}.csv'))
+        # Create the barplot
+        bp = plotting.BigramplotPCAFeatureCount(self.df)
+        bp.create_plot()
+        bp.save_fig(os.path.join(self.output_dir, f'bigrams_{self.feature_type}_pca_k{self.feature_size}'))

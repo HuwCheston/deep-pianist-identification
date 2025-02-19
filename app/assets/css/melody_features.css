@@ -191,8 +191,8 @@ body {
 
 .return-button {
     position: fixed;
-    bottom: 20px;
-    left: 20px;
+    top: 20px;
+    right: 20px;
     padding: 20px;
     background-color: #333;
     color: white;
@@ -363,4 +363,11 @@ midi-visualizer svg rect.note.active {
     opacity: 0.9;
     stroke: #000;
     fill: #f44; /* Optionally highlight active notes differently */
+}
+
+.vl {
+    border-left: 6px solid green;
+    height: 509px;
+    position: absolute;
+    top: 30.1%;
 }
