@@ -1085,7 +1085,7 @@ class HeatmapCAVKernelSensitivity(BasePlot):
         else:
             return (
                 f'{loaded["bandleader"]} — "{loaded["track_name"]}" from "{loaded["album_name"]}", '
-                f'{loaded["recording_year"]}. CAV: {self.cav_name.title()}'
+                f'{loaded["recording_year"]}.'
             )
 
     def _create_plot(self):
@@ -1110,7 +1110,7 @@ class HeatmapCAVKernelSensitivity(BasePlot):
             alpha=0.4,
             cmap=cmc.cork,
             center=0.,
-            cbar_kws=dict(label='Score', pad=0.6)
+            cbar_kws=dict(label=self.cav_name.title(), pad=0.6)
         )
 
     def _format_fig(self):
