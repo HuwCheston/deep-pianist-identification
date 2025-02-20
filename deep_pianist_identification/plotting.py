@@ -1049,7 +1049,11 @@ class HeatmapCAVKernelSensitivity(BasePlot):
         self.cav_name = cav_name
         # Matplotlib figure and axis
         self.clip_start, self.clip_end = self.parse_clip_start_stop(clip_path)
-        self.fig, self.ax = plt.subplots(1, 1, figsize=(WIDTH, WIDTH // 3))
+        self.fig = plt.figure(figsize=(WIDTH, WIDTH // 3))
+        gs0 = GridSpec(1, 3, width_ratios=[1, 29, 1], hspace=0.01)
+        self.cax1 = self.fig.add_subplot(gs0[0])
+        self.ax = self.fig.add_subplot(gs0[1])
+        self.cax2 = self.fig.add_subplot(gs0[2])
 
     @staticmethod
     def seconds_to_timedelta(seconds: int):
@@ -1080,38 +1084,42 @@ class HeatmapCAVKernelSensitivity(BasePlot):
         # Otherwise, return the formatted timestamp using the same format as our LIME plots
         else:
             return (
-                f'{loaded["bandleader"]} — "{loaded["track_name"]}" ({clip_start_fmt}—{clip_end_fmt}) '
-                f'\nfrom "{loaded["album_name"]}", {loaded["recording_year"]}. CAV: {self.cav_name.title()}'
+                f'{loaded["bandleader"]} — "{loaded["track_name"]}" from "{loaded["album_name"]}", '
+                f'{loaded["recording_year"]}. CAV: {self.cav_name.title()}'
             )
 
     def _create_plot(self):
-        # Create the background for the heatmap by resizing to the same size as the piano roll
-        background = resize(self.sensitivity_array, (utils.PIANO_KEYS, utils.CLIP_LENGTH * utils.FPS))
-        sns.heatmap(
-            background,
-            ax=self.ax,
-            alpha=0.7,
-            cmap=cmc.cork,
-            center=0.,
-            cbar_kws=dict(label='Score', pad=-0.07)
-        )
         # Plot the original piano roll
         self.clip_roll[self.clip_roll == 0] = np.nan  # set 0 values to NaN to make transparent
         sns.heatmap(
             self.clip_roll,
             ax=self.ax,
+            cbar_ax=self.cax1,
             alpha=1.0,
-            cbar_kws=dict(label='Velocity', pad=0.01),
+            cbar_kws=dict(label='Velocity', pad=0.6),
             cmap="rocket",
             vmin=0,
             vmax=utils.MAX_VELOCITY
         )
+        # Create the background for the heatmap by resizing to the same size as the piano roll
+        background = resize(self.sensitivity_array, (utils.PIANO_KEYS, utils.CLIP_LENGTH * utils.FPS))
+        sns.heatmap(
+            background,
+            ax=self.ax,
+            cbar_ax=self.cax2,
+            alpha=0.4,
+            cmap=cmc.cork,
+            center=0.,
+            cbar_kws=dict(label='Score', pad=0.6)
+        )
 
     def _format_fig(self):
         # Figure aesthetics
-        self.fig.subplots_adjust(right=1.075, left=0.05, top=0.875, bottom=0.15)
+        self.fig.subplots_adjust(right=0.93, left=0.07, top=0.9, bottom=0.15)
 
     def _format_ax(self):
+        self.cax1.yaxis.tick_left()
+        self.cax1.yaxis.set_label_position("left")
         # Axis aesthetics
         self.ax.set(
             xticks=range(0, (utils.CLIP_LENGTH * utils.FPS + 1), utils.FPS * 5),
