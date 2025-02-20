@@ -7,6 +7,7 @@ import json
 import os
 import pickle
 
+import cmcrameri.cm as cmc
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -62,6 +63,12 @@ class HeatmapCAVKernelSensitivityInteractive(plotting.HeatmapCAVKernelSensitivit
         colors = [f'rgba({int(r * 255)}, {int(g * 255)}, {int(b * 255)}, 1)' for r, g, b in palette]
         return list(zip(np.linspace(0, 1, len(colors)), colors))
 
+    @staticmethod
+    def create_plotly_colorscale_from_cmc(cmc_cmap) -> list:
+        palette = cmc_cmap.colors
+        colors = [f'rgba({int(r * 255)}, {int(g * 255)}, {int(b * 255)}, 1)' for r, g, b in palette]
+        return list(zip(np.linspace(0, 1, len(colors)), colors))
+
     def _create_plot(self):
         background = resize(self.sensitivity_array, (utils.PIANO_KEYS, utils.CLIP_LENGTH * utils.FPS))
         self.clip_roll[self.clip_roll == 0] = np.nan
@@ -71,8 +78,8 @@ class HeatmapCAVKernelSensitivityInteractive(plotting.HeatmapCAVKernelSensitivit
             hoverinfo='text',
             text=self.get_hovertext(),
             colorscale=self.create_plotly_colorscale_from_seaborn("rocket"),
-            colorbar=dict(title='Dynamics', x=1.05),
-            zmin=0,
+            colorbar=dict(title='Velocity', x=1.05),
+            zmin=0.,
             zmax=utils.MAX_VELOCITY
         )
         f2 = go.Heatmap(
@@ -80,7 +87,8 @@ class HeatmapCAVKernelSensitivityInteractive(plotting.HeatmapCAVKernelSensitivit
             showscale=True,
             hoverinfo='skip',
             opacity=1.0,
-            colorscale=self.create_plotly_colorscale_from_seaborn("mako_r"),
+            colorscale=self.create_plotly_colorscale_from_cmc(cmc.cork),
+            zmid=0.,
             colorbar=dict(title='Score', x=1.15),
             reversescale=False
         )

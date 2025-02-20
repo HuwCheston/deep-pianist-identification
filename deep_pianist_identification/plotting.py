@@ -1091,8 +1091,9 @@ class HeatmapCAVKernelSensitivity(BasePlot):
             background,
             ax=self.ax,
             alpha=0.7,
-            cmap="mako_r",
-            cbar_kws={'label': 'Change in Score\n(1 = original)', 'pad': -0.07}
+            cmap=cmc.cork,
+            center=0.,
+            cbar_kws=dict(label='Score', pad=-0.07)
         )
         # Plot the original piano roll
         self.clip_roll[self.clip_roll == 0] = np.nan  # set 0 values to NaN to make transparent
@@ -1100,7 +1101,7 @@ class HeatmapCAVKernelSensitivity(BasePlot):
             self.clip_roll,
             ax=self.ax,
             alpha=1.0,
-            cbar_kws={'label': 'Velocity', 'pad': 0.01},
+            cbar_kws=dict(label='Velocity', pad=0.01),
             cmap="rocket",
             vmin=0,
             vmax=utils.MAX_VELOCITY
