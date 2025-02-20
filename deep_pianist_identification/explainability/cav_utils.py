@@ -653,6 +653,7 @@ class CAVKernelSlider:
             class_mapping: dict,
             kernel_size: tuple[int, int] = None,
             stride: tuple[int, int] = None,
+            normalize: bool = True
     ):
         super().__init__()
         self.class_mapping = class_mapping
@@ -685,6 +686,7 @@ class CAVKernelSlider:
         ).item()
         # Will hold the array of kernel sensitivities
         self.sensitivity_array = None
+        self.normalize = normalize
 
     def get_target(self, clip_path: str):
         performer = clip_path.split(os.path.sep)[-2].split('-')[0][:-1]
@@ -716,19 +718,21 @@ class CAVKernelSlider:
     def get_kernels(self):
         s_h, s_w = self.stride
         # Get array of heights
-        heights = np.arange(0, utils.PIANO_KEYS, s_h)
+        heights = np.arange(0, utils.PIANO_KEYS + s_h, s_h)
         assert all([int(i) == i for i in heights]), "All height values should be ints"
         # Get array of widths (can possibly be floats?)
-        widths = np.arange(0, utils.CLIP_LENGTH, s_w)
+        widths = np.arange(0, utils.CLIP_LENGTH + s_w, s_w)
         # Get the combinations of both arrays and return
         return list(product(heights, widths))
 
-    def _sensitivity_for_one_kernel(self, h_low: float, w_low: float) -> float:
+    def _sensitivity_for_one_kernel(self, h_center: float, w_center: float) -> float:
         # Unpack kernel size for readability
         k_h, k_w = self.kernel_size
-        # Get upper boundaries of the kernel
-        h_hi = h_low + k_h
-        w_hi = w_low + k_w
+        # Get boundaries of the kernel
+        h_low = max(h_center - (k_h / 2), 0)  # clamp everything to within the height of the clip
+        h_hi = min(h_center + (k_h / 2), utils.PIANO_KEYS)
+        w_low = max(w_center - (k_w / 2), 0)  # clamp everything to within the width of the clip
+        w_hi = min(w_center + (k_w / 2), utils.CLIP_LENGTH)
         # Deep copy so we don't modify the underlying data (maybe not needed?)
         temp = deepcopy(self.clip_midi)
         # Remove notes that are contained within the kernel
@@ -749,5 +753,7 @@ class CAVKernelSlider:
             kernel_sen = self._sensitivity_for_one_kernel(h_low, w_low)
             all_sensitivities.append(kernel_sen)
         self.sensitivity_array = np.array(all_sensitivities).reshape(self.heatmap_size)
-        self.sensitivity_array /= self.original_sensitivity
+        # Here we're doing (Original - Masked) / Original, such that >0 == high local sensitivity score for a region
+        if self.normalize:
+            self.sensitivity_array = (self.original_sensitivity - self.sensitivity_array) / self.original_sensitivity
         return self.sensitivity_array
