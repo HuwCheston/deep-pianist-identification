@@ -5,7 +5,7 @@
 <img src="https://img.shields.io/badge/Check%20out%20our%20webapp!-8A2BE2" alt="Check out our webapp!"/>
 </a>
 
-This repo accompanies our paper "Deconstructing Jazz Piano Style Using Machine Learning". For more information, see [our preprint](TODO) or check out
+This repo accompanies our paper "Deconstructing Jazz Piano Style Using Machine Learning". For more information, see [our preprint](https://arxiv.org/abs/2504.05009) or check out
 the [interactive web application.](https://huwcheston.github.io/ImprovID-app/index.html)
 
 The code in this repository was developed using the following configuration:
@@ -113,15 +113,14 @@ If you refer to any aspect of this work, please cite the following preprint:
 <summary>View citation</summary>
 
 ```
-@article{cheston2025jazz,
-  title = {Deconstructing Jazz Piano Style Using Machine Learning},
-  author = {Huw Cheston and Reuben Bance and Peter Harrison},
-  journal = {arXiv},
-  year = {2025},
-  eprint = {arXiv:TODO},
-  eprinttype = {arxiv},
-  eprintclass = {cs.SD},
-  institution = {Centre for Music and Science, University of Cambridge}
+@misc{cheston2025deconstructingjazzpianostyle,
+      title={Deconstructing Jazz Piano Style Using Machine Learning}, 
+      author={Huw Cheston and Reuben Bance and Peter M. C. Harrison},
+      year={2025},
+      eprint={2504.05009},
+      archivePrefix={arXiv},
+      primaryClass={cs.SD},
+      url={https://arxiv.org/abs/2504.05009}, 
 }
 ```
 
