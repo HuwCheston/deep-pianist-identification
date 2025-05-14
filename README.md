@@ -8,16 +8,19 @@
 This repo accompanies our paper "Deconstructing Jazz Piano Style Using Machine Learning". For more information, see [our preprint](https://arxiv.org/abs/2504.05009) or check out
 the [interactive web application.](https://huwcheston.github.io/ImprovID-app/index.html)
 
-The code in this repository was developed using the following configuration:
+The code in this repository was developed and tested using the following configuration:
 
 - Ubuntu 22.04.1
 - Python 3.10.12
 - CUDA 12.2
 
+Full Python dependencies can be found inside the [`requirements.txt` file](https://github.com/HuwCheston/deep-pianist-identification/blob/main/requirements.txt).
+
 ## Contents:
 
 - [Setup](#setup)
 - [Reproducing results and figures](#reproducing-results-and-figures)
+- [Demo](#demo)
 - [Tests](#tests)
 - [License](#license)
 - [Citation](#citation)
@@ -80,6 +83,8 @@ file. The folder structure of the `.zip` is identical to this repository, so if 
 
 </details>
 
+The time typically required to install the repository and all dependencies on a "normal" desktop computer is under 10 minutes.
+
 ## Reproducing results and figures
 
 - To reproduce the results from the handcrafted features models described in section 3. of our paper,
@@ -91,6 +96,16 @@ file. The folder structure of the `.zip` is identical to this repository, so if 
 - Finally, if (for whatever reason) you want to
   rebuild [our web application](https://huwcheston.github.io/ImprovID-app/index.html), you can check
   out [this README](deep_pianist_identification/app/README.md)
+
+## Demo
+
+To quickly run inference on the held-out test data using our pre-trained multi-input model, follow the instructions given in [Setup](#setup), then run the following command:
+
+```
+python deep_pianist_identification/validation.py --config disentangle-resnet-channel/disentangle-jtd+pijama-resnet18-mask30concept3-augment50-noattention-avgpool-onefc.yaml
+```
+
+Once finished, outputs will be saved to `reports/figures/ablated_representations`.
 
 ## Tests
 
