@@ -119,7 +119,7 @@ Evaluated on a subset of both the [Jazz Trio Database](https://github.com/HuwChe
 
 | Model | Multi-Input? | Test accuracy (recording) |
 | ----- | ------------ | ------------------------- |
-| Ours  | Yes          | 0.906                     |
+| Ours  | Yes          | 0.913                     |
 | ResNet-50 (Kim et al., 2020) | No  | **0.944**                  |
 | Logistic Regression | No  | 0.767                  |
 
