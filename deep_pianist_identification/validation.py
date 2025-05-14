@@ -287,6 +287,7 @@ class ValidateModule:
         self.save_json(self.get_most_predictive_tracks_with_masks(mask_clip_target_probs), 'max_logit_per_mask.json')
         # Get the zero-rate of the accuracy as our baseline
         self.baseline_accuracy = self.get_zero_rate_accuracy(track_targets, track_names)
+        logger.info(f"Zero-rate accuracy: {self.baseline_accuracy:.5f}")
         global_accuracies, perclass_accuracies = [], []
         # Iterate through all individual combinations of masks
         sc_names, sc_cms = [], []
@@ -313,7 +314,7 @@ class ValidateModule:
             self.create_confusion_matrix(p, t, mask)
             # Log and store a dictionary for this combination of masks
             logger.info(f"Results for concepts {mask}: clip accuracy {clip_acc:.5f}, track accuracy {track_acc:.5f}")
-            logger.info(f"Accuracy loss vs. full model: {1 - (track_acc / self.full_accuracy):.5f}")
+            logger.info(f"Accuracy loss vs. full model: {abs(track_acc - self.full_accuracy):.5f}")
             global_accuracies.append(dict(model=self.run, concepts=mask, clip_acc=clip_acc, track_acc=track_acc))
         # Create plot of all single-concept confusion matrices
         hm = plotting.HeatmapConfusionMatrices(sc_cms, sc_names, pianist_mapping=self.class_mapping)
