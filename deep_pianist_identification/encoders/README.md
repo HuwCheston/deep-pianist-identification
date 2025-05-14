@@ -76,8 +76,8 @@ These experiments are for the **factorized** model
 
 | Encoder   | Heads | Pooling | Augment | Mask | Test accuracy | Filepath (relative to `./config`)                                                                                    |
 |-----------|-------|---------|---------|------|---------------|----------------------------------------------------------------------------------------------------------------------|
-| ResNet-18 | 0     | Average | Y       | Y    | *0.906*       | `disentangle-resnet-channel/disentangle-jtd+pijama-resnet18-mask30concept3-augment50-noattention-avgpool-onefc.yaml` |
-| ResNet-34 | 0     | Average | Y       | Y    | *0.906*       | `disentangle-final-experiments/disentangle-jtd+pijama-resnet34-noattention-avgpool-augment50-mask30concept3.yaml`    |
+| ResNet-18 | 0     | Average | Y       | Y    | **0.913**     | `disentangle-resnet-channel/disentangle-jtd+pijama-resnet18-mask30concept3-augment50-noattention-avgpool-onefc.yaml` |
+| ResNet-34 | 0     | Average | Y       | Y    | 0.906         | `disentangle-final-experiments/disentangle-jtd+pijama-resnet34-noattention-avgpool-augment50-mask30concept3.yaml`    |
 | ResNet-50 | 0     | Average | Y       | Y    | 0.863         | `disentangle-final-experiments/disentangle-jtd+pijama-resnet50-noattention-avgpool-augment50-mask30concept3.yaml`    |
 | CRNN      | 0     | Average | Y       | Y    | 0.812         | `disentangle-final-experiments/disentangle-jtd+pijama-8conv3pool-noattention-avgpool-augment50-mask30concept3.yaml`  |
 | ResNet-18 | 4     | Average | Y       | Y    | 0.825         | `disentangle-final-experiments/disentangle-jtd+pijama-resnet18-4heads-avgpool-augment50-mask30concept3.yaml`         |
