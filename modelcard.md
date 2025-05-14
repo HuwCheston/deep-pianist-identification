@@ -17,6 +17,7 @@ This model is capable of identifying twenty jazz pianists from symbolic (MIDI) r
 - **Repository:** https://github.com/HuwCheston/deep-pianist-identification
 - **Paper:** https://arxiv.org/abs/2504.05009
 - **Demo:** https://cms.mus.cam.ac.uk/jazz-piano-style-ml
+- **Data and checkpoints:** https://zenodo.org/records/14774191 
 
 ## Uses
 
@@ -93,6 +94,7 @@ Trained on a subset of both the [Jazz Trio Database](https://github.com/HuwChest
 - **Learning rate:** `1e-4`
 - **Batch size**: 20
 - **Epochs**: 100
+- **Augmentation**: 50% probability of shifting all pitch values by +/- 6 semitones, scaling all note onset/offset times between 0.8 and 1.2x their original values, and perturbing the velocity of every note by +/- 12 MIDI values.
 
 ## Evaluation
 
