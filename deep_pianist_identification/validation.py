@@ -27,7 +27,7 @@ MASKS = ["melody", "harmony", "rhythm", "dynamics"]
 MASK_COMBINATIONS = []
 for L in range(len(MASKS) + 1):
     for subset in combinations(range(len(MASKS)), L):
-        if len(subset) == len(MASKS):
+        if len(subset) == len(MASKS) or len(subset) == 0:
             continue
         MASK_COMBINATIONS.append(subset)
 
@@ -206,39 +206,36 @@ class ValidateModule:
                 new_dict[perf][mask] = (best_track, max_logit_for_mask)
         return new_dict
 
+    @staticmethod
+    def apply_masks(embedding_list: list[torch.tensor], idx_to_mask: list[int]) -> torch.tensor:
+        """For a given list of tensors, mask those contained in `idx_to_mask` with zeros"""
+        for embedding_idx in range(len(embedding_list)):
+            embed = embedding_list[embedding_idx]
+            if embedding_idx in idx_to_mask:
+                embed *= torch.zeros_like(embed)
+            yield embed
+
+    def thru_model(self, masked_embeddings: list[torch.tensor]) -> torch.tensor:
+        """Runs a tensor of masked embeddings through the model and returns class logits"""
+        # Stack into a single tensor
+        x = torch.cat(masked_embeddings, dim=1)
+        # Self-attention across channels if required
+        if self.model.use_attention:
+            x, _ = self.model.self_attention(x, x, x)
+        # Permute to (batch, features, channels)
+        x = x.permute(0, 2, 1)
+        # Pool across channels
+        x = self.model.pooling(x)
+        # Remove singleton dimension
+        x = x.squeeze(2)
+        # Pass through linear layers
+        x = self.model.fc1(x)
+        logs = self.model.fc2(x)
+        # Softmax the class logits
+        return torch.nn.functional.softmax(logs, dim=1)
+
     def validate_multichannel(self) -> list[dict]:
         """Validation for multichannel models: compute accuracy for all combinations of masked concepts"""
-        # We'll store results in these dictionaries and lists
-        mask_clip_target_probs = {p: {} for p in self.class_mapping.values()}
-        combo_accuracies = {}
-        track_names, track_targets = [], []
-
-        def apply_masks(embedding_list: list[torch.tensor], idx_to_mask: list[int]) -> torch.tensor:
-            """For a given list of tensors, mask those contained in `idx_to_mask` with zeros"""
-            for embedding_idx in range(len(embedding_list)):
-                embed = embedding_list[embedding_idx]
-                if embedding_idx in idx_to_mask:
-                    embed *= torch.zeros_like(embed)
-                yield embed
-
-        def thru_model(masked_embeddings: list[torch.tensor]) -> torch.tensor:
-            """Runs a tensor of masked embeddings through the model and returns class logits"""
-            # Stack into a single tensor
-            x = torch.cat(masked_embeddings, dim=1)
-            # Self-attention across channels if required
-            if self.model.use_attention:
-                x, _ = self.model.self_attention(x, x, x)
-            # Permute to (batch, features, channels)
-            x = x.permute(0, 2, 1)
-            # Pool across channels
-            x = self.model.pooling(x)
-            # Remove singleton dimension
-            x = x.squeeze(2)
-            # Pass through linear layers
-            x = self.model.fc1(x)
-            logs = self.model.fc2(x)
-            # Softmax the class logits
-            return torch.nn.functional.softmax(logs, dim=1)
 
         def get_proba_given_mask(targs: torch.tensor, softm: torch.tensor, names: tuple[str], current_masks: str):
             """Gets logits for target class for every track given current masks"""
@@ -254,6 +251,11 @@ class ValidateModule:
                 # Update the dictionary: ordering goes performer name -> clip name -> mask name
                 mask_clip_target_probs[perf][clip_name][current_masks] = proba
 
+        # We'll store results in these dictionaries and lists
+        mask_clip_target_probs = {p: {} for p in self.class_mapping.values()}
+        combo_accuracies = {}
+        track_names, track_targets = [], []
+
         with torch.no_grad():
             for roll, targets, tracks in tqdm(self.validation_dataloader, desc=f"Multi-channel Prediction: "):
                 # Set devices correctly for all tensors
@@ -262,14 +264,26 @@ class ValidateModule:
                 # Append the track names and targets to the list
                 track_names.extend((t.split(os.path.sep)[0] for t in tracks))
                 track_targets.append(targets)
+
+                # Getting accuracy with the "full" model, without any masking
+                logits = self.model(roll)
+                softmaxed = torch.nn.functional.softmax(logits, dim=1)
+                predicted = torch.argmax(softmaxed, dim=1)
+                clip_accuracy = self.acc_fn(predicted, targets).item()
+                cmasks = "melody+harmony+rhythm+dynamics"
+                if cmasks not in combo_accuracies.keys():
+                    combo_accuracies[cmasks] = {"clip_accuracy": [], "track_predictions": []}
+                combo_accuracies[cmasks]["clip_accuracy"].append(clip_accuracy)
+                combo_accuracies[cmasks]["track_predictions"].append(softmaxed)
+
                 # Compute the individual embeddings
                 embeddings = self.model.extract_concepts(roll)
                 # Iterate through all indexes to mask: i.e., [0, 1, 2, 3], [0, 1, 2], [1, 2, 3]...
                 for mask_idxs in MASK_COMBINATIONS:
                     # Mask the required embeddings for this combination
-                    new_embeddings = list(apply_masks(deepcopy(embeddings), mask_idxs))
+                    new_embeddings = list(self.apply_masks(deepcopy(embeddings), mask_idxs))
                     # Pass the masked embeddings through the model to get softmaxed logits
-                    softmaxed = thru_model(new_embeddings)
+                    softmaxed = self.thru_model(new_embeddings)
                     # Get clip level accuracy
                     combo_preds = torch.argmax(softmaxed, dim=1)
                     combo_accuracy = self.acc_fn(combo_preds, targets).item()
@@ -289,6 +303,7 @@ class ValidateModule:
         self.baseline_accuracy = self.get_zero_rate_accuracy(track_targets, track_names)
         logger.info(f"Zero-rate accuracy: {self.baseline_accuracy:.5f}")
         global_accuracies, perclass_accuracies = [], []
+
         # Iterate through all individual combinations of masks
         sc_names, sc_cms = [], []
         for mask, vals in combo_accuracies.items():
@@ -316,6 +331,7 @@ class ValidateModule:
             logger.info(f"Results for concepts {mask}: clip accuracy {clip_acc:.5f}, track accuracy {track_acc:.5f}")
             logger.info(f"Accuracy loss vs. full model: {abs(track_acc - self.full_accuracy):.5f}")
             global_accuracies.append(dict(model=self.run, concepts=mask, clip_acc=clip_acc, track_acc=track_acc))
+
         # Create plot of all single-concept confusion matrices
         hm = plotting.HeatmapConfusionMatrices(sc_cms, sc_names, pianist_mapping=self.class_mapping)
         hm.create_plot()
@@ -374,7 +390,7 @@ class ValidateModule:
                 clip_accuracy = self.acc_fn(predicted, targets).item()
                 # Append everything to our list for running totals across the batch
                 clip_accs.append(clip_accuracy)
-                track_names.extend(tracks)
+                track_names.extend([i.split(os.path.sep)[0] for i in tracks])
                 track_preds.append(softmaxed)
                 track_targets.append(targets)
         self.baseline_accuracy = self.get_zero_rate_accuracy(track_targets, track_names)
