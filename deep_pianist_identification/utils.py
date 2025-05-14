@@ -9,7 +9,6 @@ import random
 import string
 from contextlib import contextmanager
 from functools import cache
-from pathlib import Path
 from time import time
 from typing import ContextManager
 
@@ -77,9 +76,15 @@ def timer(name: str) -> ContextManager[None]:
         logger.debug(f"Took {end - start:.2f} seconds to {name}.")
 
 
-def get_project_root() -> Path:
+def get_project_root() -> str:
     """Returns the root directory of the project"""
-    return Path(__file__).absolute().parent.parent
+    start_path = os.getcwd()
+    current_path = os.path.abspath(start_path)
+    while current_path != os.path.dirname(current_path):  # Stop when reaching the filesystem root
+        if os.path.isdir(os.path.join(current_path, '.git')):
+            return current_path
+        current_path = os.path.dirname(current_path)
+    raise FileNotFoundError("No .git directory found. Not inside a Git repository.")
 
 
 def remove_punctuation(s: str) -> str:
