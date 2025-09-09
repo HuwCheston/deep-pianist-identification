@@ -13,8 +13,9 @@ The code in this repository was developed and tested using the following configu
 - Ubuntu 22.04.1
 - Python 3.10.12
 - CUDA 12.2
+- Poetry
 
-Full Python dependencies can be found inside the [`requirements.txt` file](https://github.com/HuwCheston/deep-pianist-identification/blob/main/requirements.txt).
+Full Python dependencies can be found inside the [`pyproject.toml` file](https://github.com/HuwCheston/deep-pianist-identification/blob/main/requirements.txt).
 
 ## Contents:
 
@@ -31,9 +32,7 @@ First, clone the repository and install the dependencies in the usual way:
 
 ```
 git clone https://github.com/HuwCheston/deep-pianist-identification.git
-python -m venv venv    # use python3.10
-source venv/bin/activate
-pip install -r requirements.txt
+poetry install
 ```
 
 Then, you can download the data, model checkpoints, and additional resources
