@@ -50,7 +50,7 @@ MIN_PIANIST_MINUTES = 80.0  # A pianist must have at least this many minutes of 
 TRAIN_SIZE, TEST_SIZE, VALIDATION_SIZE = 0.8, 0.1, 0.1
 
 
-def lp_group_split(df: pd.DataFrame, group_col: str = 'album_name') -> pd.DataFrame:
+def lp_group_split(df: pd.DataFrame, group_col: str = 'album_name', seed: int = SEED) -> pd.DataFrame:
     """
     LP-based group split that:
     - Keeps all recordings of a group (either album/composition) together
@@ -65,7 +65,10 @@ def lp_group_split(df: pd.DataFrame, group_col: str = 'album_name') -> pd.DataFr
     Returns:
         df : pandas.DataFrame with new column 'split'
     """
+    # random shuffle for non-determinism
     groups = df[group_col].unique()
+    np.random.shuffle(groups)
+
     total_records = len(df)
     targets = {
         'train': total_records * TRAIN_SIZE,
@@ -126,7 +129,7 @@ def lp_group_split(df: pd.DataFrame, group_col: str = 'album_name') -> pd.DataFr
     prob += pulp.lpSum([d_total[s] for s in targets.keys()]) + pulp.lpSum([d_strat[s][level] for s in targets.keys() for level in strat_levels])
 
     # 6. Solve
-    solver = pulp.PULP_CBC_CMD(timeLimit=120, gapRel=0.02, msg=True)
+    solver = pulp.PULP_CBC_CMD(timeLimit=120, gapRel=0.02, msg=True, options=[f"randomSeed {seed}"])
     prob.solve(solver)
 
     # Extract assignment
@@ -330,7 +333,8 @@ def generate_stratified(
         train_size: float,
         test_size: float,
         validation_size: float,
-        min_pianist_minutes: float
+        min_pianist_minutes: float,
+        n_splits: int
 ) -> None:
     """
     Stratified splits, based on album/canonic composition name
@@ -341,10 +345,11 @@ def generate_stratified(
 
     # Create the folder for the desired split
     for splitter in ["album", "composition"]:
-        split_path_ = os.path.join(get_project_root(), 'references/data_splits', f"{split_path}_{splitter}")
-        logger.info(f'Splits will be saved as CSV files in {split_path_}')
-        if not os.path.exists(split_path_):
-            os.makedirs(split_path_)
+        for n in range(n_splits):
+            split_path_ = os.path.join(get_project_root(), 'references/data_splits', f"{split_path}_{splitter}_{n}")
+            logger.info(f'Splits will be saved as CSV files in {split_path_}')
+            if not os.path.exists(split_path_):
+                os.makedirs(split_path_)
 
     # Get the valid tracks from all databases
     loaded_tracks = get_tracks()
@@ -365,27 +370,34 @@ def generate_stratified(
 
     # Create the album split: linear programming problem
     for col in ["album", "composition"]:
-        logger.info(f"Creating {col} splits...")
-        small_df = lp_group_split(fmt_df, col)
+        for n in range(n_splits):
 
-        # Divide up
-        df_train = small_df[small_df["split"] == "train"]
-        df_test = small_df[small_df["split"] == "test"]
-        df_valid = small_df[small_df["split"] == "validation"]
+            # fresh seed
+            seed_everything(SEED + n)
 
-        # Sanity check album split
-        assert len(df_train) + len(df_test) + len(df_valid) == len(fmt_df)
+            logger.info(f"Creating {col} splits...")
+            small_df = lp_group_split(fmt_df, col, seed=SEED + n)
 
-        # Create the splits as individual CSV files inside the directory
-        for split_df, split in zip([df_train, df_test, df_valid], ['train', 'test', 'validation']):
-            logger.info(f'Split {split} has {len(split_df)} tracks!')
-            split_df['track'] = split_df['database'] + "/" + split_df['track']
-            out_path = os.path.join(get_project_root(), 'references/data_splits', f"{split_path}_{col}", f"{split}_split.csv")
-            _ = (
-                split_df.drop(columns=['database'])
-                .reset_index(drop=True)
-                .to_csv(out_path)
-            )
+            # Divide up
+            df_train = small_df[small_df["split"] == "train"]
+            df_test = small_df[small_df["split"] == "test"]
+            df_valid = small_df[small_df["split"] == "validation"]
+
+            # Sanity check album split
+            assert len(df_train) + len(df_test) + len(df_valid) == len(fmt_df)
+
+            # Create the splits as individual CSV files inside the directory
+            for split_df, split in zip([df_train, df_test, df_valid], ['train', 'test', 'validation']):
+                logger.info(f'Split {split} has {len(split_df)} tracks!')
+                split_df['track'] = split_df['database'] + "/" + split_df['track']
+                out_path = os.path.join(get_project_root(), 'references/data_splits', f"{split_path}_{col}_{n}", f"{split}_split.csv")
+                if os.path.exists(out_path):
+                    continue
+                _ = (
+                    split_df.drop(columns=['database'])
+                    .reset_index(drop=True)
+                    .to_csv(out_path)
+                )
 
 
 if __name__ == "__main__":
@@ -417,7 +429,10 @@ if __name__ == "__main__":
         "-s", "--seed", default=SEED, type=int, help="Seed to use in reproducible randomization. Defaults to 42"
     )
     parser.add_argument(
-        '--stratified', action='store_true', default=False, help="Produces seeds stratified by album & composition name"
+        '--stratified', action='store_true', default=True, help="Produces seeds stratified by album & composition name"
+    )
+    parser.add_argument(
+        '--n-splits', type=int, default=5, help="Produce this many stratified splits"
     )
 
     # Parse all arguments from the command line
@@ -426,7 +441,7 @@ if __name__ == "__main__":
 
     # Create the data split: either stratified by composition/album or normal (default)
     args_to_parse = (
-        args['split_path'], args['train_size'], args['test_size'], args['validation_size'], args['min_pianist_minutes']
+        args['split_path'], args['train_size'], args['test_size'], args['validation_size'], args['min_pianist_minutes'], args['n_splits']
     )
     if args["stratified"]:
         generate_stratified(*args_to_parse)

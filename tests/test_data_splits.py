@@ -37,13 +37,13 @@ DESIRED_PIANISTS = [
 ]
 
 
-def load_csv(stratify_type: str) -> pd.DataFrame:
+def load_csv(stratify_type: str = None, n: int = 0) -> pd.DataFrame:
     loaded = []
     for split_name in ["test", "train", "validation"]:
         split_path = os.path.join(
             utils.get_project_root(),
             "references/data_splits",
-            f"20class_80min_stratified_{stratify_type}",
+            f"20class_80min_stratified_{stratify_type}_{n}" if stratify_type is not None else "20class_80min",
             f"{split_name}_split.csv"
         )
         df = pd.read_csv(split_path, index_col=0)
@@ -53,8 +53,9 @@ def load_csv(stratify_type: str) -> pd.DataFrame:
 
 
 @pytest.mark.parametrize("stratify_type", ["album", "composition"])
-def test_pianist_in_each_split(stratify_type):
-    df_ = load_csv(stratify_type)
+@pytest.mark.parametrize("iteration", range(5))
+def test_pianist_in_each_split(stratify_type, iteration):
+    df_ = load_csv(stratify_type, iteration)
     # Each pianist should have one recording in every split
     for pianist in DESIRED_PIANISTS:
         for split in ["train", "validation", "test"]:
@@ -62,10 +63,11 @@ def test_pianist_in_each_split(stratify_type):
             assert len(got) >= 1, f"Pianist {pianist} does not appear in split {split}!"
 
 
-@pytest.mark.parametrize("stratify_type", ["album", "composition"])
-def test_split_proportion(stratify_type):
+@pytest.mark.parametrize("stratify_type", ["album", "composition", None])
+@pytest.mark.parametrize("iteration", range(5))
+def test_split_proportion(stratify_type, iteration):
     # Splits should be approximately 8/1/1
-    df_ = load_csv(stratify_type)
+    df_ = load_csv(stratify_type, iteration)
     total_tracks = len(df_)
     for split, desired_proportion in zip(["train", "validation", "test"], [0.8, 0.1, 0.1]):
         actual_proportion = len(df_[df_["split"] == split]) / total_tracks
@@ -73,9 +75,10 @@ def test_split_proportion(stratify_type):
 
 
 @pytest.mark.parametrize("stratify_type", ["album", "composition"])
-def test_no_leaks(stratify_type):
+@pytest.mark.parametrize("iteration", range(5))
+def test_no_leaks(stratify_type, iteration):
     # No leaks of compositions/albums between splits
-    df_ = load_csv(stratify_type)
+    df_ = load_csv(stratify_type, iteration)
     for split_a in ["train", "validation", "test"]:
         split_a_df = df_[df_["split"] == split_a]
         split_a_comps = set(split_a_df[stratify_type].unique().tolist())
@@ -87,10 +90,11 @@ def test_no_leaks(stratify_type):
             assert len(shared) == 0
 
 
-@pytest.mark.parametrize("stratify_type", ["album", "composition"])
-def test_no_overlap_tracks(stratify_type):
+@pytest.mark.parametrize("stratify_type", ["album", "composition", None])
+@pytest.mark.parametrize("iteration", range(5))
+def test_no_overlap_tracks(stratify_type, iteration):
     # No leak of tracks between splits
-    df_ = load_csv(stratify_type)
+    df_ = load_csv(stratify_type, iteration)
     for split_a in ["train", "val", "test"]:
         split_a_df = df_[df_["split"] == split_a]
         split_a_tracks = set(split_a_df["track"].unique().tolist())
@@ -102,7 +106,25 @@ def test_no_overlap_tracks(stratify_type):
             assert len(shared) == 0
 
 
-@pytest.mark.parametrize("stratify_type", ["album", "composition"])
-def test_dataset_size(stratify_type):
-    df_ = load_csv(stratify_type)
+@pytest.mark.parametrize("stratify_type", ["album", "composition", None])
+@pytest.mark.parametrize("iteration", range(5))
+def test_dataset_size(stratify_type, iteration):
+    df_ = load_csv(stratify_type, iteration)
     assert len(df_) == MAGIC_NUMBER
+
+
+@pytest.mark.parametrize("stratify_type", ["album", "composition"])
+def test_iterations_different(stratify_type):
+    bigdf = []
+    for n in range(5):
+        df_ = load_csv(stratify_type, n)
+        df_["n"] = n
+        bigdf.append(df_)
+    bigdf = pd.concat(bigdf, axis=0).reset_index(drop=True)
+
+    # test that the tracks in each split are different (i.e., the dataset are different)
+    for idx, grp1 in bigdf.groupby("split"):
+        all_res = []
+        for idx2, grp2 in grp1.groupby("n"):
+            all_res.append(grp2["track"].tolist())
+        assert len({tuple(sub) for sub in all_res}) == len(all_res)
