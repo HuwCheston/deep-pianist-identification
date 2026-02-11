@@ -76,7 +76,7 @@ GNB_OPTIMIZE_PARAMS = dict(
     var_smoothing=np.logspace(-9, 0, num=10001)
 )
 
-N_ITER = 10000  # default number of iterations for optimization process
+N_ITER = 1000  # default number of iterations for optimization process
 N_JOBS = -1  # number of parallel processing cpu cores. -1 means use all cores.
 N_BOOT_FEATURES = 2000  # number of features to sample when bootstrapping permutation importance scores
 
@@ -232,7 +232,7 @@ def parse_arguments(parser) -> dict:
         "-z", "--scale",
         default=True,
         type=utils.string_to_bool,
-        help="Whether to scale data using z-transformation or not, default is True."
+        help="Whether to transform data using or not, default is True."
     )
     parser.add_argument(
         "-k", "--database-k-coefs",
