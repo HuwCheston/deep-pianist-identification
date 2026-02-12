@@ -88,7 +88,7 @@ def create_classifier(
     csvpath = os.path.join(
         utils.get_project_root(),
         'references/whitebox',
-        f'{dataset}_{classifier_type}_harmony+melody_{"".join([str(i) for i in feature_sizes])}.csv'
+        f'{dataset}_{classifier_type}_harmony+melody_{"".join([str(i) for i in feature_sizes])}_min{min_count}_max{max_count}.csv'
     )
 
     # Scale the data if required (never for multinomial naive Bayes as this expects count data)
@@ -115,8 +115,9 @@ def create_classifier(
             feature_type=feat_type
         )
         logger.info(f'... shape of features into PCA: {pc.counts.shape}, n_components: {pc.n_components}')
-        pc.explain()
-        pc.create_outputs()
+        # TODO: needs fixing
+        # pc.explain()
+        # pc.create_outputs()
 
     # Optimize the classifier
     clf_opt, valid_acc, best_params = fit_classifier(
@@ -159,7 +160,7 @@ def create_classifier(
     all_xs = np.vstack([train_x_arr, test_x_arr, valid_x_arr])
     all_ys = np.hstack([train_y_mel, test_y_mel, valid_y_mel])
     feature_names = np.array(['M_' + f for f in mel_features] + ['H_' + f for f in har_features])
-    dataset_idxs: np.array = wb_utils.get_database_mapping(train_clips, test_clips, validation_clips)
+    dataset_idxs = wb_utils.get_database_mapping(train_clips, test_clips, validation_clips)
 
     # Correlation between top-k coefficients from the full model for individual database models
     logger.info('---EXPLAINING: DATASET FEATURE CORRELATIONS---')
@@ -175,8 +176,9 @@ def create_classifier(
         classifier_type=classifier_type,
         n_iter=n_iter
     )
-    database_explainer.explain()
-    database_explainer.create_outputs()
+    # TODO: needs fixing
+    # database_explainer.explain()
+    # database_explainer.create_outputs()
 
     # Log the mean and SD coefficients for melody and harmony to the console
     logger.info(
@@ -198,8 +200,9 @@ def create_classifier(
         use_odds_ratios=False,
         n_iter=n_iter,
     )
-    lr_exp.explain()
-    lr_exp.create_outputs()
+    # TODO: needs fixing
+    # lr_exp.explain()
+    # lr_exp.create_outputs()
 
 
 if __name__ == "__main__":
