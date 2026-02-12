@@ -1573,6 +1573,76 @@ class LinePlotWhiteboxAccuracyN(BasePlot):
         save_fig_all_exts(out, self.fig)
 
 
+class LinePlotWhiteboxAccuracyMaxMinFeatures(BasePlot):
+    ROOT = os.path.join(utils.get_project_root(), 'references/whitebox/max_features_experiments')
+    MAX_N_RESULTS = [100, 250, 500, 750, 1000, 1250, 1500, 10000]
+    MIN_N_RESULTS = [5, 10, 25, 50, 100, 150, 200]
+    LINE_KWS = dict(linewidth=LINEWIDTH * 2, linestyle=LINESTYLE, color=BLACK)
+
+    def __init__(self, _=None):
+        super().__init__()
+        self.df = self._format_df(None)
+        self.fig, self.ax = plt.subplots(1, 2, sharex=False, sharey=False, figsize=(WIDTH, WIDTH // 2))
+
+    def _format_df(self, _):
+        def load_max_acc(ex):
+            path = os.path.join(self.ROOT, f'20class_80min_lr_harmony+melody_23456_min10_max{ex}.csv')
+            return pd.read_csv(path)['accuracy'].max()
+
+        def load_min_acc(ex):
+            path = os.path.join(self.ROOT, f'20class_80min_lr_harmony+melody_23456_min{ex}_max1000.csv')
+            return pd.read_csv(path)['accuracy'].max()
+
+        res = []
+        for ext in self.MAX_N_RESULTS:
+            res.append({
+                'n': ext if ext < 2000 else 1629,
+                'acc': load_max_acc(ext),
+                'experiment': 'max_n'
+            })
+        for ext in self.MIN_N_RESULTS:
+            res.append({
+                'n': ext,
+                'acc': load_min_acc(ext),
+                'experiment': 'min_n'
+            })
+
+        res = pd.DataFrame(res).sort_values(by=['experiment', 'n']).reset_index(drop=True)
+        return res
+
+    def _create_plot(self):
+        for ax, exp in zip(self.ax.flatten(), ['max_n', 'min_n']):
+            sub = self.df[self.df['experiment'] == exp].reset_index(drop=True)
+            ax.plot(sub['n'], sub['acc'], **self.LINE_KWS)
+
+    def _format_ax(self):
+        for ax in self.ax.flatten():
+            ax.set(ylabel='Optimized validation accuracy (LR)', )
+            ax.set_xticks(ax.get_xticks(), labels=ax.get_xticklabels(), rotation=90)
+            plt.setp(ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
+            ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
+            ax.grid(axis='y', zorder=0, **GRID_KWS)
+
+        self.ax[0].set(
+            xticks=self.MAX_N_RESULTS[:-1] + [1629],
+            xticklabels=self.MAX_N_RESULTS[:-1] + ["None"],
+            xlabel="Maximum recordings containing feature"
+        )
+        self.ax[1].set(
+            xticks=self.MIN_N_RESULTS,
+            xticklabels=self.MIN_N_RESULTS,
+            xlabel="Minimum recordings containing feature",
+            xlim=(-2, max(self.MIN_N_RESULTS))
+        )
+
+    def _format_fig(self):
+        self.fig.tight_layout()
+
+    def save_fig(self):
+        out = os.path.join(utils.get_project_root(), 'reports/figures/whitebox/optimization_results_max_min_features')
+        save_fig_all_exts(out, self.fig)
+
+
 class BigramplotPCAFeatureCount(BasePlot):
     TEXT_KWS = dict(ha='center', va='center')
     CIRCLE_KWS = dict(color=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, fill=False, alpha=ALPHA)
