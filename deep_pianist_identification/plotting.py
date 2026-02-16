@@ -1373,6 +1373,156 @@ class BarPlotWhiteboxFeatureCounts(BasePlot):
         save_fig_all_exts(fp, self.fig)
 
 
+class BarPlotWhiteboxFeatureUniqueTracks(BasePlot):
+    MAX_FEATURES = 50
+    DESIRED_N_LENGTH = 3
+
+    def __init__(self, all_features):
+        self.n_features = len(all_features)
+        self.df = self._format_df(all_features)
+        self.fig, self.ax = plt.subplots(nrows=1, ncols=1, figsize=(WIDTH, WIDTH / 2.5))
+        self.ax2 = self.ax.twinx()
+
+    def _format_df(self, all_features) -> pd.DataFrame:
+        from collections import defaultdict
+        from ast import literal_eval
+
+        ngram_counts = defaultdict(int)
+        # Iterate through each dictionary (= one track)
+        for d in all_features:
+            # Iterate through each key (= one n-gram in the track)
+            for key, vals in d.items():
+                if len(literal_eval(key)) != self.DESIRED_N_LENGTH:
+                    continue
+                # Increase the global count for this n-gram
+                ngram_counts[key] += 1
+
+        unique_tracks = sorted(ngram_counts.items(), key=lambda k_v: k_v[1], reverse=True)[:self.MAX_FEATURES]
+        unique_df = pd.DataFrame(unique_tracks, columns=["n", "count_raw"])
+
+        # Calculate percentage separately
+        unique_df["count_pct"] = (unique_df["count_raw"] / len(all_features)) * 100
+        unique_df["n"] = unique_df["n"].apply(self.map_ngram_to_pitches)
+        return unique_df
+
+    @staticmethod
+    def map_ngram_to_pitches(intervals: str) -> str:
+        pitch_set = [0]
+        current_pitch = 0
+        for interval in eval(intervals):
+            current_pitch += interval
+            pitch_set.append(current_pitch)
+        return str(tuple(pitch_set))
+
+    def _create_plot(self):
+        sns.barplot(
+            data=self.df,
+            x="n",
+            y="count_raw",
+            ax=self.ax,
+            edgecolor=BLACK,
+            linewidth=LINEWIDTH,
+            linestyle=LINESTYLE,
+            zorder=10,
+            color=RED
+        )
+
+    def _format_ax(self):
+        self.ax.set_ylabel("Number of recordings containing feature")
+        self.ax.set_xlabel("Feature")
+        self.ax2.set_ylim(
+            (self.ax.get_ylim()[0] / self.n_features) * 100,
+            (self.ax.get_ylim()[1] / self.n_features) * 100
+        )
+        self.ax2.set_ylabel("Fraction of dataset (%)")
+        self.ax.set_xticks(self.ax.get_xticks(), labels=self.ax.get_xticklabels(), rotation=90)
+        plt.setp(self.ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
+        self.ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
+        self.ax2.tick_params(axis='y', width=TICKWIDTH, color=BLACK)
+        self.ax.grid(axis='y', zorder=0, **GRID_KWS)
+
+    def _format_fig(self):
+        self.fig.tight_layout()
+
+    def save_fig(self):
+        fold = os.path.join(utils.get_project_root(), "reports/figures/whitebox")
+        if not os.path.isdir(fold):
+            os.makedirs(fold)
+        fp = os.path.join(fold, f"barplot_feature_unique_track_counts")
+        save_fig_all_exts(fp, self.fig)
+
+
+class BarPlotWhiteboxNGramFeatureCounts(BasePlot):
+    MAX_FEATURES = 50
+    DESIRED_N_LENGTH = 3
+
+    def __init__(self, all_features):
+        self.n_features = len(all_features)
+        self.df = self._format_df(all_features)
+        self.fig, self.ax = plt.subplots(nrows=1, ncols=1, figsize=(WIDTH, WIDTH / 2.5))
+
+    def _format_df(self, all_features) -> pd.DataFrame:
+        from collections import defaultdict
+        from ast import literal_eval
+
+        ngram_counts = defaultdict(int)
+        # Iterate through each dictionary (= one track)
+        for d in all_features:
+            # Iterate through each key (= one n-gram in the track)
+            for key, vals in d.items():
+                if len(literal_eval(key)) != self.DESIRED_N_LENGTH:
+                    continue
+                # Increase the global count for this n-gram
+                ngram_counts[key] += vals
+
+        unique_tracks = sorted(ngram_counts.items(), key=lambda k_v: k_v[1], reverse=True)[:self.MAX_FEATURES]
+        unique_df = pd.DataFrame(unique_tracks, columns=["n", "count"])
+
+        # Calculate percentage separately
+        unique_df["n"] = unique_df["n"].apply(self.map_ngram_to_pitches)
+        return unique_df
+
+    @staticmethod
+    def map_ngram_to_pitches(intervals: str) -> str:
+        pitch_set = [0]
+        current_pitch = 0
+        for interval in eval(intervals):
+            current_pitch += interval
+            pitch_set.append(current_pitch)
+        return str(tuple(pitch_set))
+
+    def _create_plot(self):
+        sns.barplot(
+            data=self.df,
+            x="n",
+            y="count",
+            ax=self.ax,
+            edgecolor=BLACK,
+            linewidth=LINEWIDTH,
+            linestyle=LINESTYLE,
+            zorder=10,
+            color=RED
+        )
+
+    def _format_ax(self):
+        self.ax.set_ylabel("Count")
+        self.ax.set_xlabel("Feature")
+        self.ax.set_xticks(self.ax.get_xticks(), labels=self.ax.get_xticklabels(), rotation=90)
+        plt.setp(self.ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
+        self.ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
+        self.ax.grid(axis='y', zorder=0, **GRID_KWS)
+
+    def _format_fig(self):
+        self.fig.tight_layout()
+
+    def save_fig(self):
+        fold = os.path.join(utils.get_project_root(), "reports/figures/whitebox")
+        if not os.path.isdir(fold):
+            os.makedirs(fold)
+        fp = os.path.join(fold, f"barplot_4gram_feature_counts")
+        save_fig_all_exts(fp, self.fig)
+
+
 class BarPlotConceptClassAccuracy(BasePlot):
     BAR_KWS = dict(edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, zorder=10)
 
@@ -1632,7 +1782,7 @@ class LinePlotWhiteboxAccuracyMaxMinFeatures(BasePlot):
             xticks=self.MIN_N_RESULTS,
             xticklabels=self.MIN_N_RESULTS,
             xlabel="Minimum recordings containing feature",
-            xlim=(-2, max(self.MIN_N_RESULTS))
+            xlim=(-2, max(self.MIN_N_RESULTS) + 10)
         )
 
     def _format_fig(self):

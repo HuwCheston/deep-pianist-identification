@@ -46,6 +46,19 @@ def create_classifier(
         validation_clips=validation_clips,
         feature_sizes=feature_sizes,
     )
+
+    # plots of unique track appearances / counts for 4-grams
+    bp = plotting.BarPlotWhiteboxFeatureUniqueTracks(
+        train_x_full_mel + test_x_full_mel + valid_x_full_mel
+    )
+    bp.create_plot()
+    bp.save_fig()
+    bp = plotting.BarPlotWhiteboxNGramFeatureCounts(
+        train_x_full_mel + test_x_full_mel + valid_x_full_mel
+    )
+    bp.create_plot()
+    bp.save_fig()
+
     train_x_arr_mel, test_x_arr_mel, valid_x_arr_mel, mel_features = drop_invalid_features(
         train_x_full_mel, test_x_full_mel, valid_x_full_mel, min_count, max_count
     )
