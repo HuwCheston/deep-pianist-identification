@@ -9,6 +9,7 @@ from multiprocessing import Manager, Process
 from time import time
 
 import numpy as np
+import optuna
 import pandas as pd
 from joblib import Parallel, delayed
 from loguru import logger
@@ -17,7 +18,7 @@ from sklearn.model_selection import ParameterSampler
 from tqdm import tqdm
 
 from deep_pianist_identification import utils
-from deep_pianist_identification.whitebox.wb_utils import get_classifier_and_params
+from deep_pianist_identification.whitebox.wb_utils import get_classifier_and_params, N_JOBS
 
 ACC_TOP_KS = [1, 2, 3, 5, 10]  # We'll print the model top-k accuracy at these levels
 
@@ -159,7 +160,7 @@ def _optimize_classifier(
     # Get cached results
     cached_results = load_from_file()
     # Use lazy parallelization to create the forest and fit to the data
-    with Parallel(n_jobs=-1, verbose=5) as p:
+    with Parallel(n_jobs=N_JOBS, verbose=5) as p:
         fit = p(
             delayed(__step)(num, params) for num, params in tqdm(enumerate(sampler), total=n_iter, desc="Fitting...")
         )
@@ -181,3 +182,68 @@ def _optimize_classifier(
             pass
     logger.info(f'... best parameters: {best_params}')
     return {k: v for k, v in best_params.items() if k not in ["accuracy", "iteration", "time"]}
+
+
+def fit_with_optimization(
+    train_x: np.ndarray,
+    test_x: np.ndarray,
+    valid_x: np.ndarray,
+    train_y: np.ndarray,
+    test_y: np.ndarray,
+    valid_y: np.ndarray,
+    csvpath: str,
+    n_iter: int,
+    classifier_type: str = "lr",
+):
+    if classifier_type != "lr":
+        raise ValueError("Only implemented for LR classifier!")
+
+    classifier, dummy_params = get_classifier_and_params(classifier_type)
+
+    def objective(trial):
+        # Categorical params
+        penalty = trial.suggest_categorical("penalty", dummy_params["penalty"])
+        class_weight = trial.suggest_categorical("class_weight", dummy_params["class_weight"])
+
+        # C: continuous on log scale
+        c = trial.suggest_float("C", min(dummy_params["C"]), max(dummy_params["C"]), log=True)
+
+        # solver and penalty interact — lbfgs doesn't support l1
+        model = classifier(
+            C=c,
+            penalty=penalty,
+            class_weight=class_weight,
+            solver=dummy_params["solver"][0],
+            random_state=dummy_params["seed"][0],
+            max_iter=dummy_params["max_iter"][0],
+        )
+        model.fit(train_x, train_y)
+        preds = model.predict(test_x)
+
+        # Optuna maximizes by default with direction="maximize"
+        return accuracy_score(test_y, preds)
+
+    study = optuna.create_study(
+        direction="maximize",
+        sampler=optuna.samplers.TPESampler(seed=utils.SEED)  # Tree-structured Parzen Estimator
+    )
+    study.optimize(objective, n_trials=n_iter)
+    best_params = study.best_params
+    test_acc = study.best_value
+    logger.info(f"... test accuracy: {test_acc:.6f}")
+    logger.info(f"... best params: {best_params:.6f}")
+
+    best_model = classifier(
+        **best_params,
+        solver=dummy_params["solver"][0],
+        random_state=dummy_params["seed"][0],
+        max_iter=dummy_params["max_iter"][0],
+    )
+    best_model.fit(train_x, train_y)
+    best_preds = best_model.predict(valid_x)
+    best_acc = accuracy_score(valid_y, best_preds)
+    logger.info(f"... validation accuracy: {best_acc:.6f}")
+
+    log_topk_acc(valid_x, valid_y, best_model)
+
+    return best_model, best_acc, best_params

@@ -11,7 +11,7 @@ from loguru import logger
 
 from deep_pianist_identification import utils, plotting
 from deep_pianist_identification.whitebox import wb_utils
-from deep_pianist_identification.whitebox.classifiers import fit_classifier
+from deep_pianist_identification.whitebox.classifiers import fit_classifier, fit_with_optimization
 from deep_pianist_identification.whitebox.explainers import (
     LRWeightExplainer, DomainExplainer, DatabasePermutationExplainer, PCAFeatureCountsExplainer
 )
@@ -29,6 +29,7 @@ def create_classifier(
         database_k_coefs: int,
         classifier_type: str = "rf",
         scale: bool = True,
+        optimize: bool = False
 ):
     """Fit the random forest to both melody and harmony features"""
     logger.info("Creating white box classifier using melody and harmony data!")
@@ -40,6 +41,9 @@ def create_classifier(
 
     # Get all clips from the given dataset
     train_clips, test_clips, validation_clips = wb_utils.get_all_clips(dataset)
+    # train_clips = train_clips[:10]
+    # test_clips = test_clips[:10]
+    # validation_clips = validation_clips[:10]
 
     # Melody extraction
     logger.info('---MELODY---')
@@ -133,17 +137,30 @@ def create_classifier(
         # pc.create_outputs()
 
     # Optimize the classifier
-    clf_opt, valid_acc, best_params = fit_classifier(
-        train_x_arr,
-        test_x_arr,
-        valid_x_arr,
-        train_y_mel,
-        test_y_mel,
-        valid_y_mel,
-        csvpath,
-        n_iter,
-        classifier_type
-    )
+    if not optimize:
+        clf_opt, valid_acc, best_params = fit_classifier(
+            train_x_arr,
+            test_x_arr,
+            valid_x_arr,
+            train_y_mel,
+            test_y_mel,
+            valid_y_mel,
+            csvpath,
+            n_iter,
+            classifier_type
+        )
+    else:
+        clf_opt, valid_acc, best_params = fit_with_optimization(
+            train_x_arr,
+            test_x_arr,
+            valid_x_arr,
+            train_y_mel,
+            test_y_mel,
+            valid_y_mel,
+            csvpath,
+            n_iter,
+            classifier_type
+        )
 
     # Domain/feature importance: this class will do all analysis and create plots/outputs
     logger.info('---EXPLAINING: DOMAIN IMPORTANCE---')
