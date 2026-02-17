@@ -5,6 +5,7 @@
 
 import pickle
 import warnings
+from functools import wraps
 from multiprocessing import Manager, Process
 from time import time
 
@@ -42,11 +43,14 @@ def save_classifier(outpath: str, classifier) -> None:
     logger.info(f"... classifier instance dumped to {outpath}")
 
 
-def ignore_user_warning(*args, **kwargs):
-    def wrapper(func):
+def ignore_user_warning(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
         warnings.filterwarnings("ignore", category=UserWarning)
-        out = func(*args, **kwargs)
-        warnings.filterwarnings("default", category=UserWarning)
+        try:
+            out = func(*args, **kwargs)
+        finally:
+            warnings.filterwarnings("default", category=UserWarning)
         return out
     return wrapper
 
