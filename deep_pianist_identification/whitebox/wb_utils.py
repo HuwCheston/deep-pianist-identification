@@ -235,6 +235,12 @@ def parse_arguments(parser) -> dict:
         help="Whether to transform data using or not, default is True."
     )
     parser.add_argument(
+        "-o", "--optimize",
+        default=False,
+        type=utils.string_to_bool,
+        help="Whether to formally optimize model with optuna, default is False (random parameter sampling instead)."
+    )
+    parser.add_argument(
         "-k", "--database-k-coefs",
         default=500,
         type=int,

@@ -251,6 +251,7 @@ if __name__ == "__main__":
         max_count=args["max_count"],
         classifier_type=args["classifier_type"],
         scale=args["scale"],
-        database_k_coefs=args["database_k_coefs"]
+        database_k_coefs=args["database_k_coefs"],
+        optimize=args["optimize"]
     )
     logger.info('Done!')
