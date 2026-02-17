@@ -214,7 +214,7 @@ def fit_with_optimization(
             penalty=penalty,
             class_weight=class_weight,
             solver=dummy_params["solver"][0],
-            random_state=dummy_params["seed"][0],
+            random_state=dummy_params["random_state"][0],
             max_iter=dummy_params["max_iter"][0],
         )
         model.fit(train_x, train_y)
