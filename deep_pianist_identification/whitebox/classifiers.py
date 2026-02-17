@@ -304,7 +304,7 @@ def fit_with_optimization(
         return accuracy_score(test_y, preds)
 
     study = optuna.create_study(
-        name=csvpath.split(os.path.sep)[-1].replace(".csv", ""),
+        study_name=csvpath.split(os.path.sep)[-1].replace(".csv", ""),
         direction="maximize",
         load_if_exists=True,
         sampler=optuna.samplers.TPESampler(seed=utils.SEED)
