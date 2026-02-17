@@ -375,6 +375,12 @@ def generate_stratified(
             # fresh seed
             seed_everything(SEED + n)
 
+            # skip if we've already generated splits
+            out_path = os.path.join(get_project_root(), 'references/data_splits', f"{split_path}_{col}_{n}", "test_split.csv")
+            if os.path.exists(out_path):
+                logger.info(f'{out_path} already exists, skipping!')
+                continue
+
             logger.info(f"Creating {col} splits...")
             small_df = lp_group_split(fmt_df, col, seed=SEED + n)
 
