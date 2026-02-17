@@ -4,6 +4,7 @@
 """Create and optimize different white-box classifier types"""
 
 import pickle
+import os
 import warnings
 from functools import wraps
 from multiprocessing import Manager, Process
@@ -303,7 +304,9 @@ def fit_with_optimization(
         return accuracy_score(test_y, preds)
 
     study = optuna.create_study(
+        name=csvpath.split(os.path.sep)[-1].replace(".csv", ""),
         direction="maximize",
+        load_if_exists=True,
         sampler=optuna.samplers.TPESampler(seed=utils.SEED)
     )
     study.optimize(objective, n_trials=n_iter, n_jobs=N_JOBS)
