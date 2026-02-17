@@ -42,6 +42,16 @@ def save_classifier(outpath: str, classifier) -> None:
     logger.info(f"... classifier instance dumped to {outpath}")
 
 
+def ignore_user_warning(*args, **kwargs):
+    def wrapper(func):
+        warnings.filterwarnings("ignore", category=UserWarning)
+        out = func(*args, **kwargs)
+        warnings.filterwarnings("default", category=UserWarning)
+        return out
+    return wrapper
+
+
+@ignore_user_warning
 def fit_classifier(
         train_x: np.ndarray,
         test_x: np.ndarray,
@@ -58,7 +68,6 @@ def fit_classifier(
     logger.info(f"... optimization results will be saved in {csvpath}")
     logger.info(f"... shape of training features: {train_x.shape}")
     logger.info(f"... shape of testing features: {test_x.shape}")
-    warnings.filterwarnings("ignore", category=UserWarning)
     # Run the hyperparameter optimization here and get the optimized parameter settings
     optimized_params = _optimize_classifier(
         train_x, train_y, test_x, test_y, csvpath, n_iter=n_iter, classifier_type=classifier_type
@@ -80,8 +89,6 @@ def fit_classifier(
     logger.info(f"... validation accuracy: {valid_acc:.6f}")
     # Get the top-k accuracy if we can
     log_topk_acc(valid_x, valid_y, clf_opt)
-    # Return the fitted classifier for e.g., permutation importance testing
-    warnings.filterwarnings("default", category=UserWarning)
     return clf_opt, valid_acc, optimized_params
 
 
@@ -184,6 +191,7 @@ def _optimize_classifier(
     return {k: v for k, v in best_params.items() if k not in ["accuracy", "iteration", "time"]}
 
 
+@ignore_user_warning
 def fit_with_optimization(
     train_x: np.ndarray,
     test_x: np.ndarray,
@@ -195,50 +203,149 @@ def fit_with_optimization(
     n_iter: int,
     classifier_type: str = "lr",
 ):
-    if classifier_type != "lr":
-        raise ValueError("Only implemented for LR classifier!")
-
     classifier, dummy_params = get_classifier_and_params(classifier_type)
 
     def objective(trial):
-        # Categorical params
-        penalty = trial.suggest_categorical("penalty", dummy_params["penalty"])
-        class_weight = trial.suggest_categorical("class_weight", dummy_params["class_weight"])
+        if classifier_type == "lr":
+            penalty = trial.suggest_categorical("penalty", dummy_params["penalty"])
+            class_weight = trial.suggest_categorical("class_weight", dummy_params["class_weight"])
+            c = trial.suggest_float("C", min(dummy_params["C"]), max(dummy_params["C"]), log=True)
 
-        # C: continuous on log scale
-        c = trial.suggest_float("C", min(dummy_params["C"]), max(dummy_params["C"]), log=True)
+            # penalty=None makes C irrelevant — prune redundant trials
+            if penalty is None:
+                c = 1.0
 
-        # solver and penalty interact — lbfgs doesn't support l1
-        model = classifier(
-            C=c,
-            penalty=penalty,
-            class_weight=class_weight,
-            solver=dummy_params["solver"][0],
-            random_state=dummy_params["random_state"][0],
-            max_iter=dummy_params["max_iter"][0],
-        )
+            params = dict(
+                C=c,
+                penalty=penalty,
+                class_weight=class_weight,
+                solver=dummy_params["solver"][0],
+                random_state=dummy_params["random_state"][0],
+                max_iter=dummy_params["max_iter"][0],
+            )
+
+        elif classifier_type == "svm":
+            c = trial.suggest_float("C", min(dummy_params["C"]), max(dummy_params["C"]), log=True)
+            shrinking = trial.suggest_categorical("shrinking", dummy_params["shrinking"])
+            class_weight = trial.suggest_categorical("class_weight", dummy_params["class_weight"])
+
+            params = dict(
+                C=c,
+                shrinking=shrinking,
+                class_weight=class_weight,
+                kernel=dummy_params["kernel"][0],
+                decision_function_shape=dummy_params["decision_function_shape"][0],
+                max_iter=dummy_params["max_iter"][0],
+                random_state=dummy_params["random_state"][0],
+            )
+
+        elif classifier_type == "rf":
+            n_estimators = trial.suggest_int(
+                "n_estimators", min(dummy_params["n_estimators"]), max(dummy_params["n_estimators"])
+            )
+            # max_features is mixed: categorical strings + continuous floats
+            max_features_choice = trial.suggest_categorical(
+                "max_features_type", ["sqrt", "log2", "float"]
+            )
+            if max_features_choice == "float":
+                max_features = trial.suggest_float(
+                    "max_features_float",
+                    min(f for f in dummy_params["max_features"] if isinstance(f, float)),
+                    max(f for f in dummy_params["max_features"] if isinstance(f, float)),
+                )
+            else:
+                max_features = max_features_choice
+
+            # max_depth is mixed: None + integers
+            use_max_depth_ = trial.suggest_categorical("use_max_depth", [True, False])
+            max_depth = (
+                trial.suggest_int(
+                    "max_depth",
+                    min(d for d in dummy_params["max_depth"] if d is not None),
+                    max(d for d in dummy_params["max_depth"] if d is not None),
+                )
+                if use_max_depth_
+                else None
+            )
+
+            min_samples_split = trial.suggest_int(
+                "min_samples_split",
+                min(dummy_params["min_samples_split"]),
+                max(dummy_params["min_samples_split"]),
+            )
+            min_samples_leaf = trial.suggest_int(
+                "min_samples_leaf",
+                min(dummy_params["min_samples_leaf"]),
+                max(dummy_params["min_samples_leaf"]),
+            )
+            bootstrap = trial.suggest_categorical("bootstrap", dummy_params["bootstrap"])
+
+            params = dict(
+                n_estimators=n_estimators,
+                max_features=max_features,
+                max_depth=max_depth,
+                min_samples_split=min_samples_split,
+                min_samples_leaf=min_samples_leaf,
+                bootstrap=bootstrap,
+                random_state=dummy_params["random_state"][0],
+            )
+
+        else:
+            raise ValueError(f"Unsupported classifier type: {classifier_type!r}")
+
+        model = classifier(**params)
         model.fit(train_x, train_y)
         preds = model.predict(test_x)
-
-        # Optuna maximizes by default with direction="maximize"
         return accuracy_score(test_y, preds)
 
     study = optuna.create_study(
         direction="maximize",
-        sampler=optuna.samplers.TPESampler(seed=utils.SEED)  # Tree-structured Parzen Estimator
+        sampler=optuna.samplers.TPESampler(seed=utils.SEED)
     )
-    study.optimize(objective, n_trials=n_iter)
-    best_params = study.best_params
-    test_acc = study.best_value
-    logger.info(f"... test accuracy: {test_acc:.6f}")
-    logger.info(f"... best params: {best_params:.6f}")
+    study.optimize(objective, n_trials=n_iter, n_jobs=N_JOBS)
 
-    best_model = classifier(
-        **best_params,
-        solver=dummy_params["solver"][0],
-        random_state=dummy_params["seed"][0],
-        max_iter=dummy_params["max_iter"][0],
-    )
+    best_trial = study.best_trial
+    test_acc = best_trial.value
+    logger.info(f"... test accuracy: {test_acc:.6f}")
+    logger.info(f"... best params: {best_trial.params}")
+
+    # Reconstruct best params for final model fit, handling the RF mixed params
+    best_params = best_trial.params.copy()
+    fixed_params = {}
+
+    if classifier_type == "lr":
+        fixed_params = dict(
+            solver=dummy_params["solver"][0],
+            random_state=dummy_params["random_state"][0],
+            max_iter=dummy_params["max_iter"][0],
+        )
+        # Restore the pruned C if penalty was None
+        if best_params.get("penalty") is None:
+            best_params["C"] = 1.0
+
+    elif classifier_type == "svm":
+        fixed_params = dict(
+            kernel=dummy_params["kernel"][0],
+            decision_function_shape=dummy_params["decision_function_shape"][0],
+            max_iter=dummy_params["max_iter"][0],
+            random_state=dummy_params["random_state"][0],
+        )
+
+    elif classifier_type == "rf":
+        # Collapse the two-stage max_features and max_depth back into single params
+        max_features_type = best_params.pop("max_features_type")
+        best_params["max_features"] = (
+            best_params.pop("max_features_float") if max_features_type == "float"
+            else max_features_type
+        )
+        use_max_depth = best_params.pop("use_max_depth")
+        if not use_max_depth:
+            best_params.pop("max_depth", None)
+            best_params["max_depth"] = None
+
+        fixed_params = dict(random_state=dummy_params["random_state"][0])
+
+    best_model = classifier(**best_params, **fixed_params)
     best_model.fit(train_x, train_y)
     best_preds = best_model.predict(valid_x)
     best_acc = accuracy_score(valid_y, best_preds)
