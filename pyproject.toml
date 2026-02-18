@@ -8,7 +8,7 @@ license = "MIT"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python=">=3.10.12"
+python=">=3.10.12,<3.13"
 pandas="*"
 numpy="<2.0.0"
 scikit-learn="*"
@@ -46,3 +46,4 @@ sentence-transformers = "^5.2.2"
 pulp = "^3.3.0"
 pytest = "^9.0.2"
 optuna = "^4.7.0"
+aeberscale = "0.1.2"
