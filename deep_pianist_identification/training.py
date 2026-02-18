@@ -106,6 +106,7 @@ class TrainModule:
 
         # CLASS MAPPING AND NUMBER OF CLASSES
         self.class_mapping = self.get_class_mapping()
+        self.class_mapping_inv = {v_: k_ for k_, v_ in self.class_mapping.items()}
         self.num_classes = len(self.class_mapping.keys())
         logger.debug(f"Model will be trained with {self.num_classes} classes!")
 
@@ -290,16 +291,24 @@ class TrainModule:
             positives = None  # Will be ignored inside .step
         else:
             features, targets, batch_names, positives = batch
+
+        # Convert tuple to tensor correctly
+        if isinstance(targets, tuple) and isinstance(targets[0], str):
+            targets = torch.tensor([self.class_mapping_inv[p] for p in targets])
+
         # Set device correctly
         features = features.to(DEVICE)
         targets = targets.to(DEVICE)
+
         # Forwards pass with CCE loss
         cce_loss, acc, preds = self.step_cce(features, targets)
+
         # Forwards pass with triplet loss (if required)
         if self.loss_type == "cce+triplet":
             trip_loss = self.step_triplet(features, positives, targets)
             # Sum both losses together
             loss = trip_loss + cce_loss
+
         # Otherwise, just set loss to CCE loss only
         else:
             loss = cce_loss
@@ -330,7 +339,11 @@ class TrainModule:
             # Append the names of the tracks and the corresponding predictions for track-level metrics
             track_names.extend(batch[2])  # Single list of strings
             track_preds.append(preds)  # List of tensors, one tensor per clip, containing class logits
-            track_targets.append(batch[1])  # List of tensors, one tensor per batch, containing target classes
+            # Why do we need to do this?
+            targets = batch[1]
+            if isinstance(targets, tuple) and isinstance(targets[0], str):
+                targets = torch.tensor([self.class_mapping_inv[p] for p in targets])
+            track_targets.append(targets)  # List of tensors, one tensor per batch, containing target classes
         # Group by tracks, average probabilities, and get predicted and target classes
         predictions, targets = groupby_tracks(track_names, track_preds, track_targets)
         track_acc = self.acc_fn(predictions, targets).item()
@@ -400,7 +413,11 @@ class TrainModule:
                 # Append the names of the tracks and the corresponding predictions for track-level metrics
                 track_names.extend(batch[2])  # Single list of strings
                 track_preds.append(preds)  # List of tensors, one tensor per clip, containing class logits
-                track_targets.append(batch[1])  # List of tensors, one tensor per batch, containing target classes
+                # Why do we need to do this?
+                targets = batch[1]
+                if isinstance(targets, tuple) and isinstance(targets[0], str):
+                    targets = torch.tensor([self.class_mapping_inv[p] for p in targets])
+                track_targets.append(targets)  # List of tensors, one tensor per batch, containing target classes
         # Group by tracks, average probabilities, and get predicted and target classes
         predictions, targets = groupby_tracks(track_names, track_preds, track_targets)
         # Compute track-level accuracy
@@ -573,7 +590,11 @@ class TrainModule:
                 # Append the names of the tracks and the corresponding predictions for track-level metrics
                 track_names.extend(batch[2])  # Single list of strings
                 track_preds.append(preds)  # List of tensors, one tensor per clip, containing class logits
-                track_targets.append(batch[1])  # List of tensors, one tensor per batch, containing target classes
+                # Why do we need to do this?
+                targets = batch[1]
+                if isinstance(targets, tuple) and isinstance(targets[0], str):
+                    targets = torch.tensor([self.class_mapping_inv[p] for p in targets])
+                track_targets.append(targets)  # List of tensors, one tensor per batch, containing target classes
         # Compute clip-level accuracy and loss
         clip_acc, clip_loss = np.mean(clip_accs), np.mean(clip_loss)
         # Group by tracks, average probabilities, and get predicted and target classes
