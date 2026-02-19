@@ -266,5 +266,6 @@ if __name__ == "__main__":
         scale=args["scale"],
         database_k_coefs=args["database_k_coefs"],
         optimize=args["optimize"],
+        domain_boot_proportional=args["domain_boot_proportional"],
     )
     logger.info('Done!')
