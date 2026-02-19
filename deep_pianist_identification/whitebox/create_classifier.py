@@ -173,7 +173,7 @@ def create_classifier(
                     f"melody {n_boot_features_mel} / {len(mel_features)}, "
                     f"harmony {n_boot_features_har} / {len(har_features)}")
     else:
-        n_bot_features_har = None
+        n_boot_features_har = None
         n_boot_features_mel = None
 
     permute_explainer = DomainExplainer(
