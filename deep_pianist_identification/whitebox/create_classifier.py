@@ -61,16 +61,17 @@ def create_classifier(
     )
 
     # plots of unique track appearances / counts for 4-grams
-    bp = plotting.BarPlotWhiteboxFeatureUniqueTracks(
-        train_x_full_mel + test_x_full_mel + valid_x_full_mel
-    )
-    bp.create_plot()
-    bp.save_fig()
-    bp = plotting.BarPlotWhiteboxNGramFeatureCounts(
-        train_x_full_mel + test_x_full_mel + valid_x_full_mel
-    )
-    bp.create_plot()
-    bp.save_fig()
+    if not use_mode:
+        bp = plotting.BarPlotWhiteboxFeatureUniqueTracks(
+            train_x_full_mel + test_x_full_mel + valid_x_full_mel
+        )
+        bp.create_plot()
+        bp.save_fig()
+        bp = plotting.BarPlotWhiteboxNGramFeatureCounts(
+            train_x_full_mel + test_x_full_mel + valid_x_full_mel
+        )
+        bp.create_plot()
+        bp.save_fig()
 
     train_x_arr_mel, test_x_arr_mel, valid_x_arr_mel, mel_features = drop_invalid_features(
         train_x_full_mel, test_x_full_mel, valid_x_full_mel, min_count, max_count
@@ -102,11 +103,12 @@ def create_classifier(
     valid_x_arr = np.concatenate((valid_x_arr_mel, valid_x_arr_har), axis=1)
 
     # Create a plot of the feature counts
-    bp = plotting.BarPlotWhiteboxFeatureCounts(
-        np.vstack([train_x_arr, test_x_arr, valid_x_arr]), mel_features, har_features
-    )
-    bp.create_plot()
-    bp.save_fig()
+    if not use_mode:
+        bp = plotting.BarPlotWhiteboxFeatureCounts(
+            np.vstack([train_x_arr, test_x_arr, valid_x_arr]), mel_features, har_features
+        )
+        bp.create_plot()
+        bp.save_fig()
 
     # Constructing filepath to save optimisation results
     logger.info('---FITTING---')
@@ -128,26 +130,27 @@ def create_classifier(
 
     # Decompose feature counts using PCA: first melody, then harmony
     logger.info('---EXPLAINING: DECOMPOSING FEATURE COUNTS---')
-    all_xs_raw = np.vstack([train_x_raw, test_x_raw, valid_x_raw])
-    all_ys_raw = np.hstack([train_y_mel, test_y_mel, valid_y_mel])
-    for feat_type, feat_names, xs in zip(
-            ['melody', 'harmony'],
-            [mel_features, har_features],
-            [all_xs_raw[:, :len(mel_features)], all_xs_raw[:, len(mel_features):]]
-    ):
-        pc = PCAFeatureCountsExplainer(
-            feature_counts=xs,  # these will be z-transformed as part of the class
-            targets=all_ys_raw,
-            feature_names=feat_names,
-            class_mapping=class_mapping,
-            feature_size=3,  # plotting 4-grams
-            n_components=4,
-            feature_type=feat_type
-        )
-        logger.info(f'... shape of features into PCA: {pc.counts.shape}, n_components: {pc.n_components}')
-        # TODO: needs fixing
-        # pc.explain()
-        # pc.create_outputs()
+    if not use_mode:
+        all_xs_raw = np.vstack([train_x_raw, test_x_raw, valid_x_raw])
+        all_ys_raw = np.hstack([train_y_mel, test_y_mel, valid_y_mel])
+        for feat_type, feat_names, xs in zip(
+                ['melody', 'harmony'],
+                [mel_features, har_features],
+                [all_xs_raw[:, :len(mel_features)], all_xs_raw[:, len(mel_features):]]
+        ):
+            pc = PCAFeatureCountsExplainer(
+                feature_counts=xs,  # these will be z-transformed as part of the class
+                targets=all_ys_raw,
+                feature_names=feat_names,
+                class_mapping=class_mapping,
+                feature_size=3,  # plotting 4-grams
+                n_components=4,
+                feature_type=feat_type
+            )
+            logger.info(f'... shape of features into PCA: {pc.counts.shape}, n_components: {pc.n_components}')
+            # TODO: needs fixing
+            # pc.explain()
+            # pc.create_outputs()
 
     # Optimize the classifier
     if not optimize:
