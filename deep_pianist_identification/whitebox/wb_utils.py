@@ -203,6 +203,12 @@ def parse_arguments(parser) -> dict:
         help="Whether to use diatonic features or not."
     )
     parser.add_argument(
+        "--use-mode",
+        type=utils.string_to_bool,
+        default=False,
+        help="When using diatonic features, whether or not to also return mode counts as well."
+    )
+    parser.add_argument(
         "-i", "--n-iter",
         default=N_ITER,
         type=int,

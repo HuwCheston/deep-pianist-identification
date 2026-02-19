@@ -47,7 +47,7 @@ def get_valid_chords_chromatic(roll: PrettyMIDI) -> list[list[int]]:
         yield [i - min(pitches) for i in pitches][1:]
 
 
-def get_valid_chords_diatonic(harmony_roll: list[tuple], full_roll: PrettyMIDI) -> list[list[int]]:
+def get_valid_chords_diatonic(harmony_roll: list[tuple], full_roll: PrettyMIDI, use_mode: bool = False) -> list[list[int]]:
     """Grab valid chords, expressed as diatonic scale steps (using aeberscale to estimate scale)"""
     full_notes = sorted(full_roll.instruments[0].notes, key=lambda x: x.start)
 
@@ -102,7 +102,13 @@ def get_valid_chords_diatonic(harmony_roll: list[tuple], full_roll: PrettyMIDI) 
             diatonic_scale_degrees.append(scale_degree + (octaves_left * 12))
 
         if valid and len(diatonic_scale_degrees) > 0:
-            yield diatonic_scale_degrees
+
+            # If we want to return the name of the mode used as well
+            if use_mode:
+                yield diatonic_scale_degrees, get_parent_mode(estimated_scale)
+
+            else:
+                yield diatonic_scale_degrees
 
 
 def extract_diatonic_full_score_window(window, start, end) -> list[Note]:
@@ -132,10 +138,13 @@ def extract_chords(
         nclips: int,
         pianist: str,
         feature_sizes: list[int] = DEFAULT_FEATURE_SIZES,
-        diatonic: bool = False
+        diatonic: bool = False,
+        use_mode: bool = False
 ):
     # Create a list of empty default dictionaries, one per each value of n we wish to extract (e.g., 3-gram, 4-gram...)
     track_chords = {ng: defaultdict(int) for ng in feature_sizes}
+
+    all_modes = {}
 
     # Iterate through all the clips for this track
     for clip_idx in range(nclips):
@@ -155,10 +164,15 @@ def extract_chords(
         if not diatonic:
             out_chords = get_valid_chords_chromatic(he.output_midi)
         else:
-            out_chords = get_valid_chords_diatonic(he.chorded, he.input_midi)
+            out_chords = get_valid_chords_diatonic(he.chorded, he.input_midi, use_mode)
 
         # Iterate over all the chords we just found
-        for chord in out_chords:
+        for out in out_chords:
+
+            if use_mode:
+                chord, mode = out
+            else:
+                chord, mode = out, None
 
             # Calculate the number of semitones between successive notes of the chord
             leaps = [i1 - i2 for i2, i1 in zip(chord, chord[1:])]
@@ -174,8 +188,14 @@ def extract_chords(
             if len(chord) in feature_sizes:
                 track_chords[len(chord)][str(chord)] += 1
 
+            if mode is not None:
+                if mode not in all_modes.keys():
+                    all_modes[mode] = 1
+                else:
+                    all_modes[mode] += 1
+
     # Collapse all the n-gram dictionaries into one
-    return {k: v for d in track_chords.values() for k, v in d.items()}, pianist
+    return {k: v for d in track_chords.values() for k, v in d.items()} | all_modes, pianist
 
 
 def get_harmony_features(
@@ -183,19 +203,20 @@ def get_harmony_features(
         test_clips,
         validation_clips,
         feature_sizes: list[int],
-        diatonic: bool = False
+        diatonic: bool = False,
+        use_mode: bool = False
 ) -> tuple:
     logger.info("Extracting chord n-grams from training tracks..")
     temp_x_har, train_y_har = extract_features_from_clips(
-        train_clips, extract_chords, feature_sizes, diatonic
+        train_clips, extract_chords, feature_sizes, diatonic, use_mode
     )
     logger.info("Extracting chord n-grams from testing tracks...")
     test_x_har, test_y_har = extract_features_from_clips(
-        test_clips, extract_chords, feature_sizes, diatonic
+        test_clips, extract_chords, feature_sizes, diatonic, use_mode
     )
     logger.info("Extracting chord n-grams from validation tracks...")
     valid_x_har, valid_y_har = extract_features_from_clips(
-        validation_clips, extract_chords, feature_sizes, diatonic
+        validation_clips, extract_chords, feature_sizes, diatonic, use_mode
     )
     # These are lists of dictionaries with one dictionary == one track, so we can just combine them
     all_ngs = temp_x_har + test_x_har + valid_x_har
@@ -258,7 +279,35 @@ def extract_valid_melody_ngrams(melody: PrettyMIDI, ngram_size: int) -> list[int
             yield [n2.pitch - n1.pitch for n1, n2 in zip(notes_in_window[0:], notes_in_window[1:])]
 
 
-def extract_valid_melody_ngrams_diatonic(melody: PrettyMIDI, full_score: PrettyMIDI, ngram_size: int) -> list[int]:
+def get_parent_mode(estimated_scale) -> str:
+    """Given a aeberscale.Scale object, return the parent scale that this is rotationally equivalent to"""
+    rotationally_equivalent = estimated_scale.get_rotationally_equivalent_instances()  # noqa
+
+    # some scales have no rotational equivalence, so parent mode is just the estimated scale
+    if len(rotationally_equivalent) == 0:
+        parent_scale = estimated_scale.name.lower()
+
+    # other scales are rotationally equivalent. this is a little hacky
+    #  We get all the scales that this one is rotationally equivalent to
+    #  e.g., for major == lydian, phyrigian, aeolian
+    #  then, we sort the list and take the first scale
+    #  this does mean that, for major + lydian, the parent is aeolian
+    #  in practice this doesn't really matter as we're not plotting this anywhere
+    #  the only thing that matters is that the SAME parent mode is returned for e.g. lydian/phrygian/major
+    #  no matter what "it" is
+    else:
+        equivalent_no_root = list(set([i.name.lower() for i in rotationally_equivalent] + [estimated_scale.name.lower()]))
+        parent_scale = sorted(equivalent_no_root)[0]
+
+    return parent_scale
+
+
+def extract_valid_melody_ngrams_diatonic(
+        melody: PrettyMIDI,
+        full_score: PrettyMIDI,
+        ngram_size: int,
+        use_mode: bool = False
+) -> list[int]:
     """Diatonic equivalent of `extract_valid_melody_ngrams`, estimating scale with aeberscale first"""
     def preproc(notes):
         # Sort all notes by onset time
@@ -313,7 +362,13 @@ def extract_valid_melody_ngrams_diatonic(melody: PrettyMIDI, full_score: PrettyM
         mapper = {n: nn for (nn, n) in enumerate(estimated_scale.notes)}
         diatonic_scale_degrees = [mapper[i] for i in diatonic_scale_steps]
 
-        yield diatonic_scale_degrees
+        # If we want to return the name of the mode used as well
+        if use_mode:
+            yield diatonic_scale_degrees, get_parent_mode(estimated_scale)
+
+        # Otherwise, if we just want the diatonic scale degrees
+        else:
+            yield diatonic_scale_degrees
 
 
 def extract_melody_ngrams(
@@ -321,7 +376,8 @@ def extract_melody_ngrams(
         nclips: int,
         pianist: str,
         ngrams: list = DEFAULT_FEATURE_SIZES,
-        diatonic_ngrams: bool = False
+        diatonic_ngrams: bool = False,
+        use_mode: bool = False,
 ) -> tuple[dict, int]:
     """For a given track path, number of clips, and pianist, extract all melody `ngrams` and return a dictionary"""
     # Create a list of empty default dictionaries, one per each value of n we wish to extract (e.g., 3-gram, 4-gram...)
@@ -344,16 +400,37 @@ def extract_melody_ngrams(
         # Iterate through all the n-gram sizes we want to grab
         for ngram_dict, ngram_size in zip(ngram_res, ngrams):
 
-            # Extract valid n-grams of this size: either using diatonic or chromatic scale steps
+            # need to define this variable, will update it in case of using diatonic + mode
+            valid_modes = []
+
+            # Extract valid n-grams of this size, using chromatic scale steps
             if not diatonic_ngrams:
                 valid_ngrams_of_size = extract_valid_melody_ngrams(roll.skylined, ngram_size + 1)
+
+            # Extract valid n-grams of this size, using diatonic scale steps
             else:
-                valid_ngrams_of_size = extract_valid_melody_ngrams_diatonic(roll.skylined, roll.input_midi, ngram_size + 1)
+
+                # need to account for having different return shapes depending on if we're returning the mode
+                #  of each n-gram as well
+                out = list(extract_valid_melody_ngrams_diatonic(roll.skylined, roll.input_midi, ngram_size + 1, use_mode=use_mode))
+
+                if len(out) == 0:
+                    # will happen if we've found no valid n-grams/modes of this size in the clip
+                    continue
+                elif use_mode:
+                    # little tuple unpacking hack
+                    valid_ngrams_of_size, valid_modes = zip(*out)
+                else:
+                    valid_ngrams_of_size = out
 
             # Iterate through all the valid n-grams we've grabbed
             for valid_ngram in valid_ngrams_of_size:
                 # Update the counter for this n-gram by one
                 ngram_dict[str(valid_ngram)] += 1
+
+            # If we have any valid modes
+            for valid_mode in valid_modes:
+                ngram_dict[str(valid_mode)] += 1
 
     # Collapse all the ngram dictionaries to a single dictionary and return alongside the ground truth label
     return {k: v for d in ngram_res for k, v in d.items()}, pianist
@@ -364,20 +441,21 @@ def get_melody_features(
         test_clips,
         validation_clips,
         feature_sizes: list[int],
-        diatonic: bool = False
+        diatonic: bool = False,
+        use_mode: bool = False,
 ) -> tuple:
     # MELODY EXTRACTION
     logger.info("Extracting melody n-grams from training tracks..")
     temp_x_mel, train_y_mel = extract_features_from_clips(
-        train_clips, extract_melody_ngrams, feature_sizes, diatonic
+        train_clips, extract_melody_ngrams, feature_sizes, diatonic, use_mode
     )
     logger.info("Extracting melody n-grams from testing tracks...")
     test_x_mel, test_y_mel = extract_features_from_clips(
-        test_clips, extract_melody_ngrams, feature_sizes, diatonic
+        test_clips, extract_melody_ngrams, feature_sizes, diatonic, use_mode
     )
     logger.info("Extracting melody n-grams from validation tracks...")
     valid_x_mel, valid_y_mel = extract_features_from_clips(
-        validation_clips, extract_melody_ngrams, feature_sizes, diatonic
+        validation_clips, extract_melody_ngrams, feature_sizes, diatonic, use_mode
     )
     # These are lists of dictionaries with one dictionary == one track, so we can just combine them
     all_ngs = temp_x_mel + test_x_mel + valid_x_mel

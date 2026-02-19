@@ -30,19 +30,24 @@ def create_classifier(
         classifier_type: str = "rf",
         scale: bool = True,
         optimize: bool = False,
-        diatonic: bool = False
+        diatonic: bool = False,
+        use_mode: bool = False
 ):
     """Fit the random forest to both melody and harmony features"""
     logger.info("Creating white box classifier using melody and harmony data!")
     logger.info(f'... using model type {classifier_type}')
     logger.info(f"... using feature sizes {feature_sizes}")
     logger.info(f"... diatonic features: {diatonic}")
+    logger.info(f"... using mode: {use_mode}")
 
     # Get the class mapping dictionary from the dataset
     class_mapping = utils.get_class_mapping(dataset)
 
     # Get all clips from the given dataset
     train_clips, test_clips, validation_clips = wb_utils.get_all_clips(dataset)
+    # train_clips = train_clips[:10]
+    # test_clips = test_clips[:10]
+    # validation_clips = validation_clips[:10]
 
     # Melody extraction
     logger.info('---MELODY---')
@@ -51,7 +56,8 @@ def create_classifier(
         test_clips=test_clips,
         validation_clips=validation_clips,
         feature_sizes=feature_sizes,
-        diatonic=diatonic
+        diatonic=diatonic,
+        use_mode=use_mode
     )
 
     # plots of unique track appearances / counts for 4-grams
@@ -77,7 +83,8 @@ def create_classifier(
         test_clips=test_clips,
         validation_clips=validation_clips,
         feature_sizes=feature_sizes,
-        diatonic=diatonic
+        diatonic=diatonic,
+        use_mode=use_mode
     )
     train_x_arr_har, test_x_arr_har, valid_x_arr_har, har_features = drop_invalid_features(
         train_x_full_har, test_x_full_har, valid_x_full_har, min_count, max_count
@@ -101,20 +108,18 @@ def create_classifier(
     bp.create_plot()
     bp.save_fig()
 
-    # Load the optimized parameter settings (or recreate them, if they don't exist)
+    # Constructing filepath to save optimisation results
     logger.info('---FITTING---')
-    if not diatonic:
-        csvpath = os.path.join(
-            utils.get_project_root(),
-            'references/whitebox',
-            f'{dataset}_{classifier_type}_harmony+melody_{"".join([str(i) for i in feature_sizes])}_min{min_count}_max{max_count}.csv'
-        )
-    else:
-        csvpath = os.path.join(
-            utils.get_project_root(),
-            'references/whitebox',
-            f'{dataset}_{classifier_type}_harmony+melody_{"".join([str(i) for i in feature_sizes])}_min{min_count}_max{max_count}_diatonic.csv'
-        )
+    csname = f'{dataset}_{classifier_type}_harmony+melody_{"".join([str(i) for i in feature_sizes])}_min{min_count}_max{max_count}'
+    if diatonic:
+        csname += "_diatonic"
+    if use_mode:
+        csname += "_mode"
+    csvpath = os.path.join(
+        utils.get_project_root(),
+        'references/whitebox',
+        csname + ".csv"
+    )
 
     # Scale the data if required (never for multinomial naive Bayes as this expects count data)
     train_x_raw, test_x_raw, valid_x_raw = deepcopy(train_x_arr), deepcopy(test_x_arr), deepcopy(valid_x_arr)
@@ -262,5 +267,6 @@ if __name__ == "__main__":
         database_k_coefs=args["database_k_coefs"],
         optimize=args["optimize"],
         diatonic=args["diatonic"],
+        use_mode=args["use_mode"]
     )
     logger.info('Done!')
