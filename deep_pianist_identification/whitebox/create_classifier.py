@@ -166,6 +166,16 @@ def create_classifier(
     # Domain/feature importance: this class will do all analysis and create plots/outputs
     logger.info('---EXPLAINING: DOMAIN IMPORTANCE---')
     logger.info(f'... n_iter {n_iter}, initial accuracy {valid_acc}')
+    if domain_boot_proportional:
+        n_boot_features_har = int(len(har_features) * 0.1)
+        n_boot_features_mel = int(len(mel_features) * 0.1)
+        logger.info(f"... using proportional values of K: "
+                    f"melody {n_boot_features_mel} / {len(mel_features)}, "
+                    f"harmony {n_boot_features_har} / {len(har_features)}")
+    else:
+        n_bot_features_har = None
+        n_boot_features_mel = None
+
     permute_explainer = DomainExplainer(
         harmony_features=valid_x_arr[:, valid_x_arr_mel.shape[1]:],  # we can subset to just get the harmony features
         melody_features=valid_x_arr[:, :valid_x_arr_mel.shape[1]],  # same for the melody features
@@ -173,8 +183,8 @@ def create_classifier(
         classifier=clf_opt,
         init_acc=valid_acc,
         n_iter=n_iter,
-        n_boot_features_har=int(len(har_features) * 0.1) if domain_boot_proportional else None,
-        n_boot_features_mel=int(len(mel_features) * 0.1) if domain_boot_proportional else None
+        n_boot_features_har=n_boot_features_har,
+        n_boot_features_mel=n_boot_features_mel
     )
     permute_explainer.explain()
     permute_explainer.create_outputs(classifier_type)
