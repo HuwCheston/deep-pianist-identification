@@ -29,7 +29,8 @@ def create_classifier(
         database_k_coefs: int,
         classifier_type: str = "rf",
         scale: bool = True,
-        optimize: bool = False
+        optimize: bool = False,
+        domain_boot_proportional: bool = False
 ):
     """Fit the random forest to both melody and harmony features"""
     logger.info("Creating white box classifier using melody and harmony data!")
@@ -172,6 +173,8 @@ def create_classifier(
         classifier=clf_opt,
         init_acc=valid_acc,
         n_iter=n_iter,
+        n_boot_features_har=int(len(har_features) * 0.1) if domain_boot_proportional else None,
+        n_boot_features_mel=int(len(mel_features) * 0.1) if domain_boot_proportional else None
     )
     permute_explainer.explain()
     permute_explainer.create_outputs(classifier_type)
@@ -252,6 +255,6 @@ if __name__ == "__main__":
         classifier_type=args["classifier_type"],
         scale=args["scale"],
         database_k_coefs=args["database_k_coefs"],
-        optimize=args["optimize"]
+        optimize=args["optimize"],
     )
     logger.info('Done!')

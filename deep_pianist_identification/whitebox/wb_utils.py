@@ -203,6 +203,12 @@ def parse_arguments(parser) -> dict:
         help="Number of optimization iterations, default is 10000."
     )
     parser.add_argument(
+        "--domain-boot-proportional",
+        default=False,
+        type=utils.string_to_bool,
+        help="Whether the value of K features used to permute harmony/melody features should be proportional to the total number of features, defaults to False."
+    )
+    parser.add_argument(
         '-l', '--feature-sizes',
         nargs='+',
         type=int,

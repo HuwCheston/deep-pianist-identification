@@ -203,12 +203,14 @@ class LRWeightExplainer(WhiteBoxExplainer):
 class DomainExplainer(WhiteBoxExplainer):
     def __init__(
             self,
-            harmony_features: np.array,
-            melody_features: np.array,
-            y: np.array,
+            harmony_features: np.ndarray,
+            melody_features: np.ndarray,
+            y: np.ndarray,
             classifier,
             init_acc: float,
             n_iter: int = N_ITER,
+            n_boot_features_mel: int = None,
+            n_boot_features_har: int = None
     ):
         super().__init__(output_dir='permutation')
         self.harmony_features = harmony_features
@@ -217,11 +219,12 @@ class DomainExplainer(WhiteBoxExplainer):
         self.classifier = classifier
         self.init_acc = init_acc
         self.n_iter = n_iter
-        self.n_boot_features = N_PERMUTATION_COEFS
+        self.n_boot_features_har = n_boot_features_har if n_boot_features_har is not None else N_PERMUTATION_COEFS
+        self.n_boot_features_mel = n_boot_features_mel if n_boot_features_mel is not None else N_PERMUTATION_COEFS
         # We'll create this when calling `self.explain`
         self.df = None
 
-    def permutation_importance(self, features: np.array) -> float:
+    def permutation_importance(self, features: np.ndarray) -> float:
         """Compute loss in accuracy vs non-permuted model with given permuted `features`"""
         # Make predictions and take accuracy
         valid_y_pred_permute = self.classifier.predict(features)
@@ -231,8 +234,8 @@ class DomainExplainer(WhiteBoxExplainer):
 
     def shuffler(
             self,
-            features_to_shuffle: np.array,
-            features_not_to_shuffle: np.array,
+            features_to_shuffle: np.ndarray,
+            features_not_to_shuffle: np.ndarray,
             shuffled_first: bool,
             idxs: np.ndarray = None,
             seed: int = utils.SEED,
@@ -263,12 +266,12 @@ class DomainExplainer(WhiteBoxExplainer):
         # Return loss in accuracy with permuted feature set
         return self.permutation_importance(combined)
 
-    def _get_harmony_feature_importance(self) -> tuple[np.array, np.array]:
+    def _get_harmony_feature_importance(self) -> tuple[np.ndarray, np.ndarray]:
         """Calculates harmony feature importance, both for all features and with bootstrapped subsamples of features"""
 
         def _shuffler_boot(seed):
             # Get an array of bootstrapping indexes to use
-            boot_idxs = np.random.choice(self.harmony_features.shape[1], self.n_boot_features)
+            boot_idxs = np.random.choice(self.harmony_features.shape[1], self.n_boot_features_har)
             return self.shuffler(self.harmony_features, self.melody_features, False, boot_idxs, seed)
 
         with Parallel(n_jobs=1, verbose=0) as par:
@@ -281,12 +284,12 @@ class DomainExplainer(WhiteBoxExplainer):
                 seed) for seed in tqdm(range(self.n_iter), desc="Bootstrapping harmony importance..."))
         return np.array(har_acc), np.array(boot_har_accs)
 
-    def _get_melody_feature_importance(self) -> tuple[np.array, np.array]:
+    def _get_melody_feature_importance(self) -> tuple[np.ndarray, np.ndarray]:
         """Calculates melody feature importance, both for all features and with bootstrapped subsamples of features"""
 
         def _shuffler_boot(seed):
             # Get an array of bootstrapping indexes to use
-            boot_idxs = np.random.choice(self.melody_features.shape[1], self.n_boot_features)
+            boot_idxs = np.random.choice(self.melody_features.shape[1], self.n_boot_features_mel)
             return self.shuffler(self.melody_features, self.harmony_features, True, boot_idxs, seed)
 
         with Parallel(n_jobs=1, verbose=0) as par:
@@ -300,7 +303,7 @@ class DomainExplainer(WhiteBoxExplainer):
         return np.array(mel_acc), np.array(boot_mel_accs)
 
     @staticmethod
-    def format_dict(accs: np.array, name: str) -> dict:
+    def format_dict(accs: np.ndarray, name: str) -> dict:
         return dict(
             feature=name,
             mean=np.mean(accs),
@@ -326,7 +329,10 @@ class DomainExplainer(WhiteBoxExplainer):
     def create_outputs(self, classifier_type: str = "lr"):
         super().create_outputs()
         # Save the dataframe, using the classifier type to make sure we don't overwrite previous runs
-        self.df.to_csv(os.path.join(self.output_dir, f'domain_importance_{classifier_type}.csv'))
+        out_name = f'domain_importance_{classifier_type}'
+        if self.n_boot_features_har is not None:
+            out_name += "_proportion"
+        self.df.to_csv(os.path.join(self.output_dir, out_name + ".csv"))
 
 
 class DatabasePermutationExplainer(WhiteBoxExplainer):
