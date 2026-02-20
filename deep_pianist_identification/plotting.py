@@ -1794,11 +1794,11 @@ class LinePlotWhiteboxAccuracyMaxMinFeatures(BasePlot):
 
 
 class BigramplotPCAFeatureCount(BasePlot):
-    TEXT_KWS = dict(ha='center', va='center')
+    TEXT_KWS = dict(ha='center', va='center',  zorder=100)
     CIRCLE_KWS = dict(color=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, fill=False, alpha=ALPHA)
     LINE_KWS = dict(color=BLACK, linewidth=LINEWIDTH, linestyle=DOTTED, alpha=ALPHA)
-    N_SLICES = 8
-    N_FEATURES_PER_SLICE = 5
+    N_SLICES = 4
+    N_FEATURES_PER_SLICE = 3
     N_PERFORMERS_PER_SLICE = 20
 
     def __init__(self, df: pd.DataFrame, n_components_to_plot: int = 4, **kwargs):
@@ -1806,7 +1806,7 @@ class BigramplotPCAFeatureCount(BasePlot):
         self.n_components_to_plot = n_components_to_plot
         self.df = self._format_df(df)
         self.fig, self.ax = plt.subplots(
-            1, n_components_to_plot // 2, figsize=(WIDTH, WIDTH // 2), sharex=True, sharey=True
+            1, n_components_to_plot // 2, figsize=(WIDTH, WIDTH / 2), sharex=True, sharey=True
         )
 
     def _format_df(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -1845,7 +1845,7 @@ class BigramplotPCAFeatureCount(BasePlot):
         # We need to add some objects to the plot or else `adjust_text` doesn't seem to work
         ax.arrow(0, 0, row['loading_x'], row['loading_y'], alpha=0.)
         txt = m21_utils.intervals_to_pitches(row['label'])
-        return ax.text(row['loading_x'], row['loading_y'], txt, fontsize=FONTSIZE / 1.5, **self.TEXT_KWS)
+        return ax.text(row['loading_x'], row['loading_y'], txt, fontsize=FONTSIZE, **self.TEXT_KWS)
 
     def _create_plot(self):
         for ax, comp1_idx, comp2_idx in zip(
@@ -1875,12 +1875,19 @@ class BigramplotPCAFeatureCount(BasePlot):
                 for idx, row in to_plot.iterrows():
                     txt = txt_func(row, ax)
                     texts.append(txt)
-            adjust_text(texts, ax=ax, expand=(1.3, 1.3), arrowprops=dict(arrowstyle='->', color=RED))
+            _, patches = adjust_text(texts, ax=ax, expand=(1.3, 1.3), arrowprops=dict(arrowstyle='->', color=BLACK), headwidth=5, zorder=-1, min_arrow_len=10)
+            for patch in patches:
+                patch.remove()
+                # tip = np.array(patch.xy)
+                # tail = np.array(patch.get_position())
+                # length = np.linalg.norm(tip - tail)
+                # if length < 0.25:
+                #     patch.remove()
 
     def _format_ax(self):
         for num, ax in zip(range(1, self.n_components_to_plot, 2), self.ax.flatten()):
             # We're plotting even-numbered PCAs on x-axis, odd-numbered on y
-            ax.set(xlim=(-1.1, 1.1), ylim=(-1.1, 1.1), xlabel=f'PCA {num}', ylabel=f'PCA {num + 1}')
+            ax.set(xlim=(-1.1, 1.1), ylim=(-1.1, 1.1), xlabel=f'PCA {num} loading', ylabel=f'PCA {num + 1} loading')
             plt.setp(ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
             ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
             # ax.grid(axis='both', zorder=0, **GRID_KWS)

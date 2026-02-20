@@ -42,9 +42,9 @@ def create_classifier(
 
     # Get all clips from the given dataset
     train_clips, test_clips, validation_clips = wb_utils.get_all_clips(dataset)
-    # train_clips = train_clips[:10]
-    # test_clips = test_clips[:10]
-    # validation_clips = validation_clips[:10]
+    train_clips = train_clips[:10]
+    test_clips = test_clips[:10]
+    validation_clips = validation_clips[:10]
 
     # Melody extraction
     logger.info('---MELODY---')
@@ -133,9 +133,8 @@ def create_classifier(
             feature_type=feat_type
         )
         logger.info(f'... shape of features into PCA: {pc.counts.shape}, n_components: {pc.n_components}')
-        # TODO: needs fixing
-        # pc.explain()
-        # pc.create_outputs()
+        pc.explain()
+        pc.create_outputs()
 
     # Optimize the classifier
     if not optimize:

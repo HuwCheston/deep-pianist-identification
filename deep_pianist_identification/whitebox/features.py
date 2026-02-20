@@ -31,7 +31,7 @@ FEATURE_MAX_TRACKS = 1000  # features in more than this number of tracks
 
 DEFAULT_FEATURE_SIZES = (2, 3, 4, 5, 6)  # We'll consider features with this size by default
 
-PARALLEL_FEATURE_EXTRACT_JOBS = -1  # Run this number of feature extraction jobs in parallel
+PARALLEL_FEATURE_EXTRACT_JOBS = 1  # Run this number of feature extraction jobs in parallel
 
 
 def _extract_fn_harmony(roll: PrettyMIDI):
