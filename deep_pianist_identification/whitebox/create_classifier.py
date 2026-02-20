@@ -30,6 +30,8 @@ def create_classifier(
         classifier_type: str = "rf",
         scale: bool = True,
         optimize: bool = False,
+        domain_boot_proportional: bool = False,
+        subsume_ngrams: bool = False,
         diatonic: bool = False,
         use_mode: bool = False
 ):
@@ -37,6 +39,7 @@ def create_classifier(
     logger.info("Creating white box classifier using melody and harmony data!")
     logger.info(f'... using model type {classifier_type}')
     logger.info(f"... using feature sizes {feature_sizes}")
+    logger.info(f"... subsuming n-grams {subsume_ngrams}")
     logger.info(f"... diatonic features: {diatonic}")
     logger.info(f"... using mode: {use_mode}")
 
@@ -45,9 +48,9 @@ def create_classifier(
 
     # Get all clips from the given dataset
     train_clips, test_clips, validation_clips = wb_utils.get_all_clips(dataset)
-    # train_clips = train_clips[:10]
-    # test_clips = test_clips[:10]
-    # validation_clips = validation_clips[:10]
+    # train_clips = train_clips[:50]
+    # test_clips = test_clips[:50]
+    # validation_clips = validation_clips[:50]
 
     # Melody extraction
     logger.info('---MELODY---')
@@ -74,7 +77,7 @@ def create_classifier(
         bp.save_fig()
 
     train_x_arr_mel, test_x_arr_mel, valid_x_arr_mel, mel_features = drop_invalid_features(
-        train_x_full_mel, test_x_full_mel, valid_x_full_mel, min_count, max_count
+        train_x_full_mel, test_x_full_mel, valid_x_full_mel, min_count, max_count, subsume_ngrams=subsume_ngrams
     )
 
     # HARMONY EXTRACTION
@@ -87,8 +90,9 @@ def create_classifier(
         diatonic=diatonic,
         use_mode=use_mode
     )
+    # never subsume harmony n-grams
     train_x_arr_har, test_x_arr_har, valid_x_arr_har, har_features = drop_invalid_features(
-        train_x_full_har, test_x_full_har, valid_x_full_har, min_count, max_count
+        train_x_full_har, test_x_full_har, valid_x_full_har, min_count, max_count, subsume_ngrams=False
     )
 
     # Check targets are identical for both melody and harmony
@@ -148,9 +152,8 @@ def create_classifier(
                 feature_type=feat_type
             )
             logger.info(f'... shape of features into PCA: {pc.counts.shape}, n_components: {pc.n_components}')
-            # TODO: needs fixing
-            # pc.explain()
-            # pc.create_outputs()
+            pc.explain()
+            pc.create_outputs()
 
     # Optimize the classifier
     if not optimize:
@@ -181,6 +184,16 @@ def create_classifier(
     # Domain/feature importance: this class will do all analysis and create plots/outputs
     logger.info('---EXPLAINING: DOMAIN IMPORTANCE---')
     logger.info(f'... n_iter {n_iter}, initial accuracy {valid_acc}')
+    if domain_boot_proportional:
+        n_boot_features_har = int(len(har_features) * 0.1)
+        n_boot_features_mel = int(len(mel_features) * 0.1)
+        logger.info(f"... using proportional values of K: "
+                    f"melody {n_boot_features_mel} / {len(mel_features)}, "
+                    f"harmony {n_boot_features_har} / {len(har_features)}")
+    else:
+        n_boot_features_har = None
+        n_boot_features_mel = None
+
     permute_explainer = DomainExplainer(
         harmony_features=valid_x_arr[:, valid_x_arr_mel.shape[1]:],  # we can subset to just get the harmony features
         melody_features=valid_x_arr[:, :valid_x_arr_mel.shape[1]],  # same for the melody features
@@ -188,6 +201,8 @@ def create_classifier(
         classifier=clf_opt,
         init_acc=valid_acc,
         n_iter=n_iter,
+        n_boot_features_har=n_boot_features_har,
+        n_boot_features_mel=n_boot_features_mel
     )
     permute_explainer.explain()
     permute_explainer.create_outputs(classifier_type)
@@ -269,6 +284,8 @@ if __name__ == "__main__":
         scale=args["scale"],
         database_k_coefs=args["database_k_coefs"],
         optimize=args["optimize"],
+        domain_boot_proportional=args["domain_boot_proportional"],
+        subsume_ngrams=args["subsume_ngrams"],
         diatonic=args["diatonic"],
         use_mode=args["use_mode"]
     )
