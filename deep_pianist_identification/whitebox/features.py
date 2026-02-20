@@ -257,6 +257,8 @@ def drop_invalid_features(
         train_x_fmt = train_x_fmt[:, nonss_idx]
         test_x_fmt = test_x_fmt[:, nonss_idx]
         valid_x_fmt = valid_x_fmt[:, nonss_idx]
+        remaining = train_x_fmt.shape[1]
+        logger.info(f"... after subsuming ngrams, {remaining} features remain!")
 
     return train_x_fmt, test_x_fmt, valid_x_fmt, feats
 
