@@ -197,6 +197,18 @@ def parse_arguments(parser) -> dict:
         help="Name of dataset inside `references/data_split`, default is '20class_80min'."
     )
     parser.add_argument(
+        "--diatonic",
+        type=utils.string_to_bool,
+        default=False,
+        help="Whether to use diatonic features or not."
+    )
+    parser.add_argument(
+        "--use-mode",
+        type=utils.string_to_bool,
+        default=False,
+        help="When using diatonic features, whether or not to also return mode counts as well."
+    )
+    parser.add_argument(
         "--subsume-ngrams",
         default=False,
         type=utils.string_to_bool,
