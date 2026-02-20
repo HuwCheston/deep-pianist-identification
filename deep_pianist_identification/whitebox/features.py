@@ -4,6 +4,7 @@
 """Extract features used in creating white box classification models"""
 
 import os
+from ast import literal_eval
 from collections import defaultdict
 from itertools import groupby
 from typing import Iterable, Callable
@@ -31,7 +32,7 @@ FEATURE_MAX_TRACKS = 1000  # features in more than this number of tracks
 
 DEFAULT_FEATURE_SIZES = (2, 3, 4, 5, 6)  # We'll consider features with this size by default
 
-PARALLEL_FEATURE_EXTRACT_JOBS = 1  # Run this number of feature extraction jobs in parallel
+PARALLEL_FEATURE_EXTRACT_JOBS = -1  # Run this number of feature extraction jobs in parallel
 
 
 def _extract_fn_harmony(roll: PrettyMIDI):
@@ -105,17 +106,58 @@ def drop_invalid_features(
         valid_x: np.ndarray,
         min_count: int = FEATURE_MIN_TRACKS,
         max_count: int = FEATURE_MAX_TRACKS,
+        subsume_ngrams: bool = False
 ) -> tuple:
     all_features = train_x + test_x + valid_x
+
     # Get those features that appear in at least N tracks in the entire dataset
     logger.info(f"Extracting features which appear in min {min_count}, max {max_count} tracks...")
     valid_features = get_valid_features_by_track_usage(all_features, min_count, max_count)
     logger.info(f"... found {len(valid_features)} valid features!")
+
     # Subset both datasets to ensure we only keep valid features
     train_x = drop_invalid_features_by_track_usage(train_x, valid_features)
     test_x = drop_invalid_features_by_track_usage(test_x, valid_features)
     valid_x = drop_invalid_features_by_track_usage(valid_x, valid_features)
-    return format_features(train_x, test_x, valid_x)
+
+    # format features
+    train_x_fmt, test_x_fmt, valid_x_fmt, feats = format_features(train_x, test_x, valid_x)
+
+    # subsuming n-grams: create mapping, get idxs, keep only these cols
+    if subsume_ngrams:
+        ss_mapper = create_subsumed_ngram_mapping([literal_eval(f) for f in feats])
+        nonss_idx, feats = get_nonsubsumed_ngrams_idx(ss_mapper, feats)
+        train_x_fmt = train_x_fmt[:, nonss_idx]
+        test_x_fmt = test_x_fmt[:, nonss_idx]
+        valid_x_fmt = valid_x_fmt[:, nonss_idx]
+
+    return train_x_fmt, test_x_fmt, valid_x_fmt, feats
+
+
+def create_subsumed_ngram_mapping(ngrams) -> dict[list, list]:
+    def is_contiguous_sublist(smaller, larger):
+        if len(smaller) >= len(larger):
+            return False
+        m = len(smaller)
+        return any(larger[i:i + m] == smaller for i in range(len(larger) - m + 1))
+
+    mapping = {}
+    for item in ngrams:
+        key = tuple(item)
+        mapping[key] = [large for large in ngrams if is_contiguous_sublist(item, large)]
+
+    return mapping
+
+
+def get_nonsubsumed_ngrams_idx(ss_mapper, feats):
+    fouts = []
+    keep_cols = []
+    for f_idx, f in enumerate(feats):
+        f_ = tuple(literal_eval(f))
+        if len(ss_mapper[f_]) == 0:
+            keep_cols.append(f_idx)
+        fouts.append(f)
+    return keep_cols, fouts
 
 
 def get_span(notes_list: list[Note]) -> int:

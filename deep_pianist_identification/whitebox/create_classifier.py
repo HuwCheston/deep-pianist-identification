@@ -30,21 +30,23 @@ def create_classifier(
         classifier_type: str = "rf",
         scale: bool = True,
         optimize: bool = False,
-        domain_boot_proportional: bool = False
+        domain_boot_proportional: bool = False,
+        subsume_ngrams: bool = False
 ):
     """Fit the random forest to both melody and harmony features"""
     logger.info("Creating white box classifier using melody and harmony data!")
     logger.info(f'... using model type {classifier_type}')
     logger.info(f"... using feature sizes {feature_sizes}")
+    logger.info(f"... subsuming n-grams {subsume_ngrams}")
 
     # Get the class mapping dictionary from the dataset
     class_mapping = utils.get_class_mapping(dataset)
 
     # Get all clips from the given dataset
     train_clips, test_clips, validation_clips = wb_utils.get_all_clips(dataset)
-    train_clips = train_clips[:10]
-    test_clips = test_clips[:10]
-    validation_clips = validation_clips[:10]
+    # train_clips = train_clips[:50]
+    # test_clips = test_clips[:50]
+    # validation_clips = validation_clips[:50]
 
     # Melody extraction
     logger.info('---MELODY---')
@@ -66,9 +68,8 @@ def create_classifier(
     )
     bp.create_plot()
     bp.save_fig()
-
     train_x_arr_mel, test_x_arr_mel, valid_x_arr_mel, mel_features = drop_invalid_features(
-        train_x_full_mel, test_x_full_mel, valid_x_full_mel, min_count, max_count
+        train_x_full_mel, test_x_full_mel, valid_x_full_mel, min_count, max_count, subsume_ngrams=subsume_ngrams
     )
 
     # HARMONY EXTRACTION
@@ -79,8 +80,9 @@ def create_classifier(
         validation_clips=validation_clips,
         feature_sizes=feature_sizes,
     )
+    # never subsume harmony n-grams
     train_x_arr_har, test_x_arr_har, valid_x_arr_har, har_features = drop_invalid_features(
-        train_x_full_har, test_x_full_har, valid_x_full_har, min_count, max_count
+        train_x_full_har, test_x_full_har, valid_x_full_har, min_count, max_count, subsume_ngrams=False
     )
 
     # Check targets are identical for both melody and harmony
@@ -266,5 +268,6 @@ if __name__ == "__main__":
         database_k_coefs=args["database_k_coefs"],
         optimize=args["optimize"],
         domain_boot_proportional=args["domain_boot_proportional"],
+        subsume_ngrams=args["subsume_ngrams"],
     )
     logger.info('Done!')

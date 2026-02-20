@@ -197,6 +197,12 @@ def parse_arguments(parser) -> dict:
         help="Name of dataset inside `references/data_split`, default is '20class_80min'."
     )
     parser.add_argument(
+        "--subsume-ngrams",
+        default=False,
+        type=utils.string_to_bool,
+        help="Whether or not to subsume smaller n-grams contained in larger ones"
+    )
+    parser.add_argument(
         "-i", "--n-iter",
         default=N_ITER,
         type=int,
