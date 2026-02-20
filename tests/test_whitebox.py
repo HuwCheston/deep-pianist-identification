@@ -163,7 +163,7 @@ class WhiteBoxFeatureExtractTest(unittest.TestCase):
             self.assertTrue(len(above_thresh) < HARMONY_MAX_LEAPS_IN_CHORD)
 
     def test_harmony_chord_extraction(self):
-        from deep_pianist_identification.whitebox.features import _extract_fn_harmony
+        from deep_pianist_identification.whitebox.features import get_valid_chords_chromatic
 
         # Create the pretty MIDI object
         midi = PrettyMIDI()
@@ -180,7 +180,7 @@ class WhiteBoxFeatureExtractTest(unittest.TestCase):
         midi.instruments.append(instr)
         # These are the chords we expect to extract from the PrettyMIDI object, with transposition
         expected_chords_transpose = [[5, 10, 15], [10, 20]]
-        actual_chords_transpose = list(_extract_fn_harmony(midi))
+        actual_chords_transpose = list(get_valid_chords_chromatic(midi))
         self.assertEqual(expected_chords_transpose, actual_chords_transpose)
 
 

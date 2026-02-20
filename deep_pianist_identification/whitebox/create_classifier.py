@@ -29,12 +29,16 @@ def create_classifier(
         database_k_coefs: int,
         classifier_type: str = "rf",
         scale: bool = True,
-        optimize: bool = False
+        optimize: bool = False,
+        diatonic: bool = False,
+        use_mode: bool = False
 ):
     """Fit the random forest to both melody and harmony features"""
     logger.info("Creating white box classifier using melody and harmony data!")
     logger.info(f'... using model type {classifier_type}')
     logger.info(f"... using feature sizes {feature_sizes}")
+    logger.info(f"... diatonic features: {diatonic}")
+    logger.info(f"... using mode: {use_mode}")
 
     # Get the class mapping dictionary from the dataset
     class_mapping = utils.get_class_mapping(dataset)
@@ -52,19 +56,22 @@ def create_classifier(
         test_clips=test_clips,
         validation_clips=validation_clips,
         feature_sizes=feature_sizes,
+        diatonic=diatonic,
+        use_mode=use_mode
     )
 
     # plots of unique track appearances / counts for 4-grams
-    bp = plotting.BarPlotWhiteboxFeatureUniqueTracks(
-        train_x_full_mel + test_x_full_mel + valid_x_full_mel
-    )
-    bp.create_plot()
-    bp.save_fig()
-    bp = plotting.BarPlotWhiteboxNGramFeatureCounts(
-        train_x_full_mel + test_x_full_mel + valid_x_full_mel
-    )
-    bp.create_plot()
-    bp.save_fig()
+    if not use_mode:
+        bp = plotting.BarPlotWhiteboxFeatureUniqueTracks(
+            train_x_full_mel + test_x_full_mel + valid_x_full_mel
+        )
+        bp.create_plot()
+        bp.save_fig()
+        bp = plotting.BarPlotWhiteboxNGramFeatureCounts(
+            train_x_full_mel + test_x_full_mel + valid_x_full_mel
+        )
+        bp.create_plot()
+        bp.save_fig()
 
     train_x_arr_mel, test_x_arr_mel, valid_x_arr_mel, mel_features = drop_invalid_features(
         train_x_full_mel, test_x_full_mel, valid_x_full_mel, min_count, max_count
@@ -77,6 +84,8 @@ def create_classifier(
         test_clips=test_clips,
         validation_clips=validation_clips,
         feature_sizes=feature_sizes,
+        diatonic=diatonic,
+        use_mode=use_mode
     )
     train_x_arr_har, test_x_arr_har, valid_x_arr_har, har_features = drop_invalid_features(
         train_x_full_har, test_x_full_har, valid_x_full_har, min_count, max_count
@@ -94,18 +103,24 @@ def create_classifier(
     valid_x_arr = np.concatenate((valid_x_arr_mel, valid_x_arr_har), axis=1)
 
     # Create a plot of the feature counts
-    bp = plotting.BarPlotWhiteboxFeatureCounts(
-        np.vstack([train_x_arr, test_x_arr, valid_x_arr]), mel_features, har_features
-    )
-    bp.create_plot()
-    bp.save_fig()
+    if not use_mode:
+        bp = plotting.BarPlotWhiteboxFeatureCounts(
+            np.vstack([train_x_arr, test_x_arr, valid_x_arr]), mel_features, har_features
+        )
+        bp.create_plot()
+        bp.save_fig()
 
-    # Load the optimized parameter settings (or recreate them, if they don't exist)
+    # Constructing filepath to save optimisation results
     logger.info('---FITTING---')
+    csname = f'{dataset}_{classifier_type}_harmony+melody_{"".join([str(i) for i in feature_sizes])}_min{min_count}_max{max_count}'
+    if diatonic:
+        csname += "_diatonic"
+    if use_mode:
+        csname += "_mode"
     csvpath = os.path.join(
         utils.get_project_root(),
         'references/whitebox',
-        f'{dataset}_{classifier_type}_harmony+melody_{"".join([str(i) for i in feature_sizes])}_min{min_count}_max{max_count}.csv'
+        csname + ".csv"
     )
 
     # Scale the data if required (never for multinomial naive Bayes as this expects count data)
@@ -115,26 +130,27 @@ def create_classifier(
 
     # Decompose feature counts using PCA: first melody, then harmony
     logger.info('---EXPLAINING: DECOMPOSING FEATURE COUNTS---')
-    all_xs_raw = np.vstack([train_x_raw, test_x_raw, valid_x_raw])
-    all_ys_raw = np.hstack([train_y_mel, test_y_mel, valid_y_mel])
-    for feat_type, feat_names, xs in zip(
-            ['melody', 'harmony'],
-            [mel_features, har_features],
-            [all_xs_raw[:, :len(mel_features)], all_xs_raw[:, len(mel_features):]]
-    ):
-        pc = PCAFeatureCountsExplainer(
-            feature_counts=xs,  # these will be z-transformed as part of the class
-            targets=all_ys_raw,
-            feature_names=feat_names,
-            class_mapping=class_mapping,
-            feature_size=3,  # plotting 4-grams
-            n_components=4,
-            feature_type=feat_type
-        )
-        logger.info(f'... shape of features into PCA: {pc.counts.shape}, n_components: {pc.n_components}')
-        # TODO: needs fixing
-        # pc.explain()
-        # pc.create_outputs()
+    if not use_mode:
+        all_xs_raw = np.vstack([train_x_raw, test_x_raw, valid_x_raw])
+        all_ys_raw = np.hstack([train_y_mel, test_y_mel, valid_y_mel])
+        for feat_type, feat_names, xs in zip(
+                ['melody', 'harmony'],
+                [mel_features, har_features],
+                [all_xs_raw[:, :len(mel_features)], all_xs_raw[:, len(mel_features):]]
+        ):
+            pc = PCAFeatureCountsExplainer(
+                feature_counts=xs,  # these will be z-transformed as part of the class
+                targets=all_ys_raw,
+                feature_names=feat_names,
+                class_mapping=class_mapping,
+                feature_size=3,  # plotting 4-grams
+                n_components=4,
+                feature_type=feat_type
+            )
+            logger.info(f'... shape of features into PCA: {pc.counts.shape}, n_components: {pc.n_components}')
+            # TODO: needs fixing
+            # pc.explain()
+            # pc.create_outputs()
 
     # Optimize the classifier
     if not optimize:
@@ -252,6 +268,8 @@ if __name__ == "__main__":
         classifier_type=args["classifier_type"],
         scale=args["scale"],
         database_k_coefs=args["database_k_coefs"],
-        optimize=args["optimize"]
+        optimize=args["optimize"],
+        diatonic=args["diatonic"],
+        use_mode=args["use_mode"]
     )
     logger.info('Done!')
