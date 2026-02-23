@@ -209,10 +209,22 @@ def parse_arguments(parser) -> dict:
         help="When using diatonic features, whether or not to also return mode counts as well."
     )
     parser.add_argument(
+        "--subsume-ngrams",
+        default=False,
+        type=utils.string_to_bool,
+        help="Whether or not to subsume smaller n-grams contained in larger ones"
+    )
+    parser.add_argument(
         "-i", "--n-iter",
         default=N_ITER,
         type=int,
         help="Number of optimization iterations, default is 10000."
+    )
+    parser.add_argument(
+        "--domain-boot-proportional",
+        default=False,
+        type=utils.string_to_bool,
+        help="Whether the value of K features used to permute harmony/melody features should be proportional to the total number of features, defaults to False."
     )
     parser.add_argument(
         '-l', '--feature-sizes',
