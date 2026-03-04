@@ -12,6 +12,7 @@ import pytest
 from deep_pianist_identification import utils
 
 
+N_ITERATIONS = 20
 MAGIC_NUMBER = 1629
 DESIRED_PIANISTS = [
     "Abdullah Ibrahim",
@@ -43,7 +44,7 @@ def load_csv(stratify_type: str = None, n: int = 0) -> pd.DataFrame:
         split_path = os.path.join(
             utils.get_project_root(),
             "references/data_splits",
-            f"20class_80min_stratified_{stratify_type}_{n}" if stratify_type is not None else "20class_80min",
+            f"20class_80min_stratified_{stratify_type}_{n}" if stratify_type is not None else f"20class_80min_{n}",
             f"{split_name}_split.csv"
         )
         df = pd.read_csv(split_path, index_col=0)
@@ -53,7 +54,7 @@ def load_csv(stratify_type: str = None, n: int = 0) -> pd.DataFrame:
 
 
 @pytest.mark.parametrize("stratify_type", ["album", "composition"])
-@pytest.mark.parametrize("iteration", range(5))
+@pytest.mark.parametrize("iteration", range(N_ITERATIONS))
 def test_pianist_in_each_split(stratify_type, iteration):
     df_ = load_csv(stratify_type, iteration)
     # Each pianist should have one recording in every split
@@ -64,7 +65,7 @@ def test_pianist_in_each_split(stratify_type, iteration):
 
 
 @pytest.mark.parametrize("stratify_type", ["album", "composition", None])
-@pytest.mark.parametrize("iteration", range(5))
+@pytest.mark.parametrize("iteration", range(N_ITERATIONS))
 def test_split_proportion(stratify_type, iteration):
     # Splits should be approximately 8/1/1
     df_ = load_csv(stratify_type, iteration)
@@ -75,7 +76,7 @@ def test_split_proportion(stratify_type, iteration):
 
 
 @pytest.mark.parametrize("stratify_type", ["album", "composition"])
-@pytest.mark.parametrize("iteration", range(5))
+@pytest.mark.parametrize("iteration", range(N_ITERATIONS))
 def test_no_leaks(stratify_type, iteration):
     # No leaks of compositions/albums between splits
     df_ = load_csv(stratify_type, iteration)
@@ -91,7 +92,7 @@ def test_no_leaks(stratify_type, iteration):
 
 
 @pytest.mark.parametrize("stratify_type", ["album", "composition", None])
-@pytest.mark.parametrize("iteration", range(5))
+@pytest.mark.parametrize("iteration", range(N_ITERATIONS))
 def test_no_overlap_tracks(stratify_type, iteration):
     # No leak of tracks between splits
     df_ = load_csv(stratify_type, iteration)
@@ -107,16 +108,16 @@ def test_no_overlap_tracks(stratify_type, iteration):
 
 
 @pytest.mark.parametrize("stratify_type", ["album", "composition", None])
-@pytest.mark.parametrize("iteration", range(5))
+@pytest.mark.parametrize("iteration", range(N_ITERATIONS))
 def test_dataset_size(stratify_type, iteration):
     df_ = load_csv(stratify_type, iteration)
     assert len(df_) == MAGIC_NUMBER
 
 
-@pytest.mark.parametrize("stratify_type", ["album", "composition"])
+@pytest.mark.parametrize("stratify_type", ["album", "composition", None])
 def test_iterations_different(stratify_type):
     bigdf = []
-    for n in range(5):
+    for n in range(N_ITERATIONS):
         df_ = load_csv(stratify_type, n)
         df_["n"] = n
         bigdf.append(df_)
