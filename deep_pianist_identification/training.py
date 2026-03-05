@@ -123,7 +123,7 @@ class TrainModule:
 
         # LOSS
         loss_fns = ["cce", "cce+triplet"]
-        # assert self.loss_type in loss_fns, '`loss_type` must be one of ' + ', '.join(loss_fns)
+        assert self.loss_type in loss_fns, '`loss_type` must be one of ' + ', '.join(loss_fns)
         logger.debug(f'Initialising {self.loss_type} loss function with parameters {self.loss_cfg}...')
         self.triplet_loss_fn = TripletMarginLoss(**self.loss_cfg)  # Not used in CCE loss only runs
         self.cce_loss_fn = nn.CrossEntropyLoss(reduction='mean').to(DEVICE)

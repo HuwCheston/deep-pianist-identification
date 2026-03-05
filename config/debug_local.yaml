@@ -30,6 +30,8 @@ optim_cfg:
   nesterov: False
   weight_decay: 0.0001
 sched_type: cosine
+loss_type: cce
+loss_cfg: { }
 sched_cfg:
   T_max: 100
 checkpoint_cfg:
