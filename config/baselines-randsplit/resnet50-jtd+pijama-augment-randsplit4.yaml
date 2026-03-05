@@ -37,5 +37,5 @@ checkpoint_cfg:
   load_checkpoints: True
   checkpoint_after_n_epochs: 10
 mlflow_cfg:
-  use: True
+  use: False
   tracking_uri: http://127.0.0.1:5000
