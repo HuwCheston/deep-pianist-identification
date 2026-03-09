@@ -16,7 +16,7 @@ from pretty_midi import PrettyMIDI
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
-from deep_pianist_identification.utils import get_project_root, SEED, seed_everything
+from deep_pianist_identification.utils import get_project_root, SEED, seed_everything, string_to_bool
 
 # These pianists have at least one track in both datasets
 IN_JTD_AND_PIJAMA = [
@@ -82,51 +82,57 @@ def lp_group_split(df: pd.DataFrame, group_col: str = 'album_name', seed: int = 
     group_sizes = df.groupby(group_col).size().to_dict()
 
     # Stratify counts per group
-    group_strat_counts = df.groupby(group_col)[stratify_column].value_counts().unstack(fill_value=0).to_dict(orient='index')
+    group_strat_counts = df.groupby(group_col)[stratify_column].value_counts().unstack(fill_value=0).to_dict(
+        orient='index')
     strat_levels = df[stratify_column].unique()
     global_strat_frac = df[stratify_column].value_counts(normalize=True).to_dict()  # global fraction
 
     # Desired number of stratify types per split
-    strat_targets = {s: {level: targets[s]*global_strat_frac[level] for level in strat_levels} for s in targets.keys()}
+    strat_targets = {s: {level: targets[s] * global_strat_frac[level] for level in strat_levels} for s in
+                     targets.keys()}
 
     # LP problem
     prob = pulp.LpProblem("GroupSplit", pulp.LpMinimize)
 
     # Decision variables: x[group, split] binary
-    x = pulp.LpVariable.dicts("x", ((g,s) for g in groups for s in targets.keys()), cat='Binary')
+    x = pulp.LpVariable.dicts("x", ((g, s) for g in groups for s in targets.keys()), cat='Binary')
 
     # Deviation variables for total records per split
     d_total = pulp.LpVariable.dicts("d_total", targets.keys(), lowBound=0)
 
     # Deviation variables for stratify counts per split
-    d_strat = {s: {level: pulp.LpVariable(f"d_{s}_{level}", lowBound=0) for level in strat_levels} for s in targets.keys()}
+    d_strat = {s: {level: pulp.LpVariable(f"d_{s}_{level}", lowBound=0) for level in strat_levels} for s in
+               targets.keys()}
 
     # 1. Each group assigned to exactly one split
     for g in groups:
-        prob += pulp.lpSum([x[g,s] for s in targets.keys()]) == 1
+        prob += pulp.lpSum([x[g, s] for s in targets.keys()]) == 1
 
     # 2. Total records deviation constraints
     for s in targets.keys():
-        prob += pulp.lpSum([group_sizes[g]*x[g,s] for g in groups]) - targets[s] <= d_total[s]
-        prob += targets[s] - pulp.lpSum([group_sizes[g]*x[g,s] for g in groups]) <= d_total[s]
+        prob += pulp.lpSum([group_sizes[g] * x[g, s] for g in groups]) - targets[s] <= d_total[s]
+        prob += targets[s] - pulp.lpSum([group_sizes[g] * x[g, s] for g in groups]) <= d_total[s]
 
     # 3. Stratification deviation constraints
     for s in targets.keys():
         for level in strat_levels:
-            prob += pulp.lpSum([group_strat_counts[g].get(level,0)*x[g,s] for g in groups]) - strat_targets[s][level] <= d_strat[s][level]
-            prob += strat_targets[s][level] - pulp.lpSum([group_strat_counts[g].get(level,0)*x[g,s] for g in groups]) <= d_strat[s][level]
+            prob += pulp.lpSum([group_strat_counts[g].get(level, 0) * x[g, s] for g in groups]) - strat_targets[s][
+                level] <= d_strat[s][level]
+            prob += strat_targets[s][level] - pulp.lpSum(
+                [group_strat_counts[g].get(level, 0) * x[g, s] for g in groups]) <= d_strat[s][level]
 
     # 4. Pianist coverage constraints
     pianists = df['pianist'].unique()
     for s in targets.keys():
         for p in pianists:
             # groups that contain at least one recording by pianist p
-            groups_with_p = [g for g in groups if p in df[df[group_col]==g]['pianist'].unique()]
+            groups_with_p = [g for g in groups if p in df[df[group_col] == g]['pianist'].unique()]
             # enforce at least one of these groups assigned to split s
-            prob += pulp.lpSum([x[g,s] for g in groups_with_p]) >= 1
+            prob += pulp.lpSum([x[g, s] for g in groups_with_p]) >= 1
 
     # 5. Objective function: minimize total deviation
-    prob += pulp.lpSum([d_total[s] for s in targets.keys()]) + pulp.lpSum([d_strat[s][level] for s in targets.keys() for level in strat_levels])
+    prob += pulp.lpSum([d_total[s] for s in targets.keys()]) + pulp.lpSum(
+        [d_strat[s][level] for s in targets.keys() for level in strat_levels])
 
     # 6. Solve
     solver = pulp.PULP_CBC_CMD(timeLimit=120, gapRel=0.02, msg=True, options=[f"randomSeed {seed}"])
@@ -136,7 +142,7 @@ def lp_group_split(df: pd.DataFrame, group_col: str = 'album_name', seed: int = 
     assignment = {s: [] for s in targets.keys()}
     for g in groups:
         for s in targets.keys():
-            if pulp.value(x[g,s]) > 0.5:
+            if pulp.value(x[g, s]) > 0.5:
                 assignment[s].append(g)
 
     # Assign split column
@@ -177,7 +183,6 @@ def get_tracks(databases: tuple = ('pijama', 'jtd')):
 
             # If the pianist has both JTD and Pijama tracks
             if pianist in IN_JTD_AND_PIJAMA:
-
                 # Get the duration
                 track_duration = get_track_duration(track_path)
 
@@ -211,7 +216,8 @@ def generate_split(
         track_df: pd.DataFrame,
         train_size: float = TRAIN_SIZE,
         test_size: float = TEST_SIZE,
-        validation_size: float = VALIDATION_SIZE
+        validation_size: float = VALIDATION_SIZE,
+        seed: int = SEED
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Generates splits from `track_df` with required `size`s
@@ -233,7 +239,7 @@ def generate_split(
         test_size=test_size + validation_size,
         train_size=train_size,
         stratify=track_df['database'],
-        random_state=SEED,
+        random_state=seed,
         shuffle=True
     )
 
@@ -251,7 +257,7 @@ def generate_split(
         stratify=temp_df['database'],
         test_size=t_size,
         train_size=v_size,  # Use validation as train
-        random_state=SEED,
+        random_state=seed,
         shuffle=True
     )
 
@@ -272,7 +278,8 @@ def generate(
         train_size: float,
         test_size: float,
         validation_size: float,
-        min_pianist_minutes: float
+        min_pianist_minutes: float,
+        n_splits: int
 ) -> None:
     """
     Generates data splits with required `size`s and saves in `split_path`.
@@ -282,12 +289,6 @@ def generate(
 
     assert round(train_size + test_size + validation_size) == 1.0, "Size of all splits must sum to 1!"
     logger.info(f'Generating data splits with sizes train {train_size}, test {test_size}, validation {validation_size}')
-
-    # Create the folder for the desired split
-    split_path = os.path.join(get_project_root(), 'references/data_splits', split_path)
-    logger.info(f'Splits will be saved as CSV files in {split_path}')
-    if not os.path.exists(split_path):
-        os.makedirs(split_path)
 
     # Get the valid tracks from all databases
     loaded_tracks = get_tracks()
@@ -306,24 +307,42 @@ def generate(
 
     # Assign numbers for each pianist (sorted alphabetically) and replace their name with this
     mapping = {k: v for v, k in enumerate(sorted(fmt_df['pianist'].unique()))}
-    _ = pd.Series(mapping).rename('idx').to_csv(os.path.join(split_path, 'pianist_mapping.csv'))  # dump CSV
     pd.options.mode.chained_assignment = None
     fmt_df['pianist'] = fmt_df['pianist'].map(mapping)
     pd.options.mode.chained_assignment = 'warn'
 
     # Split into train, test, and validation dataframes
-    df_train, df_test, df_valid = generate_split(fmt_df, train_size, test_size, validation_size)
-    assert len(df_train) + len(df_test) + len(df_valid) == len(fmt_df), "Data splits are not using all tracks"
+    for n in range(n_splits):
 
-    # Create the splits as individual CSV files inside the directory
-    for split_df, split in zip([df_train, df_test, df_valid], ['train', 'test', 'validation']):
-        logger.info(f'Split {split} has {len(split_df)} tracks!')
-        split_df['track'] = split_df['database'] + "/" + split_df['track']
-        _ = (
-            split_df.drop(columns=['database'])
-            .reset_index(drop=True)
-            .to_csv(os.path.join(split_path, f"{split}_split.csv"))
+        # Create the folder for the desired split
+        out_path = os.path.join(get_project_root(), 'references/data_splits', split_path + "_" + str(n))
+        logger.info(f'Splits will be saved as CSV files in {split_path}')
+        if not os.path.exists(out_path):
+            os.makedirs(out_path)
+
+        # Dump pianist mapping CSV
+        (
+            pd.Series(mapping)
+            .rename('idx')
+            .to_csv(os.path.join(out_path, 'pianist_mapping.csv'))
         )
+
+        # fresh seed
+        seed_everything(SEED + n)
+
+        # do the split
+        df_train, df_test, df_valid = generate_split(fmt_df, train_size, test_size, validation_size, seed=SEED+n)
+        assert len(df_train) + len(df_test) + len(df_valid) == len(fmt_df), "Data splits are not using all tracks"
+
+        # Create the splits as individual CSV files inside the directory
+        for split_df, split in zip([df_train, df_test, df_valid], ['train', 'test', 'validation']):
+            logger.info(f'Split {split} has {len(split_df)} tracks!')
+            split_df['track'] = split_df['database'] + "/" + split_df['track']
+            _ = (
+                split_df.drop(columns=['database'])
+                .reset_index(drop=True)
+                .to_csv(os.path.join(out_path, f"{split}_split.csv"))
+            )
 
     logger.info(f'Finished, splits saved to {split_path}')
 
@@ -341,7 +360,8 @@ def generate_stratified(
     """
 
     assert round(train_size + test_size + validation_size) == 1.0, "Size of all splits must sum to 1!"
-    logger.info(f'Generating STRATIFIED data splits with sizes train {train_size}, test {test_size}, validation {validation_size}')
+    logger.info(
+        f'Generating STRATIFIED data splits with sizes train {train_size}, test {test_size}, validation {validation_size}')
 
     # Create the folder for the desired split
     for splitter in ["album", "composition"]:
@@ -376,7 +396,8 @@ def generate_stratified(
             seed_everything(SEED + n)
 
             # skip if we've already generated splits
-            out_path = os.path.join(get_project_root(), 'references/data_splits', f"{split_path}_{col}_{n}", "test_split.csv")
+            out_path = os.path.join(get_project_root(), 'references/data_splits', f"{split_path}_{col}_{n}",
+                                    "test_split.csv")
             if os.path.exists(out_path):
                 logger.info(f'{out_path} already exists, skipping!')
                 continue
@@ -396,7 +417,8 @@ def generate_stratified(
             for split_df, split in zip([df_train, df_test, df_valid], ['train', 'test', 'validation']):
                 logger.info(f'Split {split} has {len(split_df)} tracks!')
                 split_df['track'] = split_df['database'] + "/" + split_df['track']
-                out_path = os.path.join(get_project_root(), 'references/data_splits', f"{split_path}_{col}_{n}", f"{split}_split.csv")
+                out_path = os.path.join(get_project_root(), 'references/data_splits', f"{split_path}_{col}_{n}",
+                                        f"{split}_split.csv")
                 if os.path.exists(out_path):
                     continue
                 _ = (
@@ -412,7 +434,7 @@ if __name__ == "__main__":
     # Parsing arguments from the command line interface
     parser = argparse.ArgumentParser(description='Generate data splits for model training, testing, and validation')
     parser.add_argument(
-        "-p", "--split-path", default="20class_80min_stratified", type=str,
+        "-p", "--split-path", default="20class_80min", type=str,
         help="Path to save split inside `references/data_splits`"
     )
     parser.add_argument(
@@ -435,10 +457,10 @@ if __name__ == "__main__":
         "-s", "--seed", default=SEED, type=int, help="Seed to use in reproducible randomization. Defaults to 42"
     )
     parser.add_argument(
-        '--stratified', action='store_true', default=True, help="Produces seeds stratified by album & composition name"
+        '--stratified', type=string_to_bool, default=False, help="Produces splits stratified by album & composition name"
     )
     parser.add_argument(
-        '--n-splits', type=int, default=5, help="Produce this many stratified splits"
+        '--n-splits', type=int, default=5, help="Produce this many splits"
     )
 
     # Parse all arguments from the command line
@@ -447,7 +469,8 @@ if __name__ == "__main__":
 
     # Create the data split: either stratified by composition/album or normal (default)
     args_to_parse = (
-        args['split_path'], args['train_size'], args['test_size'], args['validation_size'], args['min_pianist_minutes'], args['n_splits']
+        args['split_path'], args['train_size'], args['test_size'], args['validation_size'], args['min_pianist_minutes'],
+        args['n_splits']
     )
     if args["stratified"]:
         generate_stratified(*args_to_parse)
