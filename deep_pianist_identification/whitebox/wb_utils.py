@@ -197,10 +197,34 @@ def parse_arguments(parser) -> dict:
         help="Name of dataset inside `references/data_split`, default is '20class_80min'."
     )
     parser.add_argument(
+        "--diatonic",
+        type=utils.string_to_bool,
+        default=False,
+        help="Whether to use diatonic features or not."
+    )
+    parser.add_argument(
+        "--use-mode",
+        type=utils.string_to_bool,
+        default=False,
+        help="When using diatonic features, whether or not to also return mode counts as well."
+    )
+    parser.add_argument(
+        "--subsume-ngrams",
+        default=False,
+        type=utils.string_to_bool,
+        help="Whether or not to subsume smaller n-grams contained in larger ones"
+    )
+    parser.add_argument(
         "-i", "--n-iter",
         default=N_ITER,
         type=int,
         help="Number of optimization iterations, default is 10000."
+    )
+    parser.add_argument(
+        "--domain-boot-proportional",
+        default=False,
+        type=utils.string_to_bool,
+        help="Whether the value of K features used to permute harmony/melody features should be proportional to the total number of features, defaults to False."
     )
     parser.add_argument(
         '-l', '--feature-sizes',
@@ -233,6 +257,12 @@ def parse_arguments(parser) -> dict:
         default=True,
         type=utils.string_to_bool,
         help="Whether to transform data using or not, default is True."
+    )
+    parser.add_argument(
+        "-o", "--optimize",
+        default=False,
+        type=utils.string_to_bool,
+        help="Whether to formally optimize model with optuna, default is False (random parameter sampling instead)."
     )
     parser.add_argument(
         "-k", "--database-k-coefs",

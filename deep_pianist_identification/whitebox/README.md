@@ -66,6 +66,7 @@ We allow for several arguments to be passed in to the command line script.
 - `-k` / `--database-k-coefs`: number of features to use when computing correlation between different datasets, default
   is `2000`. Either `int` or `float` is accepted: `float` is interpreted as fraction of total features. `-1` is
   interpreted as using all available features.
+- `--optimize`: whether or not to use `optuna` to optimize the parameters for the classifier (rather than random sampling). Defaults to random sampling.
 
 </details>
 

@@ -11,7 +11,7 @@ from loguru import logger
 
 from deep_pianist_identification import utils, plotting
 from deep_pianist_identification.whitebox import wb_utils
-from deep_pianist_identification.whitebox.classifiers import fit_classifier
+from deep_pianist_identification.whitebox.classifiers import fit_classifier, fit_with_optimization
 from deep_pianist_identification.whitebox.explainers import (
     LRWeightExplainer, DomainExplainer, DatabasePermutationExplainer, PCAFeatureCountsExplainer
 )
@@ -29,17 +29,28 @@ def create_classifier(
         database_k_coefs: int,
         classifier_type: str = "rf",
         scale: bool = True,
+        optimize: bool = False,
+        domain_boot_proportional: bool = False,
+        subsume_ngrams: bool = False,
+        diatonic: bool = False,
+        use_mode: bool = False
 ):
     """Fit the random forest to both melody and harmony features"""
     logger.info("Creating white box classifier using melody and harmony data!")
     logger.info(f'... using model type {classifier_type}')
     logger.info(f"... using feature sizes {feature_sizes}")
+    logger.info(f"... subsuming n-grams {subsume_ngrams}")
+    logger.info(f"... diatonic features: {diatonic}")
+    logger.info(f"... using mode: {use_mode}")
 
     # Get the class mapping dictionary from the dataset
     class_mapping = utils.get_class_mapping(dataset)
 
     # Get all clips from the given dataset
     train_clips, test_clips, validation_clips = wb_utils.get_all_clips(dataset)
+    # train_clips = train_clips[:50]
+    # test_clips = test_clips[:50]
+    # validation_clips = validation_clips[:50]
 
     # Melody extraction
     logger.info('---MELODY---')
@@ -48,9 +59,25 @@ def create_classifier(
         test_clips=test_clips,
         validation_clips=validation_clips,
         feature_sizes=feature_sizes,
+        diatonic=diatonic,
+        use_mode=use_mode
     )
+
+    # plots of unique track appearances / counts for 4-grams
+    if not use_mode:
+        bp = plotting.BarPlotWhiteboxFeatureUniqueTracks(
+            train_x_full_mel + test_x_full_mel + valid_x_full_mel
+        )
+        bp.create_plot()
+        bp.save_fig()
+        bp = plotting.BarPlotWhiteboxNGramFeatureCounts(
+            train_x_full_mel + test_x_full_mel + valid_x_full_mel
+        )
+        bp.create_plot()
+        bp.save_fig()
+
     train_x_arr_mel, test_x_arr_mel, valid_x_arr_mel, mel_features = drop_invalid_features(
-        train_x_full_mel, test_x_full_mel, valid_x_full_mel, min_count, max_count
+        train_x_full_mel, test_x_full_mel, valid_x_full_mel, min_count, max_count, subsume_ngrams=subsume_ngrams
     )
 
     # HARMONY EXTRACTION
@@ -60,9 +87,12 @@ def create_classifier(
         test_clips=test_clips,
         validation_clips=validation_clips,
         feature_sizes=feature_sizes,
+        diatonic=diatonic,
+        use_mode=use_mode
     )
+    # never subsume harmony n-grams
     train_x_arr_har, test_x_arr_har, valid_x_arr_har, har_features = drop_invalid_features(
-        train_x_full_har, test_x_full_har, valid_x_full_har, min_count, max_count
+        train_x_full_har, test_x_full_har, valid_x_full_har, min_count, max_count, subsume_ngrams=False
     )
 
     # Check targets are identical for both melody and harmony
@@ -77,18 +107,24 @@ def create_classifier(
     valid_x_arr = np.concatenate((valid_x_arr_mel, valid_x_arr_har), axis=1)
 
     # Create a plot of the feature counts
-    bp = plotting.BarPlotWhiteboxFeatureCounts(
-        np.vstack([train_x_arr, test_x_arr, valid_x_arr]), mel_features, har_features
-    )
-    bp.create_plot()
-    bp.save_fig()
+    if not use_mode:
+        bp = plotting.BarPlotWhiteboxFeatureCounts(
+            np.vstack([train_x_arr, test_x_arr, valid_x_arr]), mel_features, har_features
+        )
+        bp.create_plot()
+        bp.save_fig()
 
-    # Load the optimized parameter settings (or recreate them, if they don't exist)
+    # Constructing filepath to save optimisation results
     logger.info('---FITTING---')
+    csname = f'{dataset}_{classifier_type}_harmony+melody_{"".join([str(i) for i in feature_sizes])}_min{min_count}_max{max_count}'
+    if diatonic:
+        csname += "_diatonic"
+    if use_mode:
+        csname += "_mode"
     csvpath = os.path.join(
         utils.get_project_root(),
         'references/whitebox',
-        f'{dataset}_{classifier_type}_harmony+melody_{"".join([str(i) for i in feature_sizes])}_min{min_count}_max{max_count}.csv'
+        csname + ".csv"
     )
 
     # Scale the data if required (never for multinomial naive Bayes as this expects count data)
@@ -98,43 +134,66 @@ def create_classifier(
 
     # Decompose feature counts using PCA: first melody, then harmony
     logger.info('---EXPLAINING: DECOMPOSING FEATURE COUNTS---')
-    all_xs_raw = np.vstack([train_x_raw, test_x_raw, valid_x_raw])
-    all_ys_raw = np.hstack([train_y_mel, test_y_mel, valid_y_mel])
-    for feat_type, feat_names, xs in zip(
-            ['melody', 'harmony'],
-            [mel_features, har_features],
-            [all_xs_raw[:, :len(mel_features)], all_xs_raw[:, len(mel_features):]]
-    ):
-        pc = PCAFeatureCountsExplainer(
-            feature_counts=xs,  # these will be z-transformed as part of the class
-            targets=all_ys_raw,
-            feature_names=feat_names,
-            class_mapping=class_mapping,
-            feature_size=3,  # plotting 4-grams
-            n_components=4,
-            feature_type=feat_type
-        )
-        logger.info(f'... shape of features into PCA: {pc.counts.shape}, n_components: {pc.n_components}')
-        # TODO: needs fixing
-        # pc.explain()
-        # pc.create_outputs()
+    if not use_mode:
+        all_xs_raw = np.vstack([train_x_raw, test_x_raw, valid_x_raw])
+        all_ys_raw = np.hstack([train_y_mel, test_y_mel, valid_y_mel])
+        for feat_type, feat_names, xs in zip(
+                ['melody', 'harmony'],
+                [mel_features, har_features],
+                [all_xs_raw[:, :len(mel_features)], all_xs_raw[:, len(mel_features):]]
+        ):
+            pc = PCAFeatureCountsExplainer(
+                feature_counts=xs,  # these will be z-transformed as part of the class
+                targets=all_ys_raw,
+                feature_names=feat_names,
+                class_mapping=class_mapping,
+                feature_size=3,  # plotting 4-grams
+                n_components=4,
+                feature_type=feat_type
+            )
+            logger.info(f'... shape of features into PCA: {pc.counts.shape}, n_components: {pc.n_components}')
+            pc.explain()
+            pc.create_outputs()
 
     # Optimize the classifier
-    clf_opt, valid_acc, best_params = fit_classifier(
-        train_x_arr,
-        test_x_arr,
-        valid_x_arr,
-        train_y_mel,
-        test_y_mel,
-        valid_y_mel,
-        csvpath,
-        n_iter,
-        classifier_type
-    )
+    if not optimize:
+        clf_opt, valid_acc, best_params = fit_classifier(
+            train_x_arr,
+            test_x_arr,
+            valid_x_arr,
+            train_y_mel,
+            test_y_mel,
+            valid_y_mel,
+            csvpath,
+            n_iter,
+            classifier_type
+        )
+    else:
+        clf_opt, valid_acc, best_params = fit_with_optimization(
+            train_x_arr,
+            test_x_arr,
+            valid_x_arr,
+            train_y_mel,
+            test_y_mel,
+            valid_y_mel,
+            csvpath,
+            n_iter,
+            classifier_type
+        )
 
     # Domain/feature importance: this class will do all analysis and create plots/outputs
     logger.info('---EXPLAINING: DOMAIN IMPORTANCE---')
     logger.info(f'... n_iter {n_iter}, initial accuracy {valid_acc}')
+    if domain_boot_proportional:
+        n_boot_features_har = int(len(har_features) * 0.1)
+        n_boot_features_mel = int(len(mel_features) * 0.1)
+        logger.info(f"... using proportional values of K: "
+                    f"melody {n_boot_features_mel} / {len(mel_features)}, "
+                    f"harmony {n_boot_features_har} / {len(har_features)}")
+    else:
+        n_boot_features_har = None
+        n_boot_features_mel = None
+
     permute_explainer = DomainExplainer(
         harmony_features=valid_x_arr[:, valid_x_arr_mel.shape[1]:],  # we can subset to just get the harmony features
         melody_features=valid_x_arr[:, :valid_x_arr_mel.shape[1]],  # same for the melody features
@@ -142,6 +201,8 @@ def create_classifier(
         classifier=clf_opt,
         init_acc=valid_acc,
         n_iter=n_iter,
+        n_boot_features_har=n_boot_features_har,
+        n_boot_features_mel=n_boot_features_mel
     )
     permute_explainer.explain()
     permute_explainer.create_outputs(classifier_type)
@@ -221,6 +282,11 @@ if __name__ == "__main__":
         max_count=args["max_count"],
         classifier_type=args["classifier_type"],
         scale=args["scale"],
-        database_k_coefs=args["database_k_coefs"]
+        database_k_coefs=args["database_k_coefs"],
+        optimize=args["optimize"],
+        domain_boot_proportional=args["domain_boot_proportional"],
+        subsume_ngrams=args["subsume_ngrams"],
+        diatonic=args["diatonic"],
+        use_mode=args["use_mode"]
     )
     logger.info('Done!')

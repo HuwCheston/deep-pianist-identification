@@ -1373,6 +1373,156 @@ class BarPlotWhiteboxFeatureCounts(BasePlot):
         save_fig_all_exts(fp, self.fig)
 
 
+class BarPlotWhiteboxFeatureUniqueTracks(BasePlot):
+    MAX_FEATURES = 50
+    DESIRED_N_LENGTH = 3
+
+    def __init__(self, all_features):
+        self.n_features = len(all_features)
+        self.df = self._format_df(all_features)
+        self.fig, self.ax = plt.subplots(nrows=1, ncols=1, figsize=(WIDTH, WIDTH / 2.5))
+        self.ax2 = self.ax.twinx()
+
+    def _format_df(self, all_features) -> pd.DataFrame:
+        from collections import defaultdict
+        from ast import literal_eval
+
+        ngram_counts = defaultdict(int)
+        # Iterate through each dictionary (= one track)
+        for d in all_features:
+            # Iterate through each key (= one n-gram in the track)
+            for key, vals in d.items():
+                if len(literal_eval(key)) != self.DESIRED_N_LENGTH:
+                    continue
+                # Increase the global count for this n-gram
+                ngram_counts[key] += 1
+
+        unique_tracks = sorted(ngram_counts.items(), key=lambda k_v: k_v[1], reverse=True)[:self.MAX_FEATURES]
+        unique_df = pd.DataFrame(unique_tracks, columns=["n", "count_raw"])
+
+        # Calculate percentage separately
+        unique_df["count_pct"] = (unique_df["count_raw"] / len(all_features)) * 100
+        unique_df["n"] = unique_df["n"].apply(self.map_ngram_to_pitches)
+        return unique_df
+
+    @staticmethod
+    def map_ngram_to_pitches(intervals: str) -> str:
+        pitch_set = [0]
+        current_pitch = 0
+        for interval in eval(intervals):
+            current_pitch += interval
+            pitch_set.append(current_pitch)
+        return str(tuple(pitch_set))
+
+    def _create_plot(self):
+        sns.barplot(
+            data=self.df,
+            x="n",
+            y="count_raw",
+            ax=self.ax,
+            edgecolor=BLACK,
+            linewidth=LINEWIDTH,
+            linestyle=LINESTYLE,
+            zorder=10,
+            color=RED
+        )
+
+    def _format_ax(self):
+        self.ax.set_ylabel("Number of recordings containing feature")
+        self.ax.set_xlabel("Feature")
+        self.ax2.set_ylim(
+            (self.ax.get_ylim()[0] / self.n_features) * 100,
+            (self.ax.get_ylim()[1] / self.n_features) * 100
+        )
+        self.ax2.set_ylabel("Fraction of dataset (%)")
+        self.ax.set_xticks(self.ax.get_xticks(), labels=self.ax.get_xticklabels(), rotation=90)
+        plt.setp(self.ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
+        self.ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
+        self.ax2.tick_params(axis='y', width=TICKWIDTH, color=BLACK)
+        self.ax.grid(axis='y', zorder=0, **GRID_KWS)
+
+    def _format_fig(self):
+        self.fig.tight_layout()
+
+    def save_fig(self):
+        fold = os.path.join(utils.get_project_root(), "reports/figures/whitebox")
+        if not os.path.isdir(fold):
+            os.makedirs(fold)
+        fp = os.path.join(fold, f"barplot_feature_unique_track_counts")
+        save_fig_all_exts(fp, self.fig)
+
+
+class BarPlotWhiteboxNGramFeatureCounts(BasePlot):
+    MAX_FEATURES = 50
+    DESIRED_N_LENGTH = 3
+
+    def __init__(self, all_features):
+        self.n_features = len(all_features)
+        self.df = self._format_df(all_features)
+        self.fig, self.ax = plt.subplots(nrows=1, ncols=1, figsize=(WIDTH, WIDTH / 2.5))
+
+    def _format_df(self, all_features) -> pd.DataFrame:
+        from collections import defaultdict
+        from ast import literal_eval
+
+        ngram_counts = defaultdict(int)
+        # Iterate through each dictionary (= one track)
+        for d in all_features:
+            # Iterate through each key (= one n-gram in the track)
+            for key, vals in d.items():
+                if len(literal_eval(key)) != self.DESIRED_N_LENGTH:
+                    continue
+                # Increase the global count for this n-gram
+                ngram_counts[key] += vals
+
+        unique_tracks = sorted(ngram_counts.items(), key=lambda k_v: k_v[1], reverse=True)[:self.MAX_FEATURES]
+        unique_df = pd.DataFrame(unique_tracks, columns=["n", "count"])
+
+        # Calculate percentage separately
+        unique_df["n"] = unique_df["n"].apply(self.map_ngram_to_pitches)
+        return unique_df
+
+    @staticmethod
+    def map_ngram_to_pitches(intervals: str) -> str:
+        pitch_set = [0]
+        current_pitch = 0
+        for interval in eval(intervals):
+            current_pitch += interval
+            pitch_set.append(current_pitch)
+        return str(tuple(pitch_set))
+
+    def _create_plot(self):
+        sns.barplot(
+            data=self.df,
+            x="n",
+            y="count",
+            ax=self.ax,
+            edgecolor=BLACK,
+            linewidth=LINEWIDTH,
+            linestyle=LINESTYLE,
+            zorder=10,
+            color=RED
+        )
+
+    def _format_ax(self):
+        self.ax.set_ylabel("Count")
+        self.ax.set_xlabel("Feature")
+        self.ax.set_xticks(self.ax.get_xticks(), labels=self.ax.get_xticklabels(), rotation=90)
+        plt.setp(self.ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
+        self.ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
+        self.ax.grid(axis='y', zorder=0, **GRID_KWS)
+
+    def _format_fig(self):
+        self.fig.tight_layout()
+
+    def save_fig(self):
+        fold = os.path.join(utils.get_project_root(), "reports/figures/whitebox")
+        if not os.path.isdir(fold):
+            os.makedirs(fold)
+        fp = os.path.join(fold, f"barplot_4gram_feature_counts")
+        save_fig_all_exts(fp, self.fig)
+
+
 class BarPlotConceptClassAccuracy(BasePlot):
     BAR_KWS = dict(edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, zorder=10)
 
@@ -1573,12 +1723,82 @@ class LinePlotWhiteboxAccuracyN(BasePlot):
         save_fig_all_exts(out, self.fig)
 
 
+class LinePlotWhiteboxAccuracyMaxMinFeatures(BasePlot):
+    ROOT = os.path.join(utils.get_project_root(), 'references/whitebox/max_features_experiments')
+    MAX_N_RESULTS = [100, 250, 500, 750, 1000, 1250, 1500, 10000]
+    MIN_N_RESULTS = [5, 10, 25, 50, 100, 150, 200]
+    LINE_KWS = dict(linewidth=LINEWIDTH * 2, linestyle=LINESTYLE, color=BLACK)
+
+    def __init__(self, _=None):
+        super().__init__()
+        self.df = self._format_df(None)
+        self.fig, self.ax = plt.subplots(1, 2, sharex=False, sharey=False, figsize=(WIDTH, WIDTH // 2))
+
+    def _format_df(self, _):
+        def load_max_acc(ex):
+            path = os.path.join(self.ROOT, f'20class_80min_lr_harmony+melody_23456_min10_max{ex}.csv')
+            return pd.read_csv(path)['accuracy'].max()
+
+        def load_min_acc(ex):
+            path = os.path.join(self.ROOT, f'20class_80min_lr_harmony+melody_23456_min{ex}_max1000.csv')
+            return pd.read_csv(path)['accuracy'].max()
+
+        res = []
+        for ext in self.MAX_N_RESULTS:
+            res.append({
+                'n': ext if ext < 2000 else 1629,
+                'acc': load_max_acc(ext),
+                'experiment': 'max_n'
+            })
+        for ext in self.MIN_N_RESULTS:
+            res.append({
+                'n': ext,
+                'acc': load_min_acc(ext),
+                'experiment': 'min_n'
+            })
+
+        res = pd.DataFrame(res).sort_values(by=['experiment', 'n']).reset_index(drop=True)
+        return res
+
+    def _create_plot(self):
+        for ax, exp in zip(self.ax.flatten(), ['max_n', 'min_n']):
+            sub = self.df[self.df['experiment'] == exp].reset_index(drop=True)
+            ax.plot(sub['n'], sub['acc'], **self.LINE_KWS)
+
+    def _format_ax(self):
+        for ax in self.ax.flatten():
+            ax.set(ylabel='Optimized validation accuracy (LR)', )
+            ax.set_xticks(ax.get_xticks(), labels=ax.get_xticklabels(), rotation=90)
+            plt.setp(ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
+            ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
+            ax.grid(axis='y', zorder=0, **GRID_KWS)
+
+        self.ax[0].set(
+            xticks=self.MAX_N_RESULTS[:-1] + [1629],
+            xticklabels=self.MAX_N_RESULTS[:-1] + ["None"],
+            xlabel="Maximum recordings containing feature"
+        )
+        self.ax[1].set(
+            xticks=self.MIN_N_RESULTS,
+            xticklabels=self.MIN_N_RESULTS,
+            xlabel="Minimum recordings containing feature",
+            xlim=(-2, max(self.MIN_N_RESULTS) + 10)
+        )
+
+    def _format_fig(self):
+        self.fig.tight_layout()
+
+    def save_fig(self):
+        out = os.path.join(utils.get_project_root(), 'reports/figures/whitebox/optimization_results_max_min_features')
+        save_fig_all_exts(out, self.fig)
+
+
 class BigramplotPCAFeatureCount(BasePlot):
-    TEXT_KWS = dict(ha='center', va='center')
+    TEXT_KWS = dict(ha='center', va='center',  zorder=100)
     CIRCLE_KWS = dict(color=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, fill=False, alpha=ALPHA)
     LINE_KWS = dict(color=BLACK, linewidth=LINEWIDTH, linestyle=DOTTED, alpha=ALPHA)
-    N_SLICES = 8
-    N_FEATURES_PER_SLICE = 5
+    N_SLICES = 4
+    N_FEATURES_PER_SLICE = 3
     N_PERFORMERS_PER_SLICE = 20
 
     def __init__(self, df: pd.DataFrame, n_components_to_plot: int = 4, **kwargs):
@@ -1586,7 +1806,7 @@ class BigramplotPCAFeatureCount(BasePlot):
         self.n_components_to_plot = n_components_to_plot
         self.df = self._format_df(df)
         self.fig, self.ax = plt.subplots(
-            1, n_components_to_plot // 2, figsize=(WIDTH, WIDTH // 2), sharex=True, sharey=True
+            1, n_components_to_plot // 2, figsize=(WIDTH, WIDTH / 2), sharex=True, sharey=True
         )
 
     def _format_df(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -1625,7 +1845,7 @@ class BigramplotPCAFeatureCount(BasePlot):
         # We need to add some objects to the plot or else `adjust_text` doesn't seem to work
         ax.arrow(0, 0, row['loading_x'], row['loading_y'], alpha=0.)
         txt = m21_utils.intervals_to_pitches(row['label'])
-        return ax.text(row['loading_x'], row['loading_y'], txt, fontsize=FONTSIZE / 1.5, **self.TEXT_KWS)
+        return ax.text(row['loading_x'], row['loading_y'], txt, fontsize=FONTSIZE, **self.TEXT_KWS)
 
     def _create_plot(self):
         for ax, comp1_idx, comp2_idx in zip(
@@ -1655,12 +1875,19 @@ class BigramplotPCAFeatureCount(BasePlot):
                 for idx, row in to_plot.iterrows():
                     txt = txt_func(row, ax)
                     texts.append(txt)
-            adjust_text(texts, ax=ax, expand=(1.3, 1.3), arrowprops=dict(arrowstyle='->', color=RED))
+            _, patches = adjust_text(texts, ax=ax, expand=(1.3, 1.3), arrowprops=dict(arrowstyle='->', color=BLACK), headwidth=5, zorder=-1, min_arrow_len=10)
+            for patch in patches:
+                patch.remove()
+                # tip = np.array(patch.xy)
+                # tail = np.array(patch.get_position())
+                # length = np.linalg.norm(tip - tail)
+                # if length < 0.25:
+                #     patch.remove()
 
     def _format_ax(self):
         for num, ax in zip(range(1, self.n_components_to_plot, 2), self.ax.flatten()):
             # We're plotting even-numbered PCAs on x-axis, odd-numbered on y
-            ax.set(xlim=(-1.1, 1.1), ylim=(-1.1, 1.1), xlabel=f'PCA {num}', ylabel=f'PCA {num + 1}')
+            ax.set(xlim=(-1.1, 1.1), ylim=(-1.1, 1.1), xlabel=f'PCA {num} loading', ylabel=f'PCA {num + 1} loading')
             plt.setp(ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
             ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
             # ax.grid(axis='both', zorder=0, **GRID_KWS)

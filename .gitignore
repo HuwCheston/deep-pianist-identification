@@ -104,6 +104,8 @@ target/
 *.csv
 *.gif
 *.mid
+*.MID
+!/references/skyline_evaluation/*.MID
 *.zip
 *.json
 *.png
@@ -113,6 +115,8 @@ target/
 *.html
 *.pdf
 *.svg
+*.txt
+!/references/data_splits/*.txt
 
 # Ignore model files used by MVSEP
 *.th

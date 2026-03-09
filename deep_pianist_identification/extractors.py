@@ -295,6 +295,7 @@ class HarmonyExtractor(RollExtractor):
         self.minimum_notes = kwargs.get('minimum_notes', 3)  # Only consider triads or greater
         self.quantize_resolution = kwargs.get('quantize_resolution', 0.3)  # Snap to 300ms, i.e. 1/4 note at mean JTD
         self.remove_highest_pitch = kwargs.get("remove_highest_pitch", False)
+        self.chorded = None
         # Initialise the parent class and call all the overridden methods
         super().__init__(midi_obj, clip_start=clip_start)
 
@@ -312,8 +313,8 @@ class HarmonyExtractor(RollExtractor):
                 note_end = quantize(note_end, self.quantize_resolution)
                 quantized_notes.append((note_start, note_end, note_pitch, note_velocity))
         # Group notes into chords and adjust the durations
-        chorded = list(self.group_chords(quantized_notes))
-        return self.adjust_durations(chorded)
+        self.chorded = list(self.group_chords(quantized_notes))
+        return self.adjust_durations(self.chorded)
 
     def group_chords(self, notes: list):
         """Group simultaneous notes with at least MINIMUM_NOTES into chords (iterables of notes)"""
