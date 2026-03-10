@@ -155,6 +155,12 @@ def create_classifier(
             pc.explain()
             pc.create_outputs()
 
+            if feat_type == "melody":
+                counters = pc.compute_counts_for_feature_usage(mel_features, all_xs_raw)
+                out = plotting.BarPlotPCAFeatureUsage(counters)
+                out.create_plot()
+                out.save_fig()
+
     # Optimize the classifier
     if not optimize:
         clf_opt, valid_acc, best_params = fit_classifier(

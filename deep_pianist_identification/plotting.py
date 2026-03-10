@@ -1794,11 +1794,11 @@ class LinePlotWhiteboxAccuracyMaxMinFeatures(BasePlot):
 
 
 class BigramplotPCAFeatureCount(BasePlot):
-    TEXT_KWS = dict(ha='center', va='center',  zorder=100)
+    TEXT_KWS = dict(ha='center', va='center', zorder=100)
     CIRCLE_KWS = dict(color=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, fill=False, alpha=ALPHA)
     LINE_KWS = dict(color=BLACK, linewidth=LINEWIDTH, linestyle=DOTTED, alpha=ALPHA)
     N_SLICES = 4
-    N_FEATURES_PER_SLICE = 3
+    N_FEATURES_PER_SLICE = 4
     N_PERFORMERS_PER_SLICE = 20
 
     def __init__(self, df: pd.DataFrame, n_components_to_plot: int = 4, **kwargs):
@@ -1875,7 +1875,8 @@ class BigramplotPCAFeatureCount(BasePlot):
                 for idx, row in to_plot.iterrows():
                     txt = txt_func(row, ax)
                     texts.append(txt)
-            _, patches = adjust_text(texts, ax=ax, expand=(1.3, 1.3), arrowprops=dict(arrowstyle='->', color=BLACK), headwidth=5, zorder=-1, min_arrow_len=10)
+            _, patches = adjust_text(texts, ax=ax, expand=(1.3, 1.3), arrowprops=dict(arrowstyle='->', color=BLACK),
+                                     headwidth=5, zorder=-1, min_arrow_len=10)
             for patch in patches:
                 patch.remove()
                 # tip = np.array(patch.xy)
@@ -1901,6 +1902,47 @@ class BigramplotPCAFeatureCount(BasePlot):
 
     def save_fig(self, out_path: str):
         save_fig_all_exts(out_path, self.fig)
+
+
+class BarPlotPCAFeatureUsage(BasePlot):
+    BAR_KWS = dict(
+        edgecolor=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, zorder=10,
+    )
+    COLORS = [BLUE, YELLOW]
+
+    def __init__(self, component_df: pd.DataFrame):
+        super().__init__()
+        self.component_df = component_df
+        self.output_path = os.path.join(
+            utils.get_project_root(),
+            'reports/figures/whitebox/barplot_pca_feature_counts',
+        )
+        self.fig, self.ax = plt.subplots(nrows=5, ncols=2, sharex=True, sharey=False, figsize=(WIDTH, WIDTH * 2))
+
+    def _create_plot(self) -> None:
+        for n_, (idx_a, comp) in enumerate(self.component_df.groupby("component")):
+            idx_sorters = comp.groupby("component_k")["abs_usage"].max().sort_values(ascending=False).index.to_list()
+            for n, idx_b in enumerate(idx_sorters):
+                comp_ = comp[comp["component_k"] == idx_b].sort_values(by="abs_usage", ascending=False)
+                ax_ = self.ax[n, n_]
+                g = sns.barplot(data=comp_, x="abs_usage", y="perf", ax=ax_, color=self.COLORS[n_], **self.BAR_KWS)
+                feat_out = m21_utils.intervals_to_pitches(comp_["feat"].iloc[0])
+                tit = f"Feature: {feat_out}" if n != 0 else f"Component {n_ + 1}\nFeature: {feat_out}"
+                g.set(title=tit, xlabel="", ylabel="")
+
+    def _format_ax(self) -> None:
+        for ax in self.ax.flatten():
+            plt.setp(ax.spines.values(), linewidth=LINEWIDTH, color=BLACK)
+            ax.tick_params(axis='both', width=TICKWIDTH, color=BLACK)
+            ax.grid(axis='x', zorder=0, **GRID_KWS)
+
+    def _format_fig(self) -> None:
+        self.fig.supxlabel("Number of appearances")
+        self.fig.supylabel("Pianist")
+        self.fig.tight_layout()
+
+    def save_fig(self) -> None:
+        save_fig_all_exts(self.output_path, self.fig)
 
 
 if __name__ == "__main__":

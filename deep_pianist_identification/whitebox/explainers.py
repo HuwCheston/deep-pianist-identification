@@ -6,6 +6,7 @@
 import json
 import os
 import pickle
+from ast import literal_eval
 from copy import deepcopy
 from typing import Any, Callable
 
@@ -645,3 +646,33 @@ class PCAFeatureCountsExplainer(WhiteBoxExplainer):
         bp = plotting.BigramplotPCAFeatureCount(self.df)
         bp.create_plot()
         bp.save_fig(os.path.join(self.output_dir, f'bigrams_{self.feature_type}_pca_k{self.feature_size}'))
+
+    def compute_counts_for_feature_usage(
+            self, feature_names: list[str], xs: np.ndarray, n_components: int = 2, n_features: int = 5
+    ) -> pd.DataFrame:
+        feats = self.df[(self.df["type"] == "feature") & (self.df["component"] < n_components)]
+        feats["loading_abs"] = feats["loading"].abs()
+
+        res = {}
+        for idx, comp in feats.groupby("component"):
+            topk = comp.sort_values(by="loading_abs", ascending=False)[:n_features].reset_index(drop=True)
+            feat_vals = topk["label"].to_list()
+            res[idx] = [literal_eval(f) for f in feat_vals]
+
+        p_res = []
+        for k, v in res.items():
+            for v_idx, v_ in enumerate(v):
+                mel_idx = [n for n, i in enumerate(feature_names) if literal_eval(i) == v_][0]
+                for p in np.unique(self.targets):
+                    p_idxs = [n for n, i in enumerate(self.targets) if i == p]
+                    mel_subset = xs[p_idxs, mel_idx]
+                    tot_usage = int(np.sum(mel_subset))
+                    p_res.append(dict(
+                        perf=self.class_mapping[p],
+                        feat=v_,
+                        component=k,
+                        component_k=v_idx,
+                        abs_usage=tot_usage,
+                    ))
+
+        return pd.DataFrame(p_res)
