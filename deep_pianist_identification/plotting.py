@@ -1798,7 +1798,7 @@ class BigramplotPCAFeatureCount(BasePlot):
     CIRCLE_KWS = dict(color=BLACK, linewidth=LINEWIDTH, linestyle=LINESTYLE, fill=False, alpha=ALPHA)
     LINE_KWS = dict(color=BLACK, linewidth=LINEWIDTH, linestyle=DOTTED, alpha=ALPHA)
     N_SLICES = 4
-    N_FEATURES_PER_SLICE = 3
+    N_FEATURES_PER_SLICE = 4
     N_PERFORMERS_PER_SLICE = 20
 
     def __init__(self, df: pd.DataFrame, n_components_to_plot: int = 4, **kwargs):
