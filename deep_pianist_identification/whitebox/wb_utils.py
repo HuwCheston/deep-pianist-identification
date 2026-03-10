@@ -77,7 +77,7 @@ GNB_OPTIMIZE_PARAMS = dict(
 )
 
 N_ITER = 1000  # default number of iterations for optimization process
-N_JOBS = 4  # number of parallel processing cpu cores. -1 means use all cores.
+N_JOBS = -1  # number of parallel processing cpu cores. -1 means use all cores.
 N_BOOT_FEATURES = 2000  # number of features to sample when bootstrapping permutation importance scores
 
 
