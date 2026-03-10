@@ -1925,7 +1925,7 @@ class BarPlotPCAFeatureUsage(BasePlot):
             for n, idx_b in enumerate(idx_sorters):
                 comp_ = comp[comp["component_k"] == idx_b].sort_values(by="abs_usage", ascending=False)
                 ax_ = self.ax[n, n_]
-                g = sns.barplot(data=comp_, x="abs_usage", y="perf", ax=ax_, color=self.COLORS[n_])
+                g = sns.barplot(data=comp_, x="abs_usage", y="perf", ax=ax_, color=self.COLORS[n_], **self.BAR_KWS)
                 feat_out = m21_utils.intervals_to_pitches(comp_["feat"].iloc[0])
                 tit = f"Feature: {feat_out}" if n != 0 else f"Component {n_ + 1}\nFeature: {feat_out}"
                 g.set(title=tit, xlabel="", ylabel="")
