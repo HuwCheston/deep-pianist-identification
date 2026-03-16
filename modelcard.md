@@ -144,8 +144,8 @@ For extensive information on model interpretability, refer to section 5.2. [of o
 **BibTeX:**
 
 ```
-@misc{cheston2025deconstructingjazzpianostyle,
-      title={Deconstructing Jazz Piano Style Using Machine Learning}, 
+@misc{cheston2025fingerprints,
+      title={Machine Learning of Artistic Fingerprints in Jazz}, 
       author={Huw Cheston and Reuben Bance and Peter M. C. Harrison},
       year={2025},
       eprint={2504.05009},
@@ -158,7 +158,7 @@ For extensive information on model interpretability, refer to section 5.2. [of o
 **APA:**
 
 ```
-Cheston, H., Bance, R., & Harrison, P. M. C. (2025). Deconstructing Jazz Piano Style Using Machine Learning (arXiv:2504.05009). arXiv. https://doi.org/10.48550/arXiv.2504.05009
+Cheston, H., Bance, R., & Harrison, P. M. C. (2025). Machine Learning of Artistic Fingerprints in Jazz (arXiv:2504.05009). arXiv. https://doi.org/10.48550/arXiv.2504.05009
 ```
 
 ## Model Card Authors
