@@ -1,11 +1,11 @@
-# Code from: Deconstructing Jazz Piano Style Using Machine Learning 🤔💭🎹
+# Code from: Machine Learning of Artistic Fingerprints in Jazz 🤔💭🎹
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![coverage](coverage-badge.svg)
 [![Check out our webapp!](https://img.shields.io/badge/Check%20out%20our%20webapp!-8A2BE2)](https://huwcheston.github.io/ImprovID-app/index.html)
 [![Model card](https://img.shields.io/badge/Model%20card-8A2BE2)](https://github.com/HuwCheston/deep-pianist-identification/blob/main/modelcard.md)
 
-This repository accompanies our paper "Deconstructing Jazz Piano Style Using Machine Learning". For more information, see [our preprint](https://arxiv.org/abs/2504.05009) or check out
+This repository accompanies our paper "Machine Learning of Artistic Fingerprints in Jazz". For more information, see [our preprint](https://arxiv.org/abs/2504.05009) or check out
 the [interactive web application.](https://huwcheston.github.io/ImprovID-app/index.html)
 
 The code in this repository was developed and tested using the following configuration:
@@ -126,8 +126,8 @@ If you refer to any aspect of this work, please cite the following preprint:
 <summary>View citation</summary>
 
 ```
-@misc{cheston2025deconstructingjazzpianostyle,
-      title={Deconstructing Jazz Piano Style Using Machine Learning}, 
+@misc{cheston2025fingerprints,
+      title={Machine Learning of Artistic Fingerprints in Jazz}, 
       author={Huw Cheston and Reuben Bance and Peter M. C. Harrison},
       year={2025},
       eprint={2504.05009},
