@@ -15,7 +15,7 @@ import optuna
 import pandas as pd
 from joblib import Parallel, delayed
 from loguru import logger
-from sklearn.metrics import accuracy_score, top_k_accuracy_score
+from sklearn.metrics import accuracy_score, top_k_accuracy_score, confusion_matrix
 from sklearn.model_selection import ParameterSampler
 from tqdm import tqdm
 
@@ -35,6 +35,21 @@ def log_topk_acc(validation_x: np.ndarray, validation_y: np.ndarray, classifier_
         for k in ACC_TOP_KS:
             topk_acc = top_k_accuracy_score(validation_y, valid_y_proba, k=k)
             logger.info(f'... top-{k} validation accuracy: {topk_acc:.6f}')
+
+
+def log_perclass_acc(valid_y_true: np.ndarray, valid_y_pred: np.ndarray, dataset: str = "20class_80min") -> None:
+    """Logs per-class accuracy for models"""
+    # compute the confusion matrix
+    matrix = confusion_matrix(valid_y_true, valid_y_pred)
+    perclass_acc = matrix.diagonal() / matrix.sum(axis=1)
+
+    # grab the mapping that goes from indices -> class names
+    class_mapping = utils.get_class_mapping(dataset)
+
+    # iterate over all classes and log the accuracy
+    for num, acc in enumerate(perclass_acc):
+        pianist_name = class_mapping[num]
+        logger.info(f"Validation accuracy for class {pianist_name}, idx {num}: {acc:.4f}")
 
 
 def save_classifier(outpath: str, classifier) -> None:
@@ -92,6 +107,8 @@ def fit_classifier(
     valid_y_pred = clf_opt.predict(valid_x)
     valid_acc = accuracy_score(valid_y, valid_y_pred)
     logger.info(f"... validation accuracy: {valid_acc:.6f}")
+    # log the perclass accuracy
+    log_perclass_acc(valid_y, valid_y_pred)
     # Get the top-k accuracy if we can
     log_topk_acc(valid_x, valid_y, clf_opt)
     return clf_opt, valid_acc, optimized_params
@@ -357,6 +374,9 @@ def fit_with_optimization(
     best_preds = best_model.predict(valid_x)
     best_acc = accuracy_score(valid_y, best_preds)
     logger.info(f"... validation accuracy: {best_acc:.6f}")
+
+    # log the perclass accuracy
+    log_perclass_acc(valid_y, best_preds)
 
     log_topk_acc(valid_x, valid_y, best_model)
 
