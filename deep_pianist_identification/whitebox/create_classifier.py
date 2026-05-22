@@ -42,6 +42,7 @@ def create_classifier(
     logger.info(f"... subsuming n-grams {subsume_ngrams}")
     logger.info(f"... diatonic features: {diatonic}")
     logger.info(f"... using mode: {use_mode}")
+    logger.info(f"... proportional domain bootstraping: {domain_boot_proportional}")
 
     # Get the class mapping dictionary from the dataset
     class_mapping = utils.get_class_mapping(dataset)

@@ -223,6 +223,7 @@ class DomainExplainer(WhiteBoxExplainer):
         self.n_boot_features_mel = n_boot_features_mel if n_boot_features_mel is not None else N_PERMUTATION_COEFS
         # We'll create this when calling `self.explain`
         self.df = None
+        self.df_raw = None
 
     def permutation_importance(self, features: np.ndarray) -> float:
         """Compute loss in accuracy vs non-permuted model with given permuted `features`"""
@@ -310,6 +311,7 @@ class DomainExplainer(WhiteBoxExplainer):
             std=np.std(accs),
             high=np.percentile(accs, 2.5),
             low=np.percentile(accs, 97.5),
+            raw=accs.tolist()
         )
 
     def explain(self) -> pd.DataFrame:
@@ -330,8 +332,8 @@ class DomainExplainer(WhiteBoxExplainer):
         super().create_outputs()
         # Save the dataframe, using the classifier type to make sure we don't overwrite previous runs
         out_name = f'domain_importance_{classifier_type}'
-        if self.n_boot_features_har is not None:
-            out_name += "_proportion"
+        # if self.n_boot_features_har is not None:
+        #     out_name += "_proportion"
         self.df.to_csv(os.path.join(self.output_dir, out_name + ".csv"))
 
 
