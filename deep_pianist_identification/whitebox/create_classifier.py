@@ -238,8 +238,8 @@ def create_classifier(
         n_iter=n_iter
     )
     # TODO: needs fixing
-    # database_explainer.explain()
-    # database_explainer.create_outputs()
+    database_explainer.explain()
+    database_explainer.create_outputs()
 
     # Log the mean and SD coefficients for melody and harmony to the console
     logger.info(
