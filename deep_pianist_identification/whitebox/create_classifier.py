@@ -262,8 +262,8 @@ def create_classifier(
         n_iter=n_iter,
     )
     # TODO: needs fixing
-    # lr_exp.explain()
-    # lr_exp.create_outputs()
+    lr_exp.explain()
+    lr_exp.create_outputs()
 
 
 if __name__ == "__main__":
