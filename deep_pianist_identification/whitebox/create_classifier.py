@@ -42,6 +42,7 @@ def create_classifier(
     logger.info(f"... subsuming n-grams {subsume_ngrams}")
     logger.info(f"... diatonic features: {diatonic}")
     logger.info(f"... using mode: {use_mode}")
+    logger.info(f"... proportional domain bootstraping: {domain_boot_proportional}")
 
     # Get the class mapping dictionary from the dataset
     class_mapping = utils.get_class_mapping(dataset)
@@ -238,8 +239,8 @@ def create_classifier(
         n_iter=n_iter
     )
     # TODO: needs fixing
-    # database_explainer.explain()
-    # database_explainer.create_outputs()
+    database_explainer.explain()
+    database_explainer.create_outputs()
 
     # Log the mean and SD coefficients for melody and harmony to the console
     logger.info(
@@ -262,8 +263,8 @@ def create_classifier(
         n_iter=n_iter,
     )
     # TODO: needs fixing
-    # lr_exp.explain()
-    # lr_exp.create_outputs()
+    lr_exp.explain()
+    lr_exp.create_outputs()
 
 
 if __name__ == "__main__":

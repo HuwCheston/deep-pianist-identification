@@ -371,15 +371,16 @@ class _StripplotTopKFeatures(BasePlot):
 
     def _add_performer_image(self, x: float = 0.95, y: float = 0.95):
         """Adds an image of the performer into the plot with the desired x- and y-coordinates"""
-        gh = f"{IMG_LOC}/{self.pianist_name.lower().replace(' ', '_')}.png"
-        try:
-            image = io.imread(gh)
-        except (HTTPError, URLError):
-            logger.warning(f"Couldn't find performer image for {self.pianist_name} at {gh}!")
-            return
-        imagebox = OffsetImage(image, zoom=1.0)
-        ab = AnnotationBbox(imagebox, (x, y), xycoords='axes fraction', frameon=False, box_alignment=(1., 1.))
-        self.ax.add_artist(ab)
+        return
+        # gh = f"{IMG_LOC}/{self.pianist_name.lower().replace(' ', '_')}.png"
+        # try:
+        #     image = io.imread(gh)
+        # except (HTTPError, URLError):
+        #     logger.warning(f"Couldn't find performer image for {self.pianist_name} at {gh}!")
+        #     return
+        # imagebox = OffsetImage(image, zoom=1.0)
+        # ab = AnnotationBbox(imagebox, (x, y), xycoords='axes fraction', frameon=False, box_alignment=(1., 1.))
+        # self.ax.add_artist(ab)
 
     def _format_ax(self):
         """Setting plot aesthetics on an axis-level basis"""
@@ -463,7 +464,7 @@ class StripplotTopKMelodyFeatures(_StripplotTopKFeatures):
                 self._add_notation(ng, y)
 
     def _format_ax(self):
-        self._add_performer_image()
+        # self._add_performer_image()
         self.ax.tick_params(right=True)
         # self.ax.set_title(f'{self.pianist_name}, melody features')
         self.ax.set(xlabel='Weights', ylabel='Feature')
@@ -552,7 +553,7 @@ class StripplotTopKHarmonyFeatures(_StripplotTopKFeatures):
         return score
 
     def _format_ax(self):
-        self._add_performer_image(x=0.125)
+        # self._add_performer_image(x=0.125)
         self.ax.tick_params(top=True)
         # self.ax.set_title(f'{self.pianist_name}, harmony features', y=1.175)
         self.ax.set(ylabel='Weights', xlabel='Feature')
